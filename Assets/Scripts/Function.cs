@@ -1,71 +1,47 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 
-
-/// <summary>
-/// </summary>
-/// 
 public enum Type { Variable, Value, UnaryOperator, Operator, Function, Result, Bracket, Comma, Error }
+
 public struct Symbol
 {
     public string m_name;
     public decimal m_value;
     public Type m_type;
+    public int m_argCount;
     public override string ToString()
     {
         return m_name;
     }
 }
-public delegate Symbol EvaluateFunctionDelegate(string name, params Object[] args);
+
+public delegate Symbol EvaluateFunctionDelegate(string name, params Symbol[] args);
+
 public class Function
 {
-    public decimal Result
+    private static readonly HashSet<string> KnownFunctions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        get
-        {
-            return m_result;
-        }
-    }
+        "sin", "cos", "tan", "cot", "cosh", "sinh", "tanh",
+        "log", "ln", "logn", "sqrt", "cbrt", "abs",
+        "acos", "asin", "atan", "atan2", "exp",
+        "max", "min", "floor", "ceil", "round", "sign"
+    };
 
-    public ArrayList Equation
-    {
-        get
-        {
-            return (ArrayList)m_equation.Clone();
-        }
-    }
-    public ArrayList Postfix
-    {
-        get
-        {
-            return (ArrayList)m_postfix.Clone();
-        }
-    }
+    public static bool UseRadians { get; set; } = true;
+
+    public decimal Result => m_result;
+    public ArrayList Equation => (ArrayList)m_equation.Clone();
+    public ArrayList Postfix => (ArrayList)m_postfix.Clone();
 
     public EvaluateFunctionDelegate DefaultFunctionEvaluation
     {
-        set
-        {
-            m_defaultFunctionEvaluation = value;
-        }
+        set => m_defaultFunctionEvaluation = value;
     }
 
-    public bool Error
-    {
-        get
-        {
-            return m_bError;
-        }
-    }
-
-    public string ErrorDescription
-    {
-        get
-        {
-            return m_sErrorDescription;
-        }
-    }
+    public bool Error => m_bError;
+    public string ErrorDescription => m_sErrorDescription;
 
     public ArrayList Variables
     {
@@ -96,14 +72,69 @@ public class Function
         }
     }
 
+    public void SetVariable(string name, decimal value)
+    {
+        for (int i = 0; i < m_postfix.Count; i++)
+        {
+            Symbol s = (Symbol)m_postfix[i];
+            if (s.m_type == Type.Variable && string.Equals(s.m_name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                s.m_value = value;
+                m_postfix[i] = s;
+            }
+        }
+    }
+
+    public void SetVariables(Dictionary<string, decimal> values)
+    {
+        for (int i = 0; i < m_postfix.Count; i++)
+        {
+            Symbol s = (Symbol)m_postfix[i];
+            if (s.m_type == Type.Variable && values.TryGetValue(s.m_name, out decimal val))
+            {
+                s.m_value = val;
+                m_postfix[i] = s;
+            }
+        }
+    }
+
     public Function()
-    { }
+    {
+    }
+
+    private void AddSymbolWithImplicitMultiplication(Symbol sym)
+    {
+        if (m_equation.Count > 0)
+        {
+            Symbol prev = (Symbol)m_equation[m_equation.Count - 1];
+            bool prevIsOperandOrClose = prev.m_type == Type.Value ||
+                                        prev.m_type == Type.Variable ||
+                                        prev.m_name == ")" || prev.m_name == "]" || prev.m_name == "}";
+
+            bool currIsOperandOrOpen = sym.m_type == Type.Value ||
+                                       sym.m_type == Type.Variable ||
+                                       sym.m_type == Type.Function ||
+                                       sym.m_name == "(" || sym.m_name == "[" || sym.m_name == "{";
+
+            if (prevIsOperandOrClose && currIsOperandOrOpen)
+            {
+                Symbol mulSym = new Symbol
+                {
+                    m_name = "*",
+                    m_value = 0,
+                    m_type = Type.Operator
+                };
+                m_equation.Add(mulSym);
+            }
+        }
+        m_equation.Add(sym);
+    }
 
     public void Parse(string equation)
     {
         int state = 1;
         string temp = "";
-        Symbol ctSymbol;
+        Symbol ctSymbol = new Symbol();
 
         m_bError = false;
         m_sErrorDescription = "None";
@@ -111,179 +142,252 @@ public class Function
         m_equation.Clear();
         m_postfix.Clear();
 
-        int nPos = 0;
-        //-- Remove all white spaces from the equation string --
-        equation = equation.Trim();
-        while ((nPos = equation.IndexOf(' ')) != -1)
-            equation = equation.Remove(nPos, 1);
+        if (string.IsNullOrWhiteSpace(equation))
+        {
+            m_bError = true;
+            m_sErrorDescription = "Denklem boş olamaz.";
+            return;
+        }
 
+        // We process whitespace as delimiter without deleting it globally
         for (int i = 0; i < equation.Length; i++)
         {
+            char ch = equation[i];
             switch (state)
             {
-                case 1:
-                    if (Char.IsNumber(equation[i]))
+                case 1: // Neutral
+                    if (char.IsWhiteSpace(ch))
+                    {
+                        continue;
+                    }
+                    if (char.IsDigit(ch) || ch == '.')
                     {
                         state = 2;
-                        temp += equation[i];
+                        temp += ch;
                     }
-                    else if (Char.IsLetter(equation[i]))
+                    else if (char.IsLetter(ch))
                     {
                         state = 3;
-                        temp += equation[i];
+                        temp += ch;
                     }
                     else
                     {
-                        ctSymbol.m_name = equation[i].ToString();
-                        ctSymbol.m_value = 0;
-                        switch (ctSymbol.m_name)
-                        {
-                            case ",":
-                            case ".":
-                                ctSymbol.m_type = Type.Comma;
-                                break;
-                            case "(":
-                            case ")":
-                            case "[":
-                            case "]":
-                            case "{":
-                            case "}":
-                                ctSymbol.m_type = Type.Bracket;
-                                break;
-                            default:
-                                if (m_equation.Count == 0)
-                                    ctSymbol.m_type = Type.UnaryOperator;
-                                else if ((((Symbol)m_equation[m_equation.Count - 1]).m_type == Type.Value) || (((Symbol)m_equation[m_equation.Count - 1]).m_type == Type.Variable)
-                                  || (((Symbol)m_equation[m_equation.Count - 1]).m_name == ")") || (((Symbol)m_equation[m_equation.Count - 1]).m_name == "]") || (((Symbol)m_equation[m_equation.Count - 1]).m_name == "}"))
-                                    ctSymbol.m_type = Type.Operator;
-                                else
-                                    ctSymbol.m_type = Type.UnaryOperator;
-                                break;
-                        }
-                        m_equation.Add(ctSymbol);
+                        ctSymbol = ClassifyNonAlphanumeric(ch.ToString());
+                        AddSymbolWithImplicitMultiplication(ctSymbol);
                     }
                     break;
-                case 2:
-                    if ((Char.IsNumber(equation[i])) || (equation[i] == '.') || (equation[i] == ','))
-                        temp += equation[i];
-                    else if (!Char.IsLetter(equation[i]))
+
+                case 2: // Reading Number
+                    if (char.IsDigit(ch) || ch == '.')
                     {
-                        state = 1;
-                        ctSymbol.m_name = temp;
-                        ctSymbol.m_value = Decimal.Parse(temp);
-                        ctSymbol.m_type = Type.Value;
-                        m_equation.Add(ctSymbol);
-                        ctSymbol.m_name = equation[i].ToString();
-                        ctSymbol.m_value = 0;
-                        switch (ctSymbol.m_name)
-                        {
-                            case ",":
-                                ctSymbol.m_type = Type.Comma;
-                                break;
-                            case "(":
-                            case ")":
-                            case "[":
-                            case "]":
-                            case "{":
-                            case "}":
-                                ctSymbol.m_type = Type.Bracket;
-                                break;
-                            default:
-                                if (m_equation.Count == 0)
-                                    ctSymbol.m_type = Type.UnaryOperator;
-                                else if ((((Symbol)m_equation[m_equation.Count - 1]).m_type == Type.Value) || (((Symbol)m_equation[m_equation.Count - 1]).m_type == Type.Variable)
-                                  || (((Symbol)m_equation[m_equation.Count - 1]).m_name == ")") || (((Symbol)m_equation[m_equation.Count - 1]).m_name == "]") || (((Symbol)m_equation[m_equation.Count - 1]).m_name == "}"))
-                                    ctSymbol.m_type = Type.Operator;
-                                else
-                                    ctSymbol.m_type = Type.UnaryOperator;
-                                break;
-                        }
-                        m_equation.Add(ctSymbol);
+                        temp += ch;
+                    }
+                    else if (char.IsWhiteSpace(ch))
+                    {
+                        if (!EmitNumberSymbol(temp)) return;
                         temp = "";
+                        state = 1;
                     }
-                    break;
-                case 3:
-                    if (Char.IsLetterOrDigit(equation[i]))
-                        temp += equation[i];
                     else
                     {
-                        state = 1;
-                        ctSymbol.m_name = temp;
-                        ctSymbol.m_value = 0;
-                        if (equation[i] == '(')
-                            ctSymbol.m_type = Type.Function;
+                        if (!EmitNumberSymbol(temp)) return;
+                        temp = "";
+
+                        if (char.IsLetter(ch))
+                        {
+                            state = 3;
+                            temp += ch;
+                        }
                         else
                         {
-                            if (ctSymbol.m_name == "pi")
-                                ctSymbol.m_value = DecimalMath.PI;
-                            else if (ctSymbol.m_name == "e")
-                                ctSymbol.m_value = DecimalMath.E;
-                            ctSymbol.m_type = Type.Variable;
+                            state = 1;
+                            ctSymbol = ClassifyNonAlphanumeric(ch.ToString());
+                            AddSymbolWithImplicitMultiplication(ctSymbol);
                         }
-                        m_equation.Add(ctSymbol);
-                        ctSymbol.m_name = equation[i].ToString();
-                        ctSymbol.m_value = 0;
-                        switch (ctSymbol.m_name)
+                    }
+                    break;
+
+                case 3: // Reading Identifier
+                    if (char.IsLetterOrDigit(ch))
+                    {
+                        temp += ch;
+                    }
+                    else if (char.IsWhiteSpace(ch))
+                    {
+                        // Lookahead to see if next non-whitespace is '('
+                        bool nextIsOpen = false;
+                        for (int k = i + 1; k < equation.Length; k++)
                         {
-                            case ",":
-                                ctSymbol.m_type = Type.Comma;
+                            if (!char.IsWhiteSpace(equation[k]))
+                            {
+                                nextIsOpen = (equation[k] == '(' || equation[k] == '[' || equation[k] == '{');
                                 break;
-                            case "(":
-                            case ")":
-                            case "[":
-                            case "]":
-                            case "{":
-                            case "}":
-                                ctSymbol.m_type = Type.Bracket;
-                                break;
-                            default:
-                                if (m_equation.Count == 0)
-                                    ctSymbol.m_type = Type.UnaryOperator;
-                                else if ((((Symbol)m_equation[m_equation.Count - 1]).m_type == Type.Value) || (((Symbol)m_equation[m_equation.Count - 1]).m_type == Type.Variable)
-                                  || (((Symbol)m_equation[m_equation.Count - 1]).m_name == ")") || (((Symbol)m_equation[m_equation.Count - 1]).m_name == "]") || (((Symbol)m_equation[m_equation.Count - 1]).m_name == "}"))
-                                    ctSymbol.m_type = Type.Operator;
-                                else
-                                    ctSymbol.m_type = Type.UnaryOperator;
-                                break;
+                            }
                         }
-                        m_equation.Add(ctSymbol);
+                        EmitIdentifierSymbol(temp, nextIsOpen);
                         temp = "";
+                        state = 1;
+                    }
+                    else
+                    {
+                        state = 1;
+                        EmitIdentifierSymbol(temp, ch == '(' || ch == '[' || ch == '{');
+                        temp = "";
+
+                        ctSymbol = ClassifyNonAlphanumeric(ch.ToString());
+                        AddSymbolWithImplicitMultiplication(ctSymbol);
                     }
                     break;
             }
         }
+
         if (temp != "")
         {
-            ctSymbol.m_name = temp;
             if (state == 2)
             {
-                ctSymbol.m_value = Decimal.Parse(temp);
-                ctSymbol.m_type = Type.Value;
+                if (!EmitNumberSymbol(temp)) return;
             }
             else
             {
-                if (ctSymbol.m_name == "pi")
-                    ctSymbol.m_value = DecimalMath.PI;
-                else if (ctSymbol.m_name == "e")
-                    ctSymbol.m_value = DecimalMath.E;
-                else
-                    ctSymbol.m_value = 0;
-                ctSymbol.m_type = Type.Variable;
+                EmitIdentifierSymbol(temp, false);
             }
-            m_equation.Add(ctSymbol);
         }
+    }
+
+    private bool EmitNumberSymbol(string temp)
+    {
+        if (!decimal.TryParse(temp, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal val))
+        {
+            m_bError = true;
+            m_sErrorDescription = "Geçersiz sayı formatı: " + temp;
+            return false;
+        }
+
+        Symbol sym = new Symbol
+        {
+            m_name = temp,
+            m_value = val,
+            m_type = Type.Value
+        };
+        AddSymbolWithImplicitMultiplication(sym);
+        return true;
+    }
+
+    private void EmitIdentifierSymbol(string temp, bool isNextOpenParen)
+    {
+        Symbol sym = new Symbol
+        {
+            m_name = temp,
+            m_value = 0
+        };
+
+        string lower = temp.ToLowerInvariant();
+        if (lower == "pi")
+        {
+            sym.m_value = DecimalMath.PI;
+            sym.m_type = Type.Value;
+        }
+        else if (lower == "e")
+        {
+            sym.m_value = DecimalMath.E;
+            sym.m_type = Type.Value;
+        }
+        else if (isNextOpenParen)
+        {
+            if (temp.Length == 1 && (temp == "x" || temp == "y" || temp == "z" || temp == "t" || temp == "u" || temp == "v"))
+            {
+                sym.m_type = Type.Variable;
+            }
+            else
+            {
+                sym.m_type = Type.Function;
+            }
+        }
+        else
+        {
+            sym.m_type = Type.Variable;
+        }
+        AddSymbolWithImplicitMultiplication(sym);
+    }
+
+    private Symbol ClassifyNonAlphanumeric(string token)
+    {
+        Symbol ctSymbol = new Symbol
+        {
+            m_name = token,
+            m_value = 0
+        };
+
+        switch (token)
+        {
+            case ",":
+            case ";":
+                ctSymbol.m_type = Type.Comma;
+                break;
+            case "(":
+            case ")":
+            case "[":
+            case "]":
+            case "{":
+            case "}":
+                ctSymbol.m_type = Type.Bracket;
+                break;
+            default:
+                if (m_equation.Count == 0)
+                {
+                    ctSymbol.m_type = Type.UnaryOperator;
+                }
+                else
+                {
+                    Symbol prev = (Symbol)m_equation[m_equation.Count - 1];
+                    if (prev.m_type == Type.Value || prev.m_type == Type.Variable ||
+                        prev.m_name == ")" || prev.m_name == "]" || prev.m_name == "}")
+                    {
+                        ctSymbol.m_type = Type.Operator;
+                    }
+                    else
+                    {
+                        ctSymbol.m_type = Type.UnaryOperator;
+                    }
+                }
+                break;
+        }
+        return ctSymbol;
     }
 
     public void Infix2Postfix()
     {
+        m_postfix.Clear();
         Symbol tpSym;
         Stack tpStack = new Stack();
+        Stack<int> fnArgCounts = new Stack<int>();
+
         foreach (Symbol sym in m_equation)
         {
             if ((sym.m_type == Type.Value) || (sym.m_type == Type.Variable))
                 m_postfix.Add(sym);
+            else if (sym.m_type == Type.Function)
+            {
+                tpStack.Push(sym);
+                fnArgCounts.Push(1);
+            }
             else if ((sym.m_name == "(") || (sym.m_name == "[") || (sym.m_name == "{"))
                 tpStack.Push(sym);
+            else if (sym.m_type == Type.Comma)
+            {
+                while (tpStack.Count > 0)
+                {
+                    tpSym = (Symbol)tpStack.Peek();
+                    if (tpSym.m_name == "(" || tpSym.m_name == "[" || tpSym.m_name == "{")
+                        break;
+                    m_postfix.Add(tpStack.Pop());
+                }
+                if (fnArgCounts.Count > 0)
+                {
+                    int c = fnArgCounts.Pop();
+                    fnArgCounts.Push(c + 1);
+                }
+            }
             else if ((sym.m_name == ")") || (sym.m_name == "]") || (sym.m_name == "}"))
             {
                 if (tpStack.Count > 0)
@@ -292,28 +396,56 @@ public class Function
                     while ((tpSym.m_name != "(") && (tpSym.m_name != "[") && (tpSym.m_name != "{"))
                     {
                         m_postfix.Add(tpSym);
+                        if (tpStack.Count == 0) break;
                         tpSym = (Symbol)tpStack.Pop();
+                    }
+
+                    if (tpStack.Count > 0 && ((Symbol)tpStack.Peek()).m_type == Type.Function)
+                    {
+                        Symbol fn = (Symbol)tpStack.Pop();
+                        fn.m_argCount = fnArgCounts.Count > 0 ? fnArgCounts.Pop() : 1;
+                        m_postfix.Add(fn);
                     }
                 }
             }
             else if (sym.m_type == Type.UnaryOperator)
             {
+                // Unary operators (like unary - or +) modify the operand to their right.
+                // They should never pop binary operators (^, *, /, +, -) from the stack.
+                tpStack.Push(sym);
+            }
+            else if (sym.m_name == "^")
+            {
+                // Right-associative operator ^
+                while (tpStack.Count > 0)
+                {
+                    tpSym = (Symbol)tpStack.Peek();
+                    if ((tpSym.m_type == Type.Operator || tpSym.m_type == Type.Function) &&
+                        Precedence(tpSym) > Precedence(sym))
+                    {
+                        m_postfix.Add(tpStack.Pop());
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
                 tpStack.Push(sym);
             }
             else
             {
-                if (tpStack.Count > 0)
+                while (tpStack.Count > 0)
                 {
-                    tpSym = (Symbol)tpStack.Pop();
-                    while ((tpStack.Count != 0) && ((tpSym.m_type == Type.UnaryOperator) || (tpSym.m_type == Type.Operator) || (tpSym.m_type == Type.Function) || (tpSym.m_type == Type.Comma)) && (Precedence(tpSym) >= Precedence(sym)))
+                    tpSym = (Symbol)tpStack.Peek();
+                    if (((tpSym.m_type == Type.UnaryOperator) || (tpSym.m_type == Type.Operator) || (tpSym.m_type == Type.Function)) &&
+                        (Precedence(tpSym) >= Precedence(sym)))
                     {
-                        m_postfix.Add(tpSym);
-                        tpSym = (Symbol)tpStack.Pop();
+                        m_postfix.Add(tpStack.Pop());
                     }
-                    if (((tpSym.m_type == Type.UnaryOperator) || (tpSym.m_type == Type.Operator) || (tpSym.m_type == Type.Function) || (tpSym.m_type == Type.Comma)) && (Precedence(tpSym) >= Precedence(sym)))
-                        m_postfix.Add(tpSym);
                     else
-                        tpStack.Push(tpSym);
+                    {
+                        break;
+                    }
                 }
                 tpStack.Push(sym);
             }
@@ -321,6 +453,10 @@ public class Function
         while (tpStack.Count > 0)
         {
             tpSym = (Symbol)tpStack.Pop();
+            if (tpSym.m_type == Type.Function && tpSym.m_argCount == 0)
+            {
+                tpSym.m_argCount = fnArgCounts.Count > 0 ? fnArgCounts.Pop() : 1;
+            }
             m_postfix.Add(tpSym);
         }
     }
@@ -329,7 +465,6 @@ public class Function
     {
         Symbol tpSym1, tpSym2, tpResult;
         Stack tpStack = new Stack();
-        ArrayList fnParam = new ArrayList();
         m_bError = false;
         foreach (Symbol sym in m_postfix)
         {
@@ -337,6 +472,12 @@ public class Function
                 tpStack.Push(sym);
             else if (sym.m_type == Type.UnaryOperator)
             {
+                if (tpStack.Count < 1)
+                {
+                    m_bError = true;
+                    m_sErrorDescription = "Sözdizimi hatası (eksik operand).";
+                    return;
+                }
                 tpSym1 = (Symbol)tpStack.Pop();
                 tpResult = Evaluate(sym, tpSym1);
                 if (tpResult.m_type == Type.Error)
@@ -349,6 +490,12 @@ public class Function
             }
             else if (sym.m_type == Type.Operator)
             {
+                if (tpStack.Count < 2)
+                {
+                    m_bError = true;
+                    m_sErrorDescription = "Sözdizimi hatası (eksik operand).";
+                    return;
+                }
                 tpSym1 = (Symbol)tpStack.Pop();
                 tpSym2 = (Symbol)tpStack.Pop();
                 tpResult = Evaluate(tpSym2, sym, tpSym1);
@@ -360,61 +507,41 @@ public class Function
                 }
                 tpStack.Push(tpResult);
             }
-            else if (sym.m_type == Type.Comma)
-            {
-                tpStack.Push(sym);
-            }
             else if (sym.m_type == Type.Function)
             {
-                fnParam.Clear();
-                tpSym1 = (Symbol)tpStack.Pop();
-                if ((tpSym1.m_type == Type.Value) || (tpSym1.m_type == Type.Variable) || (tpSym1.m_type == Type.Result))
+                int count = sym.m_argCount > 0 ? sym.m_argCount : 1;
+                if (tpStack.Count < count)
                 {
-                    tpResult = EvaluateFunction(sym.m_name, tpSym1);
-                    if (tpResult.m_type == Type.Error)
-                    {
-                        m_bError = true;
-                        m_sErrorDescription = tpResult.m_name;
-                        return;
-                    }
-                    tpStack.Push(tpResult);
+                    m_bError = true;
+                    m_sErrorDescription = $"Fonksiyon '{sym.m_name}' için argüman eksik.";
+                    return;
                 }
-                else if (tpSym1.m_type == Type.Comma)
+
+                Symbol[] fnParam = new Symbol[count];
+                for (int i = count - 1; i >= 0; i--)
                 {
-                    while (tpSym1.m_type == Type.Comma)
-                    {
-                        tpSym1 = (Symbol)tpStack.Pop();
-                        fnParam.Add(tpSym1);
-                        tpSym1 = (Symbol)tpStack.Pop();
-                    }
-                    fnParam.Add(tpSym1);
-                    tpResult = EvaluateFunction(sym.m_name, fnParam.ToArray());
-                    if (tpResult.m_type == Type.Error)
-                    {
-                        m_bError = true;
-                        m_sErrorDescription = tpResult.m_name;
-                        return;
-                    }
-                    tpStack.Push(tpResult);
+                    fnParam[i] = (Symbol)tpStack.Pop();
                 }
-                else
+
+                tpResult = EvaluateFunction(sym.m_name, fnParam);
+                if (tpResult.m_type == Type.Error)
                 {
-                    tpStack.Push(tpSym1);
-                    tpResult = EvaluateFunction(sym.m_name);
-                    if (tpResult.m_type == Type.Error)
-                    {
-                        m_bError = true;
-                        m_sErrorDescription = tpResult.m_name;
-                        return;
-                    }
-                    tpStack.Push(tpResult);
+                    m_bError = true;
+                    m_sErrorDescription = tpResult.m_name;
+                    return;
                 }
+                tpStack.Push(tpResult);
             }
         }
         if (tpStack.Count == 1)
         {
             tpResult = (Symbol)tpStack.Pop();
             m_result = tpResult.m_value;
+        }
+        else if (tpStack.Count > 1)
+        {
+            m_bError = true;
+            m_sErrorDescription = "İfade tam çözümlenemedi (fazla terim).";
         }
     }
 
@@ -425,16 +552,16 @@ public class Function
             case Type.Bracket:
                 return 7;
             case Type.Function:
-                return 5;
+                return 6;
             case Type.UnaryOperator:
-                return 4;
+                return 3;
             case Type.Comma:
                 return 0;
         }
         switch (sym.m_name)
         {
             case "^":
-                return 3;
+                return 5;
             case "/":
             case "*":
             case "%":
@@ -448,21 +575,21 @@ public class Function
 
     protected Symbol Evaluate(Symbol opr, Symbol sym1)
     {
-        Symbol result;
+        Symbol result = default;
         result.m_name = opr.m_name + sym1.m_name;
         result.m_type = Type.Result;
         result.m_value = 0;
         switch (opr.m_name)
         {
             case "+":
-                result.m_value = sym1.m_value; ;
+                result.m_value = sym1.m_value;
                 break;
             case "-":
                 result.m_value = -1 * sym1.m_value;
                 break;
             default:
                 result.m_type = Type.Error;
-                result.m_name = "Undefine unary operator: " + opr.m_name + ".";
+                result.m_name = "Tanımsız tekli operatör: " + opr.m_name;
                 break;
         }
         return result;
@@ -470,243 +597,390 @@ public class Function
 
     protected Symbol Evaluate(Symbol sym1, Symbol opr, Symbol sym2)
     {
-        Symbol result;
+        Symbol result = default;
         result.m_name = sym1.m_name + opr.m_name + sym2.m_name;
         result.m_type = Type.Result;
         result.m_value = 0;
-        switch (opr.m_name)
+        try
         {
-            case "^":
-                result.m_value = DecimalMath.Pow(sym1.m_value, sym2.m_value);
-                break;
-            case "/":
-                {
+            switch (opr.m_name)
+            {
+                case "^":
+                    result.m_value = DecimalMath.Pow(sym1.m_value, sym2.m_value);
+                    break;
+                case "/":
                     if (sym2.m_value != 0)
                         result.m_value = sym1.m_value / sym2.m_value;
                     else
                     {
-                        result.m_name = "Divide by Zero.";
+                        result.m_name = "Sıfıra bölme hatası (Divide by Zero).";
                         result.m_type = Type.Error;
                     }
                     break;
-                }
-            case "*":
-                result.m_value = sym1.m_value * sym2.m_value;
-                break;
-            case "%":
-                result.m_value = sym1.m_value % sym2.m_value;
-                break;
-            case "+":
-                result.m_value = sym1.m_value + sym2.m_value;
-                break;
-            case "-":
-                result.m_value = sym1.m_value - sym2.m_value;
-                break;
-            default:
-                result.m_type = Type.Error;
-                result.m_name = "Undefine operator: " + opr.m_name + ".";
-                break;
+                case "*":
+                    result.m_value = sym1.m_value * sym2.m_value;
+                    break;
+                case "%":
+                    if (sym2.m_value != 0)
+                        result.m_value = sym1.m_value % sym2.m_value;
+                    else
+                    {
+                        result.m_name = "Sıfıra göre mod alınamaz.";
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "+":
+                    result.m_value = sym1.m_value + sym2.m_value;
+                    break;
+                case "-":
+                    result.m_value = sym1.m_value - sym2.m_value;
+                    break;
+                default:
+                    result.m_type = Type.Error;
+                    result.m_name = "Tanımsız operatör: " + opr.m_name;
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            result.m_type = Type.Error;
+            result.m_name = ex.Message;
         }
         return result;
     }
 
-    protected Symbol EvaluateFunction(string name, params Object[] args)
+    protected Symbol EvaluateFunction(string name, params Symbol[] args)
     {
-        Symbol result;
+        Symbol result = default;
         result.m_name = "";
         result.m_type = Type.Result;
         result.m_value = 0;
-        switch (name)
+
+        string lowerName = name.ToLowerInvariant();
+        decimal angleFactor = UseRadians ? 1.0m : (DecimalMath.PI / 180.0m);
+        decimal invAngleFactor = UseRadians ? 1.0m : (180.0m / DecimalMath.PI);
+
+        try
         {
-            case "cos":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Cos(((Symbol)args[0]).m_value * DecimalMath.PI / 180);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "sin":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Sin(((Symbol)args[0]).m_value * DecimalMath.PI / 180);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "tan":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Tan(((Symbol)args[0]).m_value * DecimalMath.PI / 180);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "cosh":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Cosh(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "sinh":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Sinh(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "tanh":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Tanh(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "log":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Log10(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "ln":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Log(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "logn":
-                if (args.Length == 2)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + "'" + ((Symbol)args[1]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Log(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "sqrt":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Sqrt(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "abs":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Abs(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "acos":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Acos(((Symbol)args[0]).m_value) * 180 / DecimalMath.PI;
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "asin":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Asin(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "atan":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Atan(((Symbol)args[0]).m_value) * 180 / DecimalMath.PI;
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            case "exp":
-                if (args.Length == 1)
-                {
-                    result.m_name = name + "(" + ((Symbol)args[0]).m_value.ToString() + ")";
-                    result.m_value = DecimalMath.Exp(((Symbol)args[0]).m_value);
-                }
-                else
-                {
-                    result.m_name = "Invalid number of parameters in: " + name + ".";
-                    result.m_type = Type.Error;
-                }
-                break;
-            default:
-                if (m_defaultFunctionEvaluation != null)
-                    result = m_defaultFunctionEvaluation(name, args);
-                else
-                {
-                    result.m_name = "Function: " + name + ", not found.";
-                    result.m_type = Type.Error;
-                }
-                break;
+            switch (lowerName)
+            {
+                case "cos":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Cos(v * angleFactor);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "sin":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Sin(v * angleFactor);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "tan":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Tan(v * angleFactor);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "cot":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        decimal sinVal = DecimalMath.Sin(v * angleFactor);
+                        if (DecimalMath.Abs(sinVal) <= 1e-25m)
+                        {
+                            result.m_name = "Cot(x) bu noktada tanımsızdır (sin(x) = 0).";
+                            result.m_type = Type.Error;
+                        }
+                        else
+                        {
+                            result.m_value = DecimalMath.Cos(v * angleFactor) / sinVal;
+                        }
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "cosh":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Cosh(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "sinh":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Sinh(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "tanh":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Tanh(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "log":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Log10(v);
+                    }
+                    else if (args.Length == 2)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        decimal b = ((Symbol)args[1]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + "," + b.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Log(v) / DecimalMath.Log(b);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "ln":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Log(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "logn":
+                    if (args.Length == 2)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        decimal b = ((Symbol)args[1]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + "," + b.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Log(v) / DecimalMath.Log(b);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "sqrt":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Sqrt(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "cbrt":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = v < 0 ? -DecimalMath.Pow(-v, 1m / 3m) : DecimalMath.Pow(v, 1m / 3m);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "abs":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Abs(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "acos":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Acos(v) * invAngleFactor;
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "asin":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Asin(v) * invAngleFactor;
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "atan":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Atan(v) * invAngleFactor;
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "atan2":
+                    if (args.Length == 2)
+                    {
+                        decimal y = ((Symbol)args[0]).m_value;
+                        decimal x = ((Symbol)args[1]).m_value;
+                        result.m_name = name + "(" + y.ToString(CultureInfo.InvariantCulture) + "," + x.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Atan2(y, x) * invAngleFactor;
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: atan2(y, x)";
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "exp":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                        result.m_value = DecimalMath.Exp(v);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "max":
+                    if (args.Length == 2)
+                    {
+                        decimal a = ((Symbol)args[0]).m_value;
+                        decimal b = ((Symbol)args[1]).m_value;
+                        result.m_value = Math.Max(a, b);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: max(a, b)";
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "min":
+                    if (args.Length == 2)
+                    {
+                        decimal a = ((Symbol)args[0]).m_value;
+                        decimal b = ((Symbol)args[1]).m_value;
+                        result.m_value = Math.Min(a, b);
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: min(a, b)";
+                        result.m_type = Type.Error;
+                    }
+                    break;
+                case "floor":
+                    if (args.Length == 1)
+                    {
+                        result.m_value = decimal.Floor(((Symbol)args[0]).m_value);
+                    }
+                    break;
+                case "ceil":
+                    if (args.Length == 1)
+                    {
+                        result.m_value = decimal.Ceiling(((Symbol)args[0]).m_value);
+                    }
+                    break;
+                case "round":
+                    if (args.Length == 1)
+                    {
+                        result.m_value = decimal.Round(((Symbol)args[0]).m_value);
+                    }
+                    break;
+                case "sign":
+                    if (args.Length == 1)
+                    {
+                        result.m_value = DecimalMath.Sign(((Symbol)args[0]).m_value);
+                    }
+                    break;
+                default:
+                    if (m_defaultFunctionEvaluation != null)
+                        result = m_defaultFunctionEvaluation(name, args);
+                    else
+                    {
+                        result.m_name = "Fonksiyon bulunamadı: " + name;
+                        result.m_type = Type.Error;
+                    }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            result.m_name = ex.Message;
+            result.m_type = Type.Error;
         }
         return result;
     }

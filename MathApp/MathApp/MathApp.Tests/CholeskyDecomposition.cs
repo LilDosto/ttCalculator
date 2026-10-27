@@ -56,6 +56,7 @@ namespace DotNetMatrix
 			// Main loop.
 			for (int j = 0; j < n; j++)
 			{
+				if (!isspd) break;
 				decimal[] Lrowj = L[j];
 				decimal d = 0.0m;
 				for (int k = 0; k < j; k++)
@@ -66,13 +67,25 @@ namespace DotNetMatrix
 					{
 						s += Lrowk[i] * Lrowj[i];
 					}
+					if (L[k][k] <= 0.0m)
+					{
+						isspd = false;
+						break;
+					}
 					Lrowj[k] = s = (A[j][k] - s) / L[k][k];
 					d = d + s * s;
 					isspd = isspd & (A[k][j] == A[j][k]);
 				}
+				if (!isspd) break;
 				d = A[j][j] - d;
 				isspd = isspd & (d > 0.0m);
-				L[j][j] = (decimal)Math.Sqrt(Math.Max((double)d, 0));
+				if (!isspd || d <= 0.0m)
+				{
+					isspd = false;
+					L[j][j] = 0.0m;
+					break;
+				}
+				L[j][j] = DecimalMath.Sqrt(d);
 				for (int k = j + 1; k < n; k++)
 				{
 					L[j][k] = 0.0m;

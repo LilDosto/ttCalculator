@@ -1,3 +1,5 @@
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace MathApp.Controls
 {
@@ -16,162 +18,213 @@ namespace MathApp.Controls
 
         private void InitializeComponent()
         {
-            this.lblTitle = new System.Windows.Forms.Label();
-            this.pnlContent = new System.Windows.Forms.Panel();
-            
-            this.lblFunction = new System.Windows.Forms.Label();
-            this.txtFunction = new System.Windows.Forms.TextBox();
-            this.lblVariable = new System.Windows.Forms.Label();
-            this.txtVariable = new System.Windows.Forms.TextBox();
-            this.lblCenterPoint = new System.Windows.Forms.Label();
-            this.txtCenterPoint = new System.Windows.Forms.TextBox();
-            this.lblOrder = new System.Windows.Forms.Label();
-            this.numOrder = new System.Windows.Forms.NumericUpDown();
-            this.btnCalculate = new System.Windows.Forms.Button();
-            this.lblResult = new System.Windows.Forms.Label();
-            this.txtResult = new System.Windows.Forms.TextBox();
+            this.pnlHeader = ThemeHelper.CreateHeaderPanel(
+                "Taylor Serisi Hesaplayıcı (Tek Değişkenli)",
+                "Bir f(x) fonksiyonunun verilen a merkez noktasındaki n. dereceden Taylor / Maclaurin polinom açılımı ve türev katsayıları.");
+
+            this.pnlContent = new Panel();
+            this.pnlPresets = new FlowLayoutPanel();
+            this.lblPresets = new Label();
+            this.btnExSin = ThemeHelper.CreateExampleChip("Örnek 1: sin(x) (a=0, n=5)");
+            this.btnExExp = ThemeHelper.CreateExampleChip("Örnek 2: exp(x) (a=0, n=4)");
+            this.btnExLn = ThemeHelper.CreateExampleChip("Örnek 3: ln(x) (a=1, n=4)");
+
+            this.pnlInputCard = new Panel();
+            this.lblFunction = new Label();
+            this.txtFunction = new TextBox();
+            this.lblVariable = new Label();
+            this.txtVariable = new TextBox();
+            this.lblCenterPoint = new Label();
+            this.txtCenterPoint = new TextBox();
+            this.lblOrder = new Label();
+            this.numOrder = new NumericUpDown();
+            this.btnCalculate = ThemeHelper.CreateActionButton("📐 Taylor Polinomunu Hesapla", 220, 36, true);
+
+            // Hero Polynomial Card
+            this.pnlHeroPoly = new Panel();
+            this.lblHeroPolyTitle = new Label();
+            this.lblHeroPolyValue = new Label();
+            this.btnCopyPoly = ThemeHelper.CreateCopyButton("📋 Polinomu Kopyala");
+
+            this.lblResult = new Label();
+            this.txtResult = new TextBox();
 
             this.pnlContent.SuspendLayout();
+            this.pnlInputCard.SuspendLayout();
+            this.pnlHeroPoly.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numOrder)).BeginInit();
             this.SuspendLayout();
 
-            // 
-            // lblTitle
-            // 
-            this.lblTitle.Dock = System.Windows.Forms.DockStyle.Top;
-            this.lblTitle.Font = new System.Drawing.Font("Segoe UI Light", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.lblTitle.ForeColor = System.Drawing.Color.White;
-            this.lblTitle.Location = new System.Drawing.Point(0, 0);
-            this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Size = new System.Drawing.Size(800, 60);
-            this.lblTitle.TabIndex = 0;
-            this.lblTitle.Text = "Taylor Series Calculator";
-            this.lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.pnlContent.Dock = DockStyle.Fill;
+            this.pnlContent.BackColor = ThemeHelper.DarkBackground;
+            this.pnlContent.Padding = new Padding(24, 12, 24, 20);
+            this.pnlContent.AutoScroll = true;
 
-            // 
-            // pnlContent
-            // 
-            this.pnlContent.Controls.Add(this.txtResult);
-            this.pnlContent.Controls.Add(this.lblResult);
-            this.pnlContent.Controls.Add(this.btnCalculate);
-            this.pnlContent.Controls.Add(this.numOrder);
-            this.pnlContent.Controls.Add(this.lblOrder);
-            this.pnlContent.Controls.Add(this.txtCenterPoint);
-            this.pnlContent.Controls.Add(this.lblCenterPoint);
-            this.pnlContent.Controls.Add(this.txtVariable);
-            this.pnlContent.Controls.Add(this.lblVariable);
-            this.pnlContent.Controls.Add(this.txtFunction);
-            this.pnlContent.Controls.Add(this.lblFunction);
-            this.pnlContent.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlContent.Location = new System.Drawing.Point(0, 60);
-            this.pnlContent.Name = "pnlContent";
-            this.pnlContent.Size = new System.Drawing.Size(800, 540);
-            this.pnlContent.TabIndex = 1;
+            // Presets
+            this.lblPresets.Text = "⚡ Hızlı Örnekler:";
+            this.lblPresets.AutoSize = true;
+            this.lblPresets.ForeColor = ThemeHelper.MutedText;
+            this.lblPresets.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            this.lblPresets.Margin = new Padding(0, 5, 8, 0);
 
-            int yObject = 20;
+            this.pnlPresets.Location = new Point(24, 10);
+            this.pnlPresets.Size = new Size(860, 32);
+            this.pnlPresets.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlPresets.Controls.Add(this.lblPresets);
+            this.pnlPresets.Controls.Add(this.btnExSin);
+            this.pnlPresets.Controls.Add(this.btnExExp);
+            this.pnlPresets.Controls.Add(this.btnExLn);
 
-            void StyleLabel(System.Windows.Forms.Label l) {
+            // Input Card
+            this.pnlInputCard.Location = new Point(24, 46);
+            this.pnlInputCard.Size = new Size(860, 96);
+            this.pnlInputCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlInputCard.BackColor = ThemeHelper.CardBackground;
+            this.pnlInputCard.Padding = new Padding(14, 10, 14, 10);
+
+            void StyleLabel(Label l, string text, Point loc)
+            {
+                l.Text = text;
+                l.Location = loc;
                 l.AutoSize = true;
-                l.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-                l.ForeColor = System.Drawing.Color.White;
+                l.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                l.ForeColor = ThemeHelper.LightText;
             }
 
-            StyleLabel(this.lblFunction);
-            this.lblFunction.Location = new System.Drawing.Point(20, yObject);
-            this.lblFunction.Text = "Function f(x):";
-            
-            this.txtFunction.Location = new System.Drawing.Point(150, yObject);
-            this.txtFunction.Size = new System.Drawing.Size(400, 25);
-            this.txtFunction.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
-            this.txtFunction.ForeColor = System.Drawing.Color.White;
-            this.txtFunction.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            yObject += 50;
+            void StyleInput(TextBox t, string def, Point loc, Size sz)
+            {
+                t.Location = loc;
+                t.Size = sz;
+                t.BackColor = Color.FromArgb(15, 23, 42);
+                t.BorderStyle = BorderStyle.FixedSingle;
+                t.ForeColor = Color.White;
+                t.Font = new Font("Consolas", 10.5F);
+                t.Text = def;
+            }
 
-            StyleLabel(this.lblVariable);
-            this.lblVariable.Location = new System.Drawing.Point(20, yObject);
-            this.lblVariable.Text = "Variable (e.g. x):";
-            this.txtVariable.Location = new System.Drawing.Point(150, yObject);
-            this.txtVariable.Size = new System.Drawing.Size(100, 25);
-            this.txtVariable.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
-            this.txtVariable.ForeColor = System.Drawing.Color.White;
-            this.txtVariable.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.txtVariable.Text = "x";
-            yObject += 50;
+            StyleLabel(this.lblFunction, "Fonksiyon f(x):", new Point(14, 16));
+            StyleInput(this.txtFunction, "sin(x)", new Point(110, 13), new Size(320, 26));
 
-            StyleLabel(this.lblCenterPoint);
-            this.lblCenterPoint.Location = new System.Drawing.Point(20, yObject);
-            this.lblCenterPoint.Text = "Center Point (a):";
-            this.txtCenterPoint.Location = new System.Drawing.Point(150, yObject);
-            this.txtCenterPoint.Size = new System.Drawing.Size(100, 25);
-            this.txtCenterPoint.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
-            this.txtCenterPoint.ForeColor = System.Drawing.Color.White;
-            this.txtCenterPoint.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.txtCenterPoint.Text = "0";
-            yObject += 50;
+            StyleLabel(this.lblVariable, "Değişken:", new Point(445, 16));
+            StyleInput(this.txtVariable, "x", new Point(510, 13), new Size(50, 26));
 
-            StyleLabel(this.lblOrder);
-            this.lblOrder.Location = new System.Drawing.Point(20, yObject);
-            this.lblOrder.Text = "Order (n):";
-            this.numOrder.Location = new System.Drawing.Point(150, yObject);
+            StyleLabel(this.lblCenterPoint, "Merkez (a):", new Point(575, 16));
+            StyleInput(this.txtCenterPoint, "0", new Point(650, 13), new Size(60, 26));
+
+            StyleLabel(this.lblOrder, "Derece (n):", new Point(14, 56));
+            this.numOrder.Location = new Point(110, 53);
+            this.numOrder.Size = new Size(55, 26);
             this.numOrder.Minimum = 1;
-            this.numOrder.Maximum = 20;
-            this.numOrder.Value = 4;
-            this.numOrder.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
-            this.numOrder.ForeColor = System.Drawing.Color.White;
-            this.numOrder.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            yObject += 60;
+            this.numOrder.Maximum = 12;
+            this.numOrder.Value = 5;
+            this.numOrder.BackColor = Color.FromArgb(15, 23, 42);
+            this.numOrder.ForeColor = Color.White;
 
-            this.btnCalculate.Location = new System.Drawing.Point(150, yObject);
-            this.btnCalculate.Text = "Calculate Series";
-            this.btnCalculate.Size = new System.Drawing.Size(150, 40);
-            this.btnCalculate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnCalculate.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
-            this.btnCalculate.ForeColor = System.Drawing.Color.White;
-            this.btnCalculate.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.btnCalculate.FlatAppearance.BorderSize = 0;
-            yObject += 60;
+            this.btnCalculate.Location = new Point(180, 50);
 
-            StyleLabel(this.lblResult);
-            this.lblResult.Location = new System.Drawing.Point(20, yObject);
-            this.lblResult.Text = "Result:";
-            this.txtResult.Location = new System.Drawing.Point(150, yObject);
-            this.txtResult.Size = new System.Drawing.Size(600, 150);
+            this.pnlInputCard.Controls.Add(this.lblFunction);
+            this.pnlInputCard.Controls.Add(this.txtFunction);
+            this.pnlInputCard.Controls.Add(this.lblVariable);
+            this.pnlInputCard.Controls.Add(this.txtVariable);
+            this.pnlInputCard.Controls.Add(this.lblCenterPoint);
+            this.pnlInputCard.Controls.Add(this.txtCenterPoint);
+            this.pnlInputCard.Controls.Add(this.lblOrder);
+            this.pnlInputCard.Controls.Add(this.numOrder);
+            this.pnlInputCard.Controls.Add(this.btnCalculate);
+
+            // Hero Polynomial Card
+            this.pnlHeroPoly.Location = new Point(24, 150);
+            this.pnlHeroPoly.Size = new Size(860, 70);
+            this.pnlHeroPoly.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlHeroPoly.BackColor = Color.FromArgb(20, 30, 48);
+            this.pnlHeroPoly.Padding = new Padding(16, 8, 16, 8);
+
+            this.lblHeroPolyTitle.Text = "HESAPLANAN TAYLOR POLİNOMU";
+            this.lblHeroPolyTitle.Location = new Point(14, 8);
+            this.lblHeroPolyTitle.AutoSize = true;
+            this.lblHeroPolyTitle.Font = new Font("Segoe UI Semibold", 8F, FontStyle.Bold);
+            this.lblHeroPolyTitle.ForeColor = Color.FromArgb(148, 163, 184);
+
+            this.lblHeroPolyValue.Text = "P_n(x) = —";
+            this.lblHeroPolyValue.Location = new Point(12, 26);
+            this.lblHeroPolyValue.AutoSize = true;
+            this.lblHeroPolyValue.Font = new Font("Consolas", 12F, FontStyle.Bold);
+            this.lblHeroPolyValue.ForeColor = Color.FromArgb(52, 211, 153);
+
+            this.btnCopyPoly.Location = new Point(700, 18);
+            this.btnCopyPoly.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            this.pnlHeroPoly.Controls.Add(this.lblHeroPolyTitle);
+            this.pnlHeroPoly.Controls.Add(this.lblHeroPolyValue);
+            this.pnlHeroPoly.Controls.Add(this.btnCopyPoly);
+
+            // Result
+            this.lblResult.Text = "📊 Noktadaki Sayısal Türevler ve Terim Katsayıları:";
+            this.lblResult.Location = new Point(24, 230);
+            this.lblResult.AutoSize = true;
+            this.lblResult.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            this.lblResult.ForeColor = ThemeHelper.LightText;
+
+            this.txtResult.Location = new Point(24, 254);
+            this.txtResult.Size = new Size(860, 320);
+            this.txtResult.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            this.txtResult.BackColor = Color.FromArgb(15, 23, 42);
+            this.txtResult.BorderStyle = BorderStyle.FixedSingle;
+            this.txtResult.ForeColor = Color.FromArgb(186, 230, 253);
             this.txtResult.Multiline = true;
-            this.txtResult.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtResult.Font = new System.Drawing.Font("Consolas", 10F);
-            this.txtResult.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
-            this.txtResult.ForeColor = System.Drawing.Color.White;
-            this.txtResult.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            
-            // 
-            // TaylorSeriesControl
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(20)))), ((int)(((byte)(20)))), ((int)(((byte)(20)))));
+            this.txtResult.ReadOnly = true;
+            this.txtResult.ScrollBars = ScrollBars.Vertical;
+            this.txtResult.Font = new Font("Consolas", 9.5F);
+
+            this.pnlContent.Controls.Add(this.pnlPresets);
+            this.pnlContent.Controls.Add(this.pnlInputCard);
+            this.pnlContent.Controls.Add(this.pnlHeroPoly);
+            this.pnlContent.Controls.Add(this.lblResult);
+            this.pnlContent.Controls.Add(this.txtResult);
+
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.BackColor = ThemeHelper.DarkBackground;
             this.Controls.Add(this.pnlContent);
-            this.Controls.Add(this.lblTitle);
+            this.Controls.Add(this.pnlHeader);
             this.Name = "TaylorSeriesControl";
-            this.Size = new System.Drawing.Size(800, 600);
+            this.Size = new Size(910, 680);
+
+            this.pnlInputCard.ResumeLayout(false);
+            this.pnlInputCard.PerformLayout();
+            this.pnlHeroPoly.ResumeLayout(false);
+            this.pnlHeroPoly.PerformLayout();
             this.pnlContent.ResumeLayout(false);
             this.pnlContent.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numOrder)).EndInit();
             this.ResumeLayout(false);
-
         }
 
-        private System.Windows.Forms.Label lblTitle;
-        private System.Windows.Forms.Panel pnlContent;
-        private System.Windows.Forms.Label lblFunction;
-        private System.Windows.Forms.TextBox txtFunction;
-        private System.Windows.Forms.Label lblVariable;
-        private System.Windows.Forms.TextBox txtVariable;
-        private System.Windows.Forms.Label lblCenterPoint;
-        private System.Windows.Forms.TextBox txtCenterPoint;
-        private System.Windows.Forms.Label lblOrder;
-        private System.Windows.Forms.NumericUpDown numOrder;
-        private System.Windows.Forms.Button btnCalculate;
-        private System.Windows.Forms.Label lblResult;
-        private System.Windows.Forms.TextBox txtResult;
+        private Panel pnlHeader;
+        private Panel pnlContent;
+        private FlowLayoutPanel pnlPresets;
+        private Label lblPresets;
+        private Button btnExSin;
+        private Button btnExExp;
+        private Button btnExLn;
+
+        private Panel pnlInputCard;
+        private Label lblFunction;
+        public TextBox txtFunction;
+        private Label lblVariable;
+        public TextBox txtVariable;
+        private Label lblCenterPoint;
+        public TextBox txtCenterPoint;
+        private Label lblOrder;
+        public NumericUpDown numOrder;
+        public Button btnCalculate;
+
+        private Panel pnlHeroPoly;
+        private Label lblHeroPolyTitle;
+        private Label lblHeroPolyValue;
+        private Button btnCopyPoly;
+
+        private Label lblResult;
+        public TextBox txtResult;
     }
 }

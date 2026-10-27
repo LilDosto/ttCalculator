@@ -146,7 +146,7 @@ namespace DotNetMatrix
 			
 			decimal f = 0.0m;
 			decimal tst1 = 0.0m;
-			decimal eps = (decimal)DecimalMath.Pow(2.0m, - 52.0m);
+			decimal eps = DecimalMath.Pow(2.0m, -64.0m);
 			for (int l = 0; l < n; l++)
 			{
 				tst1 = System.Math.Max(tst1, System.Math.Abs(d[l]) + System.Math.Abs(e[l]));
@@ -166,6 +166,7 @@ namespace DotNetMatrix
 					do 
 					{
 						iter = iter + 1;
+						if (iter > 120) break;
 						decimal g = d[l];
 						decimal p = (d[l + 1] - g) / (2.0m * e[l]);
 						decimal r = Maths.Hypot(p, 1.0m);
@@ -388,8 +389,10 @@ namespace DotNetMatrix
 			}
 			
 			int iter = 0;
-			while (n >= low)
+			int totalIter = 0;
+			while (n >= low && totalIter < 400)
 			{
+				totalIter++;
 				int l = n;
 				while (l > low)
 				{
@@ -702,7 +705,7 @@ namespace DotNetMatrix
 							}
 							
 							t = System.Math.Abs(H[i][n]);
-							if ((eps * t) * t > 1)
+							if (t > 0 && (t > 1000000000000m || (eps * t) > 1m / t))
 							{
 								for (int j = i; j <= n; j++)
 								{
@@ -782,7 +785,7 @@ namespace DotNetMatrix
 							}
 							
 							t = System.Math.Max(System.Math.Abs(H[i][n - 1]), System.Math.Abs(H[i][n]));
-							if ((eps * t) * t > 1)
+							if (t > 0 && (t > 1000000000000m || (eps * t) > 1m / t))
 							{
 								for (int j = i; j <= n; j++)
 								{

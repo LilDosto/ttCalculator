@@ -1,3 +1,6 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace MathApp.Controls
 {
@@ -16,61 +19,165 @@ namespace MathApp.Controls
 
         private void InitializeComponent()
         {
-            this.txtDisplay = new System.Windows.Forms.TextBox();
-            this.pnlButtons = new System.Windows.Forms.TableLayoutPanel();
+            this.pnlHeader = ThemeHelper.CreateHeaderPanel(
+                "Bilimsel Hesap Makinesi",
+                "Yüksek hassasiyetli (128-bit Decimal) bilimsel ifadeler, trigonometri, logaritma ve işlem geçmişi.");
+
+            this.pnlMain = new Panel();
+            this.pnlLeft = new Panel();
+            this.pnlRightHistory = new Panel();
+            this.pnlDisplayCard = new Panel();
+            this.lblExpressionHistory = new Label();
+            this.txtDisplay = new TextBox();
+            this.pnlToolbar = new Panel();
+            this.btnAngleMode = new Button();
+            this.lblKeyboardHint = new Label();
+            this.pnlButtons = new TableLayoutPanel();
+
+            this.lblHistoryTitle = new Label();
+            this.lstHistory = new ListBox();
+            this.btnClearHistory = new Button();
+
             this.SuspendLayout();
+            this.pnlMain.SuspendLayout();
+            this.pnlLeft.SuspendLayout();
+            this.pnlRightHistory.SuspendLayout();
+            this.pnlDisplayCard.SuspendLayout();
+            this.pnlToolbar.SuspendLayout();
 
-            // 
-            // txtDisplay
-            // 
-            this.txtDisplay.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(32)))), ((int)(((byte)(32)))), ((int)(((byte)(32)))));
-            this.txtDisplay.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.txtDisplay.Dock = System.Windows.Forms.DockStyle.Top;
-            this.txtDisplay.Font = new System.Drawing.Font("Segoe UI", 36F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.txtDisplay.ForeColor = System.Drawing.Color.White;
-            this.txtDisplay.Location = new System.Drawing.Point(0, 0);
-            this.txtDisplay.Name = "txtDisplay";
+            // pnlMain
+            this.pnlMain.Dock = DockStyle.Fill;
+            this.pnlMain.Padding = new Padding(20);
+            this.pnlMain.BackColor = ThemeHelper.DarkBackground;
+            this.pnlMain.Controls.Add(this.pnlLeft);
+            this.pnlMain.Controls.Add(this.pnlRightHistory);
+
+            // pnlRightHistory
+            this.pnlRightHistory.Dock = DockStyle.Right;
+            this.pnlRightHistory.Width = 260;
+            this.pnlRightHistory.Padding = new Padding(14, 0, 0, 0);
+            this.pnlRightHistory.BackColor = ThemeHelper.DarkBackground;
+
+            this.lblHistoryTitle.Dock = DockStyle.Top;
+            this.lblHistoryTitle.Height = 32;
+            this.lblHistoryTitle.Text = "📜 İşlem Geçmişi (Çift Tıkla)";
+            this.lblHistoryTitle.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            this.lblHistoryTitle.ForeColor = ThemeHelper.LightText;
+            this.lblHistoryTitle.TextAlign = ContentAlignment.MiddleLeft;
+
+            this.btnClearHistory.Dock = DockStyle.Bottom;
+            this.btnClearHistory.Height = 34;
+            this.btnClearHistory.Text = "Geçmişi Temizle";
+            this.btnClearHistory.FlatStyle = FlatStyle.Flat;
+            this.btnClearHistory.BackColor = ThemeHelper.ButtonSecondary;
+            this.btnClearHistory.ForeColor = ThemeHelper.LightText;
+            this.btnClearHistory.Font = new Font("Segoe UI", 9.5F);
+            this.btnClearHistory.FlatAppearance.BorderSize = 0;
+            this.btnClearHistory.Cursor = Cursors.Hand;
+
+            this.lstHistory.Dock = DockStyle.Fill;
+            this.lstHistory.BackColor = ThemeHelper.CardBackground;
+            this.lstHistory.ForeColor = Color.FromArgb(186, 230, 253);
+            this.lstHistory.BorderStyle = BorderStyle.FixedSingle;
+            this.lstHistory.Font = new Font("Consolas", 10.5F);
+            this.lstHistory.ItemHeight = 22;
+
+            this.pnlRightHistory.Controls.Add(this.lstHistory);
+            this.pnlRightHistory.Controls.Add(this.btnClearHistory);
+            this.pnlRightHistory.Controls.Add(this.lblHistoryTitle);
+
+            // pnlLeft
+            this.pnlLeft.Dock = DockStyle.Fill;
+            this.pnlLeft.BackColor = ThemeHelper.DarkBackground;
+
+            // pnlDisplayCard
+            this.pnlDisplayCard.Dock = DockStyle.Top;
+            this.pnlDisplayCard.Height = 108;
+            this.pnlDisplayCard.BackColor = ThemeHelper.CardBackground;
+            this.pnlDisplayCard.Padding = new Padding(16, 10, 16, 10);
+
+            this.lblExpressionHistory.Dock = DockStyle.Top;
+            this.lblExpressionHistory.Height = 24;
+            this.lblExpressionHistory.Text = "İfade giriniz veya klavyeyi kullanınız";
+            this.lblExpressionHistory.Font = new Font("Consolas", 10.5F, FontStyle.Regular);
+            this.lblExpressionHistory.ForeColor = ThemeHelper.MutedText;
+            this.lblExpressionHistory.TextAlign = ContentAlignment.MiddleRight;
+
+            this.txtDisplay.Dock = DockStyle.Fill;
+            this.txtDisplay.BackColor = ThemeHelper.CardBackground;
+            this.txtDisplay.BorderStyle = BorderStyle.None;
+            this.txtDisplay.Font = new Font("Segoe UI Semibold", 30F, FontStyle.Bold);
+            this.txtDisplay.ForeColor = Color.White;
             this.txtDisplay.ReadOnly = true;
-            this.txtDisplay.Size = new System.Drawing.Size(600, 64);
-            this.txtDisplay.TabIndex = 0;
             this.txtDisplay.Text = "0";
-            this.txtDisplay.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.txtDisplay.TextAlign = HorizontalAlignment.Right;
 
-            // 
+            this.pnlDisplayCard.Controls.Add(this.txtDisplay);
+            this.pnlDisplayCard.Controls.Add(this.lblExpressionHistory);
+
+            // pnlToolbar
+            this.pnlToolbar.Dock = DockStyle.Top;
+            this.pnlToolbar.Height = 46;
+            this.pnlToolbar.Padding = new Padding(0, 8, 0, 6);
+            this.pnlToolbar.BackColor = ThemeHelper.DarkBackground;
+
+            this.btnAngleMode.Dock = DockStyle.Left;
+            this.btnAngleMode.Width = 220;
+            this.btnAngleMode.FlatStyle = FlatStyle.Flat;
+            this.btnAngleMode.BackColor = ThemeHelper.AccentBlue;
+            this.btnAngleMode.ForeColor = Color.White;
+            this.btnAngleMode.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            this.btnAngleMode.FlatAppearance.BorderSize = 0;
+            this.btnAngleMode.Cursor = Cursors.Hand;
+
+            this.lblKeyboardHint.Dock = DockStyle.Fill;
+            this.lblKeyboardHint.Text = "💡 Klavye kısayolları aktif: Sayılar, +, -, *, /, Enter (=), Backspace (Sil), Esc (AC)";
+            this.lblKeyboardHint.Font = new Font("Segoe UI", 9F);
+            this.lblKeyboardHint.ForeColor = ThemeHelper.MutedText;
+            this.lblKeyboardHint.TextAlign = ContentAlignment.MiddleRight;
+
+            this.pnlToolbar.Controls.Add(this.lblKeyboardHint);
+            this.pnlToolbar.Controls.Add(this.btnAngleMode);
+
             // pnlButtons
-            // 
-            this.pnlButtons.ColumnCount = 4;
-            this.pnlButtons.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
-            this.pnlButtons.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
-            this.pnlButtons.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
-            this.pnlButtons.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
-            this.pnlButtons.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlButtons.Location = new System.Drawing.Point(0, 64);
-            this.pnlButtons.Name = "pnlButtons";
-            this.pnlButtons.RowCount = 5;
-            this.pnlButtons.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-            this.pnlButtons.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-            this.pnlButtons.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-            this.pnlButtons.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-            this.pnlButtons.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-            this.pnlButtons.Size = new System.Drawing.Size(600, 536);
-            this.pnlButtons.TabIndex = 1;
+            this.pnlButtons.Dock = DockStyle.Fill;
+            this.pnlButtons.BackColor = ThemeHelper.DarkBackground;
 
-            // 
+            this.pnlLeft.Controls.Add(this.pnlButtons);
+            this.pnlLeft.Controls.Add(this.pnlToolbar);
+            this.pnlLeft.Controls.Add(this.pnlDisplayCard);
+
             // SimpleCalculatorControl
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(20)))), ((int)(((byte)(20)))), ((int)(((byte)(20)))));
-            this.Controls.Add(this.pnlButtons);
-            this.Controls.Add(this.txtDisplay);
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.BackColor = ThemeHelper.DarkBackground;
+            this.Controls.Add(this.pnlMain);
+            this.Controls.Add(this.pnlHeader);
             this.Name = "SimpleCalculatorControl";
-            this.Size = new System.Drawing.Size(600, 600);
+            this.Size = new Size(880, 660);
+
+            this.pnlToolbar.ResumeLayout(false);
+            this.pnlDisplayCard.ResumeLayout(false);
+            this.pnlDisplayCard.PerformLayout();
+            this.pnlRightHistory.ResumeLayout(false);
+            this.pnlLeft.ResumeLayout(false);
+            this.pnlMain.ResumeLayout(false);
             this.ResumeLayout(false);
-            this.PerformLayout();
         }
 
-        private System.Windows.Forms.TextBox txtDisplay;
-        private System.Windows.Forms.TableLayoutPanel pnlButtons;
+        private Panel pnlHeader;
+        private Panel pnlMain;
+        private Panel pnlLeft;
+        private Panel pnlRightHistory;
+        private Panel pnlDisplayCard;
+        private Label lblExpressionHistory;
+        private TextBox txtDisplay;
+        private Panel pnlToolbar;
+        private Button btnAngleMode;
+        private Label lblKeyboardHint;
+        private TableLayoutPanel pnlButtons;
+        private Label lblHistoryTitle;
+        private ListBox lstHistory;
+        private Button btnClearHistory;
     }
 }

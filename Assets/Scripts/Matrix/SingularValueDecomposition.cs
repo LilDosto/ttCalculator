@@ -3,60 +3,28 @@ using System.Runtime.Serialization;
 
 namespace DotNetMatrix
 {
-	
-	/// <summary>Singular Value Decomposition.
-	/// <P>
-	/// For an m-by-n matrix A with m >= n, the singular value decomposition is
-	/// an m-by-n orthogonal matrix U, an n-by-n diagonal matrix S, and
-	/// an n-by-n orthogonal matrix V so that A = U*S*V'.
-	/// <P>
-	/// The singular values, sigma[k] = S[k][k], are ordered so that
-	/// sigma[0] >= sigma[1] >= ... >= sigma[n-1].
-	/// <P>
-	/// The singular value decompostion always exists, so the constructor will
-	/// never fail.  The matrix condition number and the effective numerical
-	/// rank can be computed from this decomposition.
-	/// </summary>
-	
 	[Serializable]
 	public class SingularValueDecomposition : System.Runtime.Serialization.ISerializable
 	{
-		#region Class variables
-		
-		/// <summary>Arrays for internal storage of U and V.
-		/// @serial internal storage of U.
-		/// @serial internal storage of V.
-		/// </summary>
 		private decimal[][] U, V;
-		
-		/// <summary>Array for internal storage of singular values.
-		/// @serial internal storage of singular values.
-		/// </summary>
 		private decimal[] s;
-		
-		/// <summary>Row and column dimensions.
-		/// @serial row dimension.
-		/// @serial column dimension.
-		/// </summary>
 		private int m, n;
-
-		#endregion   //Class variables
-		
-		#region Constructor
-		
-		/// <summary>Construct the singular value decomposition</summary>
-		/// <param name="Arg">   Rectangular matrix
-		/// </param>
-		/// <returns>     Structure to access U, S and V.
-		/// </returns>
 		
 		public SingularValueDecomposition(GeneralMatrix Arg)
 		{
-			// Derived from LINPACK code.
-			// Initialize.
-			decimal[][] A = Arg.ArrayCopy;
 			m = Arg.RowDimension;
 			n = Arg.ColumnDimension;
+
+			if (m < n)
+			{
+				SingularValueDecomposition svdTrans = new SingularValueDecomposition(Arg.Transpose());
+				s = (decimal[])svdTrans.s.Clone();
+				U = svdTrans.V;
+				V = svdTrans.U;
+				return;
+			}
+
+			decimal[][] A = Arg.ArrayCopy;
 			int nu = System.Math.Min(m, n);
 			s = new decimal[System.Math.Min(m + 1, n)];
 			U = new decimal[m][];
@@ -74,19 +42,12 @@ namespace DotNetMatrix
 			bool wantu = true;
 			bool wantv = true;
 			
-			// Reduce A to bidiagonal form, storing the diagonal elements
-			// in s and the super-diagonal elements in e.
-			
 			int nct = System.Math.Min(m - 1, n);
 			int nrt = System.Math.Max(0, System.Math.Min(n - 2, m));
 			for (int k = 0; k < System.Math.Max(nct, nrt); k++)
 			{
 				if (k < nct)
 				{
-					
-					// Compute the transformation for the k-th column and
-					// place the k-th diagonal in s[k].
-					// Compute 2-norm of k-th column without under/overflow.
 					s[k] = 0;
 					for (int i = k; i < m; i++)
 					{
@@ -110,9 +71,6 @@ namespace DotNetMatrix
 				{
 					if ((k < nct) & (s[k] != 0.0m))
 					{
-						
-						// Apply the transformation.
-						
 						decimal t = 0;
 						for (int i = k; i < m; i++)
 						{
@@ -124,18 +82,10 @@ namespace DotNetMatrix
 							A[i][j] += t * A[i][k];
 						}
 					}
-					
-					// Place the k-th row of A into e for the
-					// subsequent calculation of the row transformation.
-					
 					e[j] = A[k][j];
 				}
 				if (wantu & (k < nct))
 				{
-					
-					// Place the transformation in U for subsequent back
-					// multiplication.
-					
 					for (int i = k; i < m; i++)
 					{
 						U[i][k] = A[i][k];
@@ -143,10 +93,6 @@ namespace DotNetMatrix
 				}
 				if (k < nrt)
 				{
-					
-					// Compute the k-th row transformation and place the
-					// k-th super-diagonal in e[k].
-					// Compute 2-norm without under/overflow.
 					e[k] = 0;
 					for (int i = k + 1; i < n; i++)
 					{
@@ -167,9 +113,6 @@ namespace DotNetMatrix
 					e[k] = - e[k];
 					if ((k + 1 < m) & (e[k] != 0.0m))
 					{
-						
-						// Apply the transformation.
-						
 						for (int i = k + 1; i < m; i++)
 						{
 							work[i] = 0.0m;
@@ -192,10 +135,6 @@ namespace DotNetMatrix
 					}
 					if (wantv)
 					{
-						
-						// Place the transformation in V for subsequent
-						// back multiplication.
-						
 						for (int i = k + 1; i < n; i++)
 						{
 							V[i][k] = e[i];
@@ -203,8 +142,6 @@ namespace DotNetMatrix
 					}
 				}
 			}
-			
-			// Set up the final bidiagonal matrix or order p.
 			
 			int p = System.Math.Min(n, m + 1);
 			if (nct < n)
@@ -220,8 +157,6 @@ namespace DotNetMatrix
 				e[nrt] = A[nrt][p - 1];
 			}
 			e[p - 1] = 0.0m;
-			
-			// If required, generate U.
 			
 			if (wantu)
 			{
@@ -271,8 +206,6 @@ namespace DotNetMatrix
 				}
 			}
 			
-			// If required, generate V.
-			
 			if (wantv)
 			{
 				for (int k = n - 1; k >= 0; k--)
@@ -301,27 +234,12 @@ namespace DotNetMatrix
 				}
 			}
 			
-			// Main iteration loop for the singular values.
-			
 			int pp = p - 1;
 			int iter = 0;
-			decimal eps = (decimal)Math.Pow(2.0f, - 52.0f);
-			while (p > 0)
+			decimal eps = DecimalMath.Pow(2.0m, -64.0m);
+			while (p > 0 && iter < 150)
 			{
 				int k, kase;
-				
-				// Here is where a test for too many iterations would go.
-				
-				// This section of the program inspects for
-				// negligible elements in the s and e arrays.  On
-				// completion the variables kase and k are set as follows.
-				
-				// kase = 1     if s(p) and e[k-1] are negligible and k<p
-				// kase = 2     if s(k) is negligible and k<p
-				// kase = 3     if e[k-1] is negligible, k<p, and
-				//              s(k), ..., s(p) are not negligible (qr step).
-				// kase = 4     if e(p-1) is negligible (convergence).
-				
 				for (k = p - 2; k >= - 1; k--)
 				{
 					if (k == - 1)
@@ -370,13 +288,8 @@ namespace DotNetMatrix
 				}
 				k++;
 				
-				// Perform the task indicated by kase.
-				
 				switch (kase)
 				{
-					
-					
-					// Deflate negligible s(p).
 					case 1:  
 					{
 						decimal f = e[p - 2];
@@ -404,10 +317,6 @@ namespace DotNetMatrix
 						}
 					}
 					break;
-						
-					// Split at negligible s(k).
-					
-					
 					case 2:  
 					{
 						decimal f = e[k - 1];
@@ -432,14 +341,8 @@ namespace DotNetMatrix
 						}
 					}
 					break;
-						
-					// Perform one qr step.
-					
-					
 					case 3:  
 					{
-						// Calculate the shift.
-						
 						decimal scale = System.Math.Max(System.Math.Max(System.Math.Max(System.Math.Max(System.Math.Abs(s[p - 1]), System.Math.Abs(s[p - 2])), System.Math.Abs(e[p - 2])), System.Math.Abs(s[k])), System.Math.Abs(e[k]));
 						decimal sp = s[p - 1] / scale;
 						decimal spm1 = s[p - 2] / scale;
@@ -460,8 +363,6 @@ namespace DotNetMatrix
 						}
 						decimal f = (sk + sp) * (sk - sp) + shift;
 						decimal g = sk * ek;
-						
-						// Chase zeros.
 						
 						for (int j = k; j < p - 1; j++)
 						{
@@ -507,14 +408,8 @@ namespace DotNetMatrix
 						iter = iter + 1;
 					}
 					break;
-					
-					// Convergence.
-					
-					
 					case 4:  
 					{
-						// Make the singular values positive.
-						
 						if (s[k] <= 0.0m)
 						{
 							s[k] = (s[k] < 0.0m?- s[k]:0.0m);
@@ -526,9 +421,6 @@ namespace DotNetMatrix
 								}
 							}
 						}
-						
-						// Order the singular values.
-						
 						while (k < pp)
 						{
 							if (s[k] >= s[k + 1])
@@ -561,12 +453,7 @@ namespace DotNetMatrix
 				}
 			}
 		}
-		#endregion	//Constructor
 		
-		#region Public Properties
-		/// <summary>Return the one-dimensional array of singular values</summary>
-		/// <returns>     diagonal of S.
-		/// </returns>
 		virtual public decimal[] SingularValues
 		{
 			get
@@ -575,18 +462,16 @@ namespace DotNetMatrix
 			}
 		}
 
-		/// <summary>Return the diagonal matrix of singular values</summary>
-		/// <returns>     S
-		/// </returns>
 		virtual public GeneralMatrix S
 		{
 			get
 			{
-				GeneralMatrix X = new GeneralMatrix(n, n);
+				int nu = System.Math.Min(m, n);
+				GeneralMatrix X = new GeneralMatrix(nu, nu);
 				decimal[][] S = X.Array;
-				for (int i = 0; i < n; i++)
+				for (int i = 0; i < nu; i++)
 				{
-					for (int j = 0; j < n; j++)
+					for (int j = 0; j < nu; j++)
 					{
 						S[i][j] = 0.0m;
 					}
@@ -595,49 +480,27 @@ namespace DotNetMatrix
 				return X;
 			}
 		}
-		#endregion //  Public Properties
-		
-		#region	 Public Methods
-		
-		/// <summary>Return the left singular vectors</summary>
-		/// <returns>     U
-		/// </returns>
 		
 		public virtual GeneralMatrix GetU()
 		{
-			return new GeneralMatrix(U, m, System.Math.Min(m + 1, n));
+			return new GeneralMatrix(U, m, System.Math.Min(m, n));
 		}
-		
-		/// <summary>Return the right singular vectors</summary>
-		/// <returns>     V
-		/// </returns>
 		
 		public virtual GeneralMatrix GetV()
 		{
-			return new GeneralMatrix(V, n, n);
+			return new GeneralMatrix(V, n, System.Math.Min(m, n));
 		}
-		
-		/// <summary>Two norm</summary>
-		/// <returns>     max(S)
-		/// </returns>
 		
 		public virtual decimal Norm2()
 		{
 			return s[0];
 		}
 		
-		/// <summary>Two norm condition number</summary>
-		/// <returns>     max(S)/min(S)
-		/// </returns>
-		
 		public virtual decimal Condition()
 		{
-			return s[0] / s[System.Math.Min(m, n) - 1];
+			decimal minS = s[System.Math.Min(m, n) - 1];
+			return minS != 0m ? s[0] / minS : decimal.MaxValue;
 		}
-		
-		/// <summary>Effective numerical matrix rank</summary>
-		/// <returns>     Number of nonnegligible singular values.
-		/// </returns>
 		
 		public virtual int Rank()
 		{
@@ -653,9 +516,7 @@ namespace DotNetMatrix
 			}
 			return r;
 		}
-		#endregion   //Public Methods
 
-		// A method called when serializing this class.
 		void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) 
 		{
 		}

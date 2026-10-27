@@ -1,26 +1,24 @@
 using System;
 
 /// <summary>
-/// Analogy of System.Math class for decimal types 
+/// Analogy of System.Math class for decimal types with high precision.
 /// </summary>
 public static class DecimalMath
 {
-    /* ... (Content from original file, confirmed no Unity deps) ... */
-    
     /// <summary>
     /// represents PI
     /// </summary>
     public const decimal PI = 3.14159265358979323846264338327950288419716939937510M;
 
     /// <summary>
-    /// represents PI
+    /// represents machine epsilon for decimal comparisons
     /// </summary>
     public const decimal Epsilon = 0.0000000000000000001M;
 
     /// <summary>
     /// represents 2*PI
     /// </summary>
-    private const decimal PIx2 = 6.28318530717958647692528676655900576839433879875021M;
+    public const decimal PIx2 = 6.28318530717958647692528676655900576839433879875021M;
 
     /// <summary>
     /// represents E
@@ -30,12 +28,12 @@ public static class DecimalMath
     /// <summary>
     /// represents PI/2
     /// </summary>
-    private const decimal PIdiv2 = 1.570796326794896619231321691639751442098584699687552910487M;
+    public const decimal PIdiv2 = 1.570796326794896619231321691639751442098584699687552910487M;
 
     /// <summary>
     /// represents PI/4
     /// </summary>
-    private const decimal PIdiv4 = 0.785398163397448309615660845819875721049292349843776455243M;
+    public const decimal PIdiv4 = 0.785398163397448309615660845819875721049292349843776455243M;
 
     /// <summary>
     /// represents 1.0/E
@@ -68,48 +66,45 @@ public static class DecimalMath
     private const int MaxIteration = 100;
 
     /// <summary>
-    /// Analogy of Math.Exp method
+    /// Analogy of Math.Exp method with full precision across all ranges
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Exp(decimal x)
     {
-        var count = 0;
-
-        if (x > One)
+        if (x == Zero) return One;
+        if (x > 66.5m)
         {
-            count = decimal.ToInt32(decimal.Truncate(x));
-            x -= decimal.Truncate(x);
+            throw new OverflowException("Exp argümanı çok büyük (decimal taşması).");
         }
-
+        if (x < -70m)
+        {
+            return Zero;
+        }
         if (x < Zero)
         {
-            count = decimal.ToInt32(decimal.Truncate(x) - 1);
-            x = One + (x - decimal.Truncate(x));
+            return One / Exp(-x);
         }
 
-        var iteration = 1;
-        var result = One;
-        var factorial = One;
+        int count = decimal.ToInt32(decimal.Truncate(x));
+        x -= count;
+
+        int iteration = 1;
+        decimal result = One;
+        decimal factorial = One;
         decimal cachedResult;
         do
         {
             cachedResult = result;
             factorial *= x / iteration++;
             result += factorial;
-        } while (cachedResult != result);
+        } while (cachedResult != result && iteration < MaxIteration);
 
-        if (count == 0)
-            return result;
+        if (count == 0) return result;
         return result * PowerN(E, count);
     }
 
     /// <summary>
     /// Analogy of Math.Pow method
     /// </summary>
-    /// <param name="value"></param>
-    /// <param name="pow"></param>
-    /// <returns></returns>
     public static decimal Pow(decimal value, decimal pow)
     {
         if (pow == Zero) return One;
@@ -118,37 +113,32 @@ public static class DecimalMath
 
         if (value == Zero)
         {
-            if (pow > Zero)
-            {
-                return Zero;
-            }
-
-            throw new Exception("Invalid Operation: zero base and negative power");
+            if (pow > Zero) return Zero;
+            throw new DivideByZeroException("Geçersiz İşlem: Sıfır tabanının negatif kuvveti alınamaz.");
         }
 
         if (pow == -One) return One / value;
 
-        var isPowerInteger = IsInteger(pow);
+        bool isPowerInteger = IsInteger(pow);
         if (value < Zero && !isPowerInteger)
         {
-            throw new Exception("Invalid Operation: negative base and non-integer power");
-        }
-
-        if (isPowerInteger && value > Zero)
-        {
-            int powerInt = (int)pow;
-            return PowerN(value, powerInt);
-        }
-
-        if (isPowerInteger && value < Zero)
-        {
-            int powerInt = (int)pow;
-            if (powerInt % 2 == 0)
+            // Check if power is reciprocal of an odd integer, e.g. 1/3, 1/5
+            decimal invPow = One / pow;
+            if (IsInteger(invPow))
             {
-                return Exp(pow * Log(-value));
+                int q = (int)decimal.Round(invPow);
+                if (q % 2 != 0)
+                {
+                    return -Exp(pow * Log(-value));
+                }
             }
+            throw new ArgumentException("Geçersiz İşlem: Negatif tabanın çift kökü reel sayılarda tanımsızdır.");
+        }
 
-            return -Exp(pow * Log(-value));
+        if (isPowerInteger)
+        {
+            int powerInt = (int)decimal.Round(pow);
+            return PowerN(value, powerInt);
         }
 
         return Exp(pow * Log(value));
@@ -156,53 +146,41 @@ public static class DecimalMath
 
     private static bool IsInteger(decimal value)
     {
-        var longValue = (long)value;
-        return Abs(value - longValue) <= Epsilon;
+        var rounded = decimal.Round(value);
+        return Abs(value - rounded) <= Epsilon;
     }
 
     /// <summary>
     /// Power to the integer value
     /// </summary>
-    /// <param name="value"></param>
-    /// <param name="power"></param>
-    /// <returns></returns>
     public static decimal PowerN(decimal value, int power)
     {
-        while (true)
+        if (power == 0) return One;
+        if (power < 0)
         {
-            if (power == Zero) return One;
-            if (power < Zero)
-            {
-                value = One / value;
-                power = -power;
-                continue;
-            }
-
-            var q = power;
-            var prod = One;
-            var current = value;
-            while (q > 0)
-            {
-                if (q % 2 == 1)
-                {
-                    // detects the 1s in the binary expression of power
-                    prod = current * prod; // picks up the relevant power
-                    q--;
-                }
-
-                current *= current; // value^i -> value^(2*i)
-                q >>= 1;
-            }
-
-            return prod;
+            value = One / value;
+            power = -power;
         }
+
+        int q = power;
+        decimal prod = One;
+        decimal current = value;
+        while (q > 0)
+        {
+            if (q % 2 == 1)
+            {
+                prod = current * prod;
+                q--;
+            }
+            current *= current;
+            q >>= 1;
+        }
+        return prod;
     }
 
     /// <summary>
     /// Analogy of Math.Log10
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Log10(decimal x)
     {
         return Log(x) * Log10Inv;
@@ -211,15 +189,13 @@ public static class DecimalMath
     /// <summary>
     /// Analogy of Math.Log
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Log(decimal x)
     {
         if (x <= Zero)
         {
-            throw new ArgumentException("x must be greater than zero");
+            throw new ArgumentException("Logaritma argümanı sıfırdan büyük olmalıdır.");
         }
-        var count = 0;
+        int count = 0;
         while (x >= One)
         {
             x *= Einv;
@@ -232,10 +208,11 @@ public static class DecimalMath
         }
         x--;
         if (x == Zero) return count;
-        var result = Zero;
-        var iteration = 0;
-        var y = One;
-        var cacheResult = result - One;
+
+        decimal result = Zero;
+        int iteration = 0;
+        decimal y = One;
+        decimal cacheResult = result - One;
         while (cacheResult != result && iteration < MaxIteration)
         {
             iteration++;
@@ -247,140 +224,127 @@ public static class DecimalMath
     }
 
     /// <summary>
-    /// Analogy of Math.Cos
+    /// Analogy of Math.Sin with direct Taylor series (accurate to 28 decimal digits even for small x)
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
-    public static decimal Cos(decimal x)
+    public static decimal Sin(decimal x)
     {
-        //truncating to  [-2*PI;2*PI]
         TruncateToPeriodicInterval(ref x);
 
-        // now x in (-2pi,2pi)
-        if (x >= PI && x <= PIx2)
-        {
-            return -Cos(x - PI);
-        }
-        if (x >= -PIx2 && x <= -PI)
-        {
-            return -Cos(x + PI);
-        }
+        if (x > PI) x -= PIx2;
+        else if (x < -PI) x += PIx2;
 
-        x *= x;
-        //y=1-x/2!+x^2/4!-x^3/6!...
-        var xx = -x * Half;
-        var y = One + xx;
-        var cachedY = y - One;//init cache  with different value
-        for (var i = 1; cachedY != y && i < MaxIteration; i++)
+        if (x > PIdiv2) x = PI - x;
+        else if (x < -PIdiv2) x = -PI - x;
+
+        decimal x2 = x * x;
+        decimal term = x;
+        decimal sum = x;
+        decimal cachedSum;
+        for (int i = 1; i < MaxIteration; i++)
         {
-            cachedY = y;
-            decimal factor = i * ((i << 1) + 3) + 1; //2i^2+2i+i+1=2i^2+3i+1
-            factor = -Half / factor;
-            xx *= x * factor;
-            y += xx;
+            cachedSum = sum;
+            term *= -x2 / ((2 * i) * (2 * i + 1));
+            sum += term;
+            if (sum == cachedSum) break;
         }
-        return y;
+        return sum;
+    }
+
+    /// <summary>
+    /// Analogy of Math.Cos
+    /// </summary>
+    public static decimal Cos(decimal x)
+    {
+        TruncateToPeriodicInterval(ref x);
+
+        if (x > PI) x -= PIx2;
+        else if (x < -PI) x += PIx2;
+
+        if (x > PIdiv2) return -Cos(PI - x);
+        if (x < -PIdiv2) return -Cos(-PI - x);
+
+        decimal x2 = x * x;
+        decimal term = One;
+        decimal sum = One;
+        decimal cachedSum;
+        for (int i = 1; i < MaxIteration; i++)
+        {
+            cachedSum = sum;
+            term *= -x2 / ((2 * i - 1) * (2 * i));
+            sum += term;
+            if (sum == cachedSum) break;
+        }
+        return sum;
     }
 
     /// <summary>
     /// Analogy of Math.Tan
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Tan(decimal x)
     {
-        var cos = Cos(x);
-        if (cos == Zero) throw new ArgumentException(nameof(x));
-        //calculate sin using cos
-        var sin = CalculateSinFromCos(x, cos);
-        return sin / cos;
-    }
-    /// <summary>
-    /// Helper function for calculating sin(x) from cos(x)
-    /// </summary>
-    /// <param name="x"></param>
-    /// <param name="cos"></param>
-    /// <returns></returns>
-    private static decimal CalculateSinFromCos(decimal x, decimal cos)
-    {
-        var moduleOfSin = Sqrt(One - (cos * cos));
-        var sineIsPositive = IsSignOfSinePositive(x);
-        if (sineIsPositive) return moduleOfSin;
-        return -moduleOfSin;
-    }
-    /// <summary>
-    /// Analogy of Math.Sin
-    /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
-    public static decimal Sin(decimal x)
-    {
-        var cos = Cos(x);
-        return CalculateSinFromCos(x, cos);
+        decimal cos = Cos(x);
+        if (Abs(cos) <= 1e-25m) throw new ArgumentException("Tan(x) bu noktada tanımsızdır (cos(x) = 0).");
+        return Sin(x) / cos;
     }
 
-
-    /// <summary>
-    /// Truncates to  [-2*PI;2*PI]
-    /// </summary>
-    /// <param name="x"></param>
     private static void TruncateToPeriodicInterval(ref decimal x)
     {
-        while (x >= PIx2)
+        if (x >= PIx2 || x <= -PIx2)
         {
-            var divide = Math.Abs(decimal.ToInt32(x / PIx2));
-            x -= divide * PIx2;
+            x = x % PIx2;
         }
-
-        while (x <= -PIx2)
-        {
-            var divide = Math.Abs(decimal.ToInt32(x / PIx2));
-            x += divide * PIx2;
-        }
-    }
-
-
-    private static bool IsSignOfSinePositive(decimal x)
-    {
-        //truncating to  [-2*PI;2*PI]
-        TruncateToPeriodicInterval(ref x);
-
-        //now x in [-2*PI;2*PI]
-        if (x >= -PIx2 && x <= -PI) return true;
-        if (x >= -PI && x <= Zero) return false;
-        if (x >= Zero && x <= PI) return true;
-        if (x >= PI && x <= PIx2) return false;
-
-        //will not be reached
-        throw new ArgumentException(nameof(x));
     }
 
     /// <summary>
-    /// Analogy of Math.Sqrt
+    /// Analogy of Math.Sqrt (Safe against infinite 1-ULP oscillation)
     /// </summary>
-    /// <param name="x"></param>
-    /// <param name="epsilon">lasts iteration while error less than this epsilon</param>
-    /// <returns></returns>
     public static decimal Sqrt(decimal x, decimal epsilon = Zero)
     {
-        if (x < Zero) throw new OverflowException("Cannot calculate square root from a negative number");
-        //initial approximation
-        decimal current = (decimal)Math.Sqrt((double)x), previous;
-        do
+        if (x < Zero) throw new ArgumentException("Negatif sayının karekökü reel sayılarda alınamaz.");
+        if (x == Zero) return Zero;
+
+        decimal current = (decimal)Math.Sqrt((double)x);
+        if (current == Zero) current = x * Half;
+
+        decimal previous = Zero;
+        int maxSteps = 25;
+        for (int step = 0; step < maxSteps; step++)
         {
+            decimal next = (current + x / current) * Half;
+            if (next == current || next == previous || Abs(next - current) <= epsilon)
+            {
+                return next;
+            }
             previous = current;
-            if (previous == Zero) return Zero;
-            current = (previous + x / previous) * Half;
-        } while (Abs(previous - current) > epsilon);
+            current = next;
+        }
         return current;
     }
+
     /// <summary>
     /// Analogy of Math.Sinh
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Sinh(decimal x)
     {
+        if (x < Zero) return -Sinh(-x);
+
+        if (Abs(x) < 0.1m)
+        {
+            // Taylor series for small x to avoid loss of significance in (e^x - e^-x)/2
+            decimal x2 = x * x;
+            decimal term = x;
+            decimal sum = x;
+            decimal cachedSum;
+            for (int i = 1; i < MaxIteration; i++)
+            {
+                cachedSum = sum;
+                term *= x2 / ((2 * i) * (2 * i + 1));
+                sum += term;
+                if (sum == cachedSum) break;
+            }
+            return sum;
+        }
+
         var y = Exp(x);
         var yy = One / y;
         return (y - yy) * Half;
@@ -389,10 +353,9 @@ public static class DecimalMath
     /// <summary>
     /// Analogy of Math.Cosh
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Cosh(decimal x)
     {
+        if (x < Zero) x = -x;
         var y = Exp(x);
         var yy = One / y;
         return (y + yy) * Half;
@@ -401,8 +364,6 @@ public static class DecimalMath
     /// <summary>
     /// Analogy of Math.Sign
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static int Sign(decimal x)
     {
         return x < Zero ? -1 : (x > Zero ? 1 : 0);
@@ -411,109 +372,103 @@ public static class DecimalMath
     /// <summary>
     /// Analogy of Math.Tanh
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Tanh(decimal x)
     {
-        var y = Exp(x);
-        var yy = One / y;
-        return (y - yy) / (y + yy);
+        if (x > 35m) return One;
+        if (x < -35m) return -One;
+
+        var y = Exp(2m * x);
+        return (y - One) / (y + One);
     }
 
     /// <summary>
     /// Analogy of Math.Abs
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Abs(decimal x)
     {
-        if (x <= Zero)
-        {
-            return -x;
-        }
-        return x;
+        return x <= Zero ? -x : x;
     }
 
     /// <summary>
     /// Analogy of Math.Asin
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Asin(decimal x)
     {
         if (x > One || x < -One)
         {
-            throw new ArgumentException("x must be in [-1,1]");
+            throw new ArgumentException("Asin argümanı [-1, 1] aralığında olmalıdır.");
         }
-        //known values
         if (x == Zero) return Zero;
         if (x == One) return PIdiv2;
-        //asin function is odd function
+        if (x == -One) return -PIdiv2;
         if (x < Zero) return -Asin(-x);
 
-        //my optimize trick here
-
-        // used a math formula to speed up :
-        // asin(x)=0.5*(pi/2-asin(1-2*x*x)) 
-        // if x>=0 is true
-
         var newX = One - 2 * x * x;
-
-        //for calculating new value near to zero than current
-        //because we gain more speed with values near to zero
         if (Abs(x) > Abs(newX))
         {
             var t = Asin(newX);
             return Half * (PIdiv2 - t);
         }
-        var y = Zero;
-        var result = x;
+
+        decimal y = Zero;
+        decimal result = x;
         decimal cachedResult;
-        var i = 1;
+        int i = 1;
         y += result;
-        var xx = x * x;
+        decimal xx = x * x;
         do
         {
             cachedResult = result;
-            result *= xx * (One - Half / (i));
+            result *= xx * (One - Half / i);
             y += result / ((i << 1) + 1);
             i++;
-        } while (cachedResult != result);
+        } while (cachedResult != result && i < MaxIteration);
         return y;
     }
 
     /// <summary>
-    /// Analogy of Math.Atan
+    /// Analogy of Math.Atan (safe against overflow for large x)
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Atan(decimal x)
     {
         if (x == Zero) return Zero;
         if (x == One) return PIdiv4;
+        if (x == -One) return -PIdiv4;
+
+        if (x > 100000000000000m) return PIdiv2;
+        if (x < -100000000000000m) return -PIdiv2;
+
+        if (x > One)
+        {
+            return PIdiv2 - Atan(One / x);
+        }
+        if (x < -One)
+        {
+            return -PIdiv2 - Atan(One / x);
+        }
+
         return Asin(x / Sqrt(One + x * x));
     }
+
     /// <summary>
     /// Analogy of Math.Acos
     /// </summary>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Acos(decimal x)
     {
+        if (x > One || x < -One)
+        {
+            throw new ArgumentException("Acos argümanı [-1, 1] aralığında olmalıdır.");
+        }
         if (x == Zero) return PIdiv2;
         if (x == One) return Zero;
+        if (x == -One) return PI;
         if (x < Zero) return PI - Acos(-x);
         return PIdiv2 - Asin(x);
     }
 
     /// <summary>
     /// Analogy of Math.Atan2
-    /// for more see this
-    /// <seealso cref="http://i.imgur.com/TRLjs8R.png"/>
     /// </summary>
-    /// <param name="y"></param>
-    /// <param name="x"></param>
-    /// <returns></returns>
     public static decimal Atan2(decimal y, decimal x)
     {
         if (x > Zero)
@@ -536,6 +491,6 @@ public static class DecimalMath
         {
             return -PIdiv2;
         }
-        throw new ArgumentException("invalid atan2 arguments");
+        throw new ArgumentException("Geçersiz Atan2 argümanları (0, 0).");
     }
 }

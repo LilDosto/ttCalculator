@@ -1,145 +1,245 @@
 using System;
-using System.Drawing;
-using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
+using System.Reflection;
+using System.Windows.Forms;
 
 namespace MathApp.Controls
 {
     public partial class GraphPlotterControl : UserControl
     {
-        private List<PointF> points = new List<PointF>();
-        private List<PointF> markedPoints = new List<PointF>(); // Points marked by user
-        
-        // Logical ranges
-        private float rangeMinX = -10;
-        private float rangeMaxX = 10;
-        private float rangeMinY = -10; 
-        private float rangeMaxY = 10;
-        
-        private string currentEq = "";
+        private List<List<PointF>> segments = new List<List<PointF>>();
+        private List<PointF> markedPoints = new List<PointF>();
 
-        // Mouse interaction state
+        private float rangeMinX = -10f;
+        private float rangeMaxX = 10f;
+        private float rangeMinY = -6f;
+        private float rangeMaxY = 6f;
+
+        private string currentEq = "sin(x)";
+        private Function compiledFn = null;
+
         private bool isDragging = false;
+        private bool didMoveMouse = false;
         private Point lastMousePos;
-        
+        private Point? hoverMousePos = null;
+
         public GraphPlotterControl()
         {
             InitializeComponent();
-            btnPlot.Click += BtnPlot_Click;
-            
-            // Enable double buffering
-            SetStyle(ControlStyles.DoubleBuffer | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint, true);
-            UpdateStyles();
 
-            // Attach mouse events to the canvas panel
+            // Enable DoubleBuffering on pnlCanvas to prevent flickering during pan/zoom
+            typeof(Panel).InvokeMember(
+                "DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null,
+                pnlCanvas,
+                new object[] { true });
+
+            btnPlot.Click += BtnPlot_Click;
+            btnResetView.Click += BtnResetView_Click;
+            btnClearMarks.Click += (s, e) => { markedPoints.Clear(); pnlCanvas.Invalidate(); };
+
+            btnEx1.Click += (s, e) => LoadPreset("sin(x) * x", -10f, 10f);
+            btnEx2.Click += (s, e) => LoadPreset("x^3 - 3*x", -3f, 3f);
+            btnEx3.Click += (s, e) => LoadPreset("exp(-x^2/4)*cos(2*x)", -6f, 6f);
+            btnEx4.Click += (s, e) => LoadPreset("1 / (x^2 - 1)", -5f, 5f);
+
+            txtEquation.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; BtnPlot_Click(this, EventArgs.Empty); } };
+            txtMinX.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; BtnPlot_Click(this, EventArgs.Empty); } };
+            txtMaxX.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; BtnPlot_Click(this, EventArgs.Empty); } };
+
             pnlCanvas.MouseDown += PnlCanvas_MouseDown;
             pnlCanvas.MouseMove += PnlCanvas_MouseMove;
             pnlCanvas.MouseUp += PnlCanvas_MouseUp;
-            pnlCanvas.MouseClick += PnlCanvas_MouseClick;
-            pnlCanvas.Resize += pnlCanvas_Resize;
-            pnlCanvas.Paint += pnlCanvas_Paint;
+            pnlCanvas.MouseLeave += (s, e) => { hoverMousePos = null; pnlCanvas.Invalidate(); };
+            pnlCanvas.MouseWheel += PnlCanvas_MouseWheel;
+
+            // Plot default function on startup
+            PlotNewEquation(true);
+        }
+
+        private void LoadPreset(string eq, float minX, float maxX)
+        {
+            txtEquation.Text = eq;
+            txtMinX.Text = minX.ToString(CultureInfo.InvariantCulture);
+            txtMaxX.Text = maxX.ToString(CultureInfo.InvariantCulture);
+            PlotNewEquation(true);
         }
 
         private void BtnPlot_Click(object sender, EventArgs e)
         {
-            currentEq = txtEquation.Text;
-            markedPoints.Clear(); // Clear marks on new plot? Or keep them? Let's clear for fresh start.
+            PlotNewEquation(true);
+        }
+
+        private void BtnResetView_Click(object sender, EventArgs e)
+        {
+            txtMinX.Text = "-10";
+            txtMaxX.Text = "10";
+            PlotNewEquation(true);
+        }
+
+        private void PlotNewEquation(bool autoFitY)
+        {
+            currentEq = txtEquation.Text.Trim();
             if (string.IsNullOrWhiteSpace(currentEq)) return;
 
-            rangeMinX = parse(txtMinX.Text, -10);
-            rangeMaxX = parse(txtMaxX.Text, 10);
+            rangeMinX = ParseFloat(txtMinX.Text, -10f);
+            rangeMaxX = ParseFloat(txtMaxX.Text, 10f);
+            if (rangeMinX >= rangeMaxX)
+            {
+                rangeMinX = -10f;
+                rangeMaxX = 10f;
+            }
 
-            GeneratePoints();
+            try
+            {
+                compiledFn = NumericalMethods.CompileFunction(currentEq);
+                lblStatus.Text = $"✓ Çizildi: y = {currentEq}   |   Sol Tık + Sürükle: Kaydır   |   Tekerlek: Yakınlaştır   |   Tıkla: Nokta İşaretle";
+                lblStatus.ForeColor = ThemeHelper.MutedText;
+            }
+            catch (Exception ex)
+            {
+                compiledFn = null;
+                segments.Clear();
+                lblStatus.Text = "❌ Denklem Hatası: " + ex.Message;
+                lblStatus.ForeColor = ThemeHelper.DangerRed;
+                pnlCanvas.Invalidate();
+                return;
+            }
+
+            GeneratePoints(autoFitY);
             pnlCanvas.Invalidate();
         }
 
-        private float parse(string s, float def)
+        private float ParseFloat(string s, float def)
         {
-            if (float.TryParse(s, out float v)) return v;
+            string norm = (s ?? "").Trim().Replace(',', '.');
+            if (float.TryParse(norm, NumberStyles.Any, CultureInfo.InvariantCulture, out float v)) return v;
             return def;
         }
 
-        private void GeneratePoints()
+        private void GeneratePoints(bool autoFitY)
         {
-            points.Clear();
-            float step = (rangeMaxX - rangeMinX) / 2000f; // Higher resolution
+            segments.Clear();
+            if (compiledFn == null) return;
+
+            int sampleCount = Math.Max(600, pnlCanvas.Width * 2);
+            float step = (rangeMaxX - rangeMinX) / sampleCount;
+            if (step <= 0) return;
 
             float tempMinY = float.MaxValue;
             float tempMaxY = float.MinValue;
 
-            for (float x = rangeMinX; x <= rangeMaxX; x += step)
+            List<PointF> currentSegment = new List<PointF>();
+            float? prevY = null;
+
+            bool prevRad = Function.UseRadians;
+            Function.UseRadians = true;
+            try
             {
-                try
+                for (int i = 0; i <= sampleCount; i++)
                 {
-                    decimal val = NumericalMethods.Method_EvaluateFunction(currentEq, "x", (decimal)x);
-                    float y = (float)val;
+                    float x = rangeMinX + i * step;
+                    try
+                    {
+                        decimal val = NumericalMethods.EvaluateCompiled(compiledFn, "x", (decimal)x);
+                        float y = (float)val;
 
-                    // Clamp excessively large values to avoid float overflow issues in GDI+
-                    if (y > 10000) y = 10000;
-                    if (y < -10000) y = -10000;
+                        if (float.IsNaN(y) || float.IsInfinity(y) || Math.Abs(y) > 1e6f)
+                        {
+                            if (currentSegment.Count > 1) segments.Add(currentSegment);
+                            currentSegment = new List<PointF>();
+                            prevY = null;
+                            continue;
+                        }
 
-                    points.Add(new PointF(x, y));
+                        // Detect vertical asymptote jump (e.g. 1/x or tan(x))
+                        if (prevY.HasValue && Math.Abs(y - prevY.Value) > (rangeMaxY - rangeMinY) * 2.5f && (y * prevY.Value < 0))
+                        {
+                            if (currentSegment.Count > 1) segments.Add(currentSegment);
+                            currentSegment = new List<PointF>();
+                        }
 
-                    if (y < tempMinY) tempMinY = y;
-                    if (y > tempMaxY) tempMaxY = y;
-                }
-                catch
-                {
-                    // Ignore calculation errors (e.g. division by zero, out of domain)
+                        currentSegment.Add(new PointF(x, y));
+                        prevY = y;
+
+                        if (Math.Abs(y) < 500f)
+                        {
+                            if (y < tempMinY) tempMinY = y;
+                            if (y > tempMaxY) tempMaxY = y;
+                        }
+                    }
+                    catch
+                    {
+                        if (currentSegment.Count > 1) segments.Add(currentSegment);
+                        currentSegment = new List<PointF>();
+                        prevY = null;
+                    }
                 }
             }
-            
-            // Auto-scale Y if it's the first plot or if we want to snap to range
-            // But if we are panning, we probably shouldn't auto-reset Y every time unless explicit.
-            // For now, let's set Y range based on data with some padding
-            if (tempMinY < tempMaxY)
+            finally
             {
-                float h = tempMaxY - tempMinY;
-                if (h == 0) h = 10;
-                rangeMinY = tempMinY - h * 0.1f;
-                rangeMaxY = tempMaxY + h * 0.1f;
+                Function.UseRadians = prevRad;
             }
-            else
+
+            if (currentSegment.Count > 1)
             {
-                rangeMinY = -10;
-                rangeMaxY = 10;
+                segments.Add(currentSegment);
+            }
+
+            if (autoFitY)
+            {
+                if (tempMinY < tempMaxY)
+                {
+                    float h = tempMaxY - tempMinY;
+                    if (h < 1e-3f) h = 4f;
+                    rangeMinY = tempMinY - h * 0.18f;
+                    rangeMaxY = tempMaxY + h * 0.18f;
+                }
+                else
+                {
+                    rangeMinY = -10f;
+                    rangeMaxY = 10f;
+                }
             }
         }
 
-        // --- Mouse Interaction ---
-
-        protected override void OnMouseWheel(MouseEventArgs e)
+        private void PnlCanvas_MouseWheel(object sender, MouseEventArgs e)
         {
-            // Zoom Factor
-            float zoom = (e.Delta > 0) ? 0.9f : 1.1f;
-            
-            // Calculate center
+            float zoom = (e.Delta > 0) ? 0.85f : 1.18f;
+
             float rangeW = rangeMaxX - rangeMinX;
             float rangeH = rangeMaxY - rangeMinY;
-            
-            float midX = (rangeMaxX + rangeMinX) / 2;
-            float midY = (rangeMaxY + rangeMinY) / 2;
+            if (rangeW < 1e-4f && zoom < 1f) return;
+            if (rangeW > 1e6f && zoom > 1f) return;
 
-            // Apply zoom centered
-            float halfW = (rangeW * zoom) / 2;
-            float halfH = (rangeH * zoom) / 2;
-            
+            float midX = (rangeMaxX + rangeMinX) / 2f;
+            float midY = (rangeMaxY + rangeMinY) / 2f;
+
+            float halfW = (rangeW * zoom) / 2f;
+            float halfH = (rangeH * zoom) / 2f;
+
             rangeMinX = midX - halfW;
             rangeMaxX = midX + halfW;
             rangeMinY = midY - halfH;
             rangeMaxY = midY + halfH;
-            
-            GeneratePoints();
+
+            txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
+            txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
+
+            GeneratePoints(false);
             pnlCanvas.Invalidate();
-            
-            base.OnMouseWheel(e); // Let it bubble if needed
         }
 
         private void PnlCanvas_MouseDown(object sender, MouseEventArgs e)
         {
+            pnlCanvas.Focus();
             if (e.Button == MouseButtons.Left)
             {
                 isDragging = true;
+                didMoveMouse = false;
                 lastMousePos = e.Location;
                 Cursor = Cursors.SizeAll;
             }
@@ -147,80 +247,88 @@ namespace MathApp.Controls
 
         private void PnlCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            hoverMousePos = e.Location;
+
             if (isDragging)
             {
-                float dx = e.X - lastMousePos.X;
-                float dy = e.Y - lastMousePos.Y;
+                int dx = e.X - lastMousePos.X;
+                int dy = e.Y - lastMousePos.Y;
+
+                if (Math.Abs(dx) > 2 || Math.Abs(dy) > 2)
+                {
+                    didMoveMouse = true;
+                }
 
                 float rangeW = rangeMaxX - rangeMinX;
                 float rangeH = rangeMaxY - rangeMinY;
 
-                float w = pnlCanvas.Width;
-                float h = pnlCanvas.Height;
+                float w = Math.Max(1, pnlCanvas.Width);
+                float h = Math.Max(1, pnlCanvas.Height);
 
-                // Scale pixel delta to logical delta
-                // Note: dy is inverted because screen Y grows down, but math Y grows up
                 float moveX = -dx * (rangeW / w);
-                float moveY = dy * (rangeH / h); 
+                float moveY = dy * (rangeH / h);
 
                 rangeMinX += moveX;
                 rangeMaxX += moveX;
                 rangeMinY += moveY;
                 rangeMaxY += moveY;
 
+                txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
+                txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
+
                 lastMousePos = e.Location;
-                
-                // Re-generate points if we moved significantly to ensure we cover the new X range?
-                // Or just shift the view? 
-                // If we shift X, we need new data points for the new X area.
-                // So we should re-generate.
-                GeneratePoints(); 
-                
-                pnlCanvas.Invalidate();
+                GeneratePoints(false);
             }
+
+            pnlCanvas.Invalidate();
         }
 
         private void PnlCanvas_MouseUp(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
+                if (!didMoveMouse && compiledFn != null)
+                {
+                    // Snap marked point onto the function curve at clicked X!
+                    float w = Math.Max(1, pnlCanvas.Width);
+                    float xPct = e.X / w;
+                    float logX = rangeMinX + xPct * (rangeMaxX - rangeMinX);
+
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    try
+                    {
+                        decimal fx = NumericalMethods.EvaluateCompiled(compiledFn, "x", (decimal)logX);
+                        markedPoints.Add(new PointF(logX, (float)fx));
+                    }
+                    catch
+                    {
+                        float h = Math.Max(1, pnlCanvas.Height);
+                        float yPct = (h - e.Y) / h;
+                        float logY = rangeMinY + yPct * (rangeMaxY - rangeMinY);
+                        markedPoints.Add(new PointF(logX, logY));
+                    }
+                    finally
+                    {
+                        Function.UseRadians = prevRad;
+                    }
+                }
+
                 isDragging = false;
-                Cursor = Cursors.Default;
-            }
-        }
-
-        private void PnlCanvas_MouseClick(object sender, MouseEventArgs e)
-        {
-            // Right click or simple click (if not dragging) to mark point
-            if (!isDragging && e.Button == MouseButtons.Left)
-            {
-                // Unmap screen to logical
-                float w = pnlCanvas.Width;
-                float h = pnlCanvas.Height;
-                
-                float xPct = e.X / w;
-                float yPct = (h - e.Y) / h; // Invert Y
-
-                float logX = rangeMinX + xPct * (rangeMaxX - rangeMinX);
-                float logY = rangeMinY + yPct * (rangeMaxY - rangeMinY);
-
-                markedPoints.Add(new PointF(logX, logY));
+                Cursor = Cursors.Cross;
                 pnlCanvas.Invalidate();
             }
         }
 
-        // --- Rendering ---
-
         private void pnlCanvas_Paint(object sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            float w = pnlCanvas.Width;
-            float h = pnlCanvas.Height;
+            float w = Math.Max(1, pnlCanvas.Width);
+            float h = Math.Max(1, pnlCanvas.Height);
 
-            // Map functions
             float MapX(float x) => (x - rangeMinX) / (rangeMaxX - rangeMinX) * w;
             float MapY(float y) => h - ((y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
 
@@ -228,7 +336,7 @@ namespace MathApp.Controls
             DrawGrid(g, w, h, MapX, MapY);
 
             // 2. Draw Axes
-            using (Pen axisPen = new Pen(Color.White, 2))
+            using (Pen axisPen = new Pen(Color.FromArgb(148, 163, 184), 1.8f))
             {
                 float y0 = MapY(0);
                 float x0 = MapX(0);
@@ -237,98 +345,152 @@ namespace MathApp.Controls
                 if (x0 >= 0 && x0 <= w) g.DrawLine(axisPen, x0, 0, x0, h);
             }
 
-            // 3. Draw Function
-            if (points.Count > 1)
+            // 3. Draw Function Curve Segments
+            if (segments.Count > 0)
             {
-                using (Pen graphPen = new Pen(Color.Cyan, 2))
+                using (Pen glowPen = new Pen(Color.FromArgb(45, 56, 189, 248), 6f))
+                using (Pen graphPen = new Pen(Color.FromArgb(56, 189, 248), 2.4f))
                 {
-                    List<PointF> screenPoints = new List<PointF>();
-                    foreach (var p in points)
+                    foreach (var seg in segments)
                     {
-                        screenPoints.Add(new PointF(MapX(p.X), MapY(p.Y)));
-                    }
+                        if (seg.Count < 2) continue;
+                        List<PointF> screenPoints = new List<PointF>(seg.Count);
+                        foreach (var p in seg)
+                        {
+                            float sx = MapX(p.X);
+                            float sy = MapY(p.Y);
+                            if (sy < -5000f) sy = -5000f;
+                            if (sy > h + 5000f) sy = h + 5000f;
+                            screenPoints.Add(new PointF(sx, sy));
+                        }
 
-                    // Draw valid segments
-                    // We shouldn't connect jumps between valid/invalid or huge leaps
-                    // For simplicity, we draw lines.
-                    try 
-                    {
-                       // Clipping helps performance but GDI+ handles basic out-of-bounds well
-                       // unless coordinates are floats.NaN or Infinity.
-                       g.DrawLines(graphPen, screenPoints.ToArray());
-                    } 
-                    catch { }
+                        try
+                        {
+                            PointF[] arr = screenPoints.ToArray();
+                            g.DrawLines(glowPen, arr);
+                            g.DrawLines(graphPen, arr);
+                        }
+                        catch { }
+                    }
                 }
             }
 
-            // 4. Draw Marked Points
-            using(Brush markBrush = new SolidBrush(Color.Yellow))
-            using(Pen markPen = new Pen(Color.Red, 2))
-            using(Font markFont = new Font("Segoe UI", 9))
+            // 4. Draw Live Hover Crosshair & f(x) Value
+            if (hoverMousePos.HasValue && !isDragging && compiledFn != null)
             {
-                foreach(var p in markedPoints)
+                float mx = hoverMousePos.Value.X;
+                float logX = rangeMinX + (mx / w) * (rangeMaxX - rangeMinX);
+
+                bool prevRad = Function.UseRadians;
+                Function.UseRadians = true;
+                try
+                {
+                    decimal fxDec = NumericalMethods.EvaluateCompiled(compiledFn, "x", (decimal)logX);
+                    float logY = (float)fxDec;
+                    float sy = MapY(logY);
+
+                    using (Pen dashPen = new Pen(Color.FromArgb(90, 248, 250, 252), 1f))
+                    {
+                        dashPen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                        g.DrawLine(dashPen, mx, 0, mx, h);
+                        if (sy >= 0 && sy <= h)
+                        {
+                            g.DrawLine(dashPen, 0, sy, w, sy);
+                            using (Brush dotBrush = new SolidBrush(Color.FromArgb(56, 189, 248)))
+                            {
+                                g.FillEllipse(dotBrush, mx - 4, sy - 4, 8, 8);
+                            }
+                        }
+                    }
+
+                    string coordInfo = $"x = {logX:F3}  |  f(x) = {logY:F4}";
+                    using (Font hudFont = new Font("Consolas", 9.5F, FontStyle.Bold))
+                    using (Brush hudBg = new SolidBrush(Color.FromArgb(210, 15, 23, 42)))
+                    using (Brush hudFg = new SolidBrush(Color.FromArgb(186, 230, 253)))
+                    {
+                        SizeF sz = g.MeasureString(coordInfo, hudFont);
+                        RectangleF rect = new RectangleF(w - sz.Width - 24, 12, sz.Width + 12, sz.Height + 8);
+                        g.FillRectangle(hudBg, rect);
+                        g.DrawString(coordInfo, hudFont, hudFg, rect.X + 6, rect.Y + 4);
+                    }
+                }
+                catch { }
+                finally
+                {
+                    Function.UseRadians = prevRad;
+                }
+            }
+
+            // 5. Draw Marked Points
+            using (Brush markBrush = new SolidBrush(Color.FromArgb(250, 204, 21)))
+            using (Brush bgTag = new SolidBrush(Color.FromArgb(200, 15, 23, 42)))
+            using (Pen markPen = new Pen(Color.FromArgb(244, 63, 94), 2.2f))
+            using (Font markFont = new Font("Consolas", 9F, FontStyle.Bold))
+            {
+                foreach (var p in markedPoints)
                 {
                     float sx = MapX(p.X);
                     float sy = MapY(p.Y);
-                    
-                    // Draw X mark
-                    float r = 5;
-                    g.DrawLine(markPen, sx - r, sy - r, sx + r, sy + r);
-                    g.DrawLine(markPen, sx + r, sy - r, sx - r, sy + r);
-                    
-                    // Draw coordinates text
+                    if (sx < -50 || sx > w + 50 || sy < -50 || sy > h + 50) continue;
+
+                    g.FillEllipse(markBrush, sx - 4, sy - 4, 8, 8);
+                    g.DrawEllipse(markPen, sx - 6, sy - 6, 12, 12);
+
                     string coord = $"({p.X:F2}, {p.Y:F2})";
-                    g.DrawString(coord, markFont, markBrush, sx + 5, sy - 20);
+                    SizeF sz = g.MeasureString(coord, markFont);
+                    g.FillRectangle(bgTag, sx + 8, sy - 22, sz.Width + 4, sz.Height + 2);
+                    g.DrawString(coord, markFont, markBrush, sx + 10, sy - 21);
                 }
             }
         }
 
         private void DrawGrid(Graphics g, float w, float h, Func<float, float> mapX, Func<float, float> mapY)
         {
-            using (Pen gridPen = new Pen(Color.FromArgb(50, 50, 50), 1))
-            using (Font font = new Font("Segoe UI", 8))
-            using (Brush brush = new SolidBrush(Color.Gray))
+            using (Pen gridPen = new Pen(Color.FromArgb(30, 41, 59), 1))
+            using (Font font = new Font("Segoe UI", 8.5f))
+            using (Brush brush = new SolidBrush(Color.FromArgb(148, 163, 184)))
             {
-                // Calculate roughly how many lines we want
-                int targetLinesW = 10;
-                int targetLinesH = 10;
-
                 float rangeW = rangeMaxX - rangeMinX;
-                float stepW = CalculateStep(rangeW, targetLinesW);
+                float stepW = CalculateStep(rangeW, 10);
 
                 float rangeH = rangeMaxY - rangeMinY;
-                float stepH = CalculateStep(rangeH, targetLinesH);
+                float stepH = CalculateStep(rangeH, 8);
 
-                // Vertical Grid Lines
-                float startX = (float)Math.Floor(rangeMinX / stepW) * stepW;
-                for (float x = startX; x <= rangeMaxX; x += stepW)
+                if (stepW > 0)
                 {
-                    float sx = mapX(x);
-                    g.DrawLine(gridPen, sx, 0, sx, h);
-                    g.DrawString(x.ToString("0.##"), font, brush, sx + 2, h - 20);
+                    float startX = (float)Math.Floor(rangeMinX / stepW) * stepW;
+                    for (float x = startX; x <= rangeMaxX; x += stepW)
+                    {
+                        float sx = mapX(x);
+                        g.DrawLine(gridPen, sx, 0, sx, h);
+                        g.DrawString(x.ToString("0.##", CultureInfo.InvariantCulture), font, brush, sx + 3, h - 20);
+                    }
                 }
 
-                // Horizontal Grid Lines
-                float startY = (float)Math.Floor(rangeMinY / stepH) * stepH;
-                for (float y = startY; y <= rangeMaxY; y += stepH)
+                if (stepH > 0)
                 {
-                    float sy = mapY(y);
-                    g.DrawLine(gridPen, 0, sy, w, sy);
-                    g.DrawString(y.ToString("0.##"), font, brush, 5, sy - 15);
+                    float startY = (float)Math.Floor(rangeMinY / stepH) * stepH;
+                    for (float y = startY; y <= rangeMaxY; y += stepH)
+                    {
+                        float sy = mapY(y);
+                        g.DrawLine(gridPen, 0, sy, w, sy);
+                        g.DrawString(y.ToString("0.##", CultureInfo.InvariantCulture), font, brush, 6, sy - 16);
+                    }
                 }
             }
         }
-        
+
         private float CalculateStep(float range, int targetSteps)
         {
-             float rawStep = range / targetSteps;
-             float mag = (float)Math.Pow(10, Math.Floor(Math.Log10(rawStep)));
-             float normStep = rawStep / mag;
-             
-             if (normStep < 1.5) return 1 * mag;
-             if (normStep < 3.5) return 2 * mag;
-             if (normStep < 7.5) return 5 * mag;
-             return 10 * mag;
+            if (range <= 0 || float.IsNaN(range) || float.IsInfinity(range)) return 1f;
+            float rawStep = range / targetSteps;
+            float mag = (float)Math.Pow(10, Math.Floor(Math.Log10(rawStep)));
+            float normStep = rawStep / mag;
+
+            if (normStep < 1.5f) return 1f * mag;
+            if (normStep < 3.5f) return 2f * mag;
+            if (normStep < 7.5f) return 5f * mag;
+            return 10f * mag;
         }
 
         private void pnlCanvas_Resize(object sender, EventArgs e)

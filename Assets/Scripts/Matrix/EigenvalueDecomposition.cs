@@ -4,81 +4,25 @@ using System.Runtime.Serialization;
 
 namespace DotNetMatrix
 {
-	
-	/// <summary>Eigenvalues and eigenvectors of a real matrix. 
-	/// If A is symmetric, then A = V*D*V' where the eigenvalue matrix D is
-	/// diagonal and the eigenvector matrix V is orthogonal.
-	/// I.e. A = V.Multiply(D.Multiply(V.Transpose())) and 
-	/// V.Multiply(V.Transpose()) equals the identity matrix.
-	/// If A is not symmetric, then the eigenvalue matrix D is block diagonal
-	/// with the real eigenvalues in 1-by-1 blocks and any complex eigenvalues,
-	/// lambda + i*mu, in 2-by-2 blocks, [lambda, mu; -mu, lambda].  The
-	/// columns of V represent the eigenvectors in the sense that A*V = V*D,
-	/// i.e. A.Multiply(V) equals V.Multiply(D).  The matrix V may be badly
-	/// conditioned, or even singular, so the validity of the equation
-	/// A = V*D*Inverse(V) depends upon V.cond().
-	/// 
-	/// </summary>
-	
 	[Serializable]
 	public class EigenvalueDecomposition : System.Runtime.Serialization.ISerializable
 	{
-		#region	 Class variables
-		
-		/// <summary>Row and column dimension (square matrix).
-		/// @serial matrix dimension.
-		/// </summary>
 		private int n;
-		
-		/// <summary>Symmetry flag.
-		/// @serial internal symmetry flag.
-		/// </summary>
 		private bool issymmetric;
-		
-		/// <summary>Arrays for internal storage of eigenvalues.
-		/// @serial internal storage of eigenvalues.
-		/// </summary>
 		private decimal[] d, e;
-		
-		/// <summary>Array for internal storage of eigenvectors.
-		/// @serial internal storage of eigenvectors.
-		/// </summary>
 		private decimal[][] V;
-		
-		/// <summary>Array for internal storage of nonsymmetric Hessenberg form.
-		/// @serial internal storage of nonsymmetric Hessenberg form.
-		/// </summary>
 		private decimal[][] H;
-		
-		/// <summary>Working storage for nonsymmetric algorithm.
-		/// @serial working storage for nonsymmetric algorithm.
-		/// </summary>
 		private decimal[] ort;
-		
-		#endregion //  Class variables
-
-		#region Private Methods
-		
-		// Symmetric Householder reduction to tridiagonal form.
 		
 		private void  tred2()
 		{
-			//  This is derived from the Algol procedures tred2 by
-			//  Bowdler, Martin, Reinsch, and Wilkinson, Handbook for
-			//  Auto. Comp., Vol.ii-Linear Algebra, and the corresponding
-			//  Fortran subroutine in EISPACK.
-			
 			for (int j = 0; j < n; j++)
 			{
 				d[j] = V[n - 1][j];
 			}
 			
-			// Householder reduction to tridiagonal form.
-			
 			for (int i = n - 1; i > 0; i--)
 			{
-				// Scale to avoid under/overflow.
-				
 				decimal scale = 0.0m;
 				decimal h = 0.0m;
 				for (int k = 0; k < i; k++)
@@ -97,8 +41,6 @@ namespace DotNetMatrix
 				}
 				else
 				{
-					// Generate Householder vector.
-					
 					for (int k = 0; k < i; k++)
 					{
 						d[k] /= scale;
@@ -117,8 +59,6 @@ namespace DotNetMatrix
 					{
 						e[j] = 0.0m;
 					}
-					
-					// Apply similarity transformation to remaining columns.
 					
 					for (int j = 0; j < i; j++)
 					{
@@ -158,8 +98,6 @@ namespace DotNetMatrix
 				d[i] = h;
 			}
 			
-			// Accumulate transformations.
-			
 			for (int i = 0; i < n - 1; i++)
 			{
 				V[n - 1][i] = V[i][i];
@@ -198,15 +136,8 @@ namespace DotNetMatrix
 			e[0] = 0.0m;
 		}
 		
-		// Symmetric tridiagonal QL algorithm.
-		
 		private void  tql2()
 		{
-			//  This is derived from the Algol procedures tql2, by
-			//  Bowdler, Martin, Reinsch, and Wilkinson, Handbook for
-			//  Auto. Comp., Vol.ii-Linear Algebra, and the corresponding
-			//  Fortran subroutine in EISPACK.
-			
 			for (int i = 1; i < n; i++)
 			{
 				e[i - 1] = e[i];
@@ -215,11 +146,9 @@ namespace DotNetMatrix
 			
 			decimal f = 0.0m;
 			decimal tst1 = 0.0m;
-			decimal eps = (decimal)DecimalMath.Pow(2.0m, - 52.0m);
+			decimal eps = DecimalMath.Pow(2.0m, -64.0m);
 			for (int l = 0; l < n; l++)
 			{
-				// Find small subdiagonal element
-				
 				tst1 = System.Math.Max(tst1, System.Math.Abs(d[l]) + System.Math.Abs(e[l]));
 				int m = l;
 				while (m < n)
@@ -231,18 +160,13 @@ namespace DotNetMatrix
 					m++;
 				}
 				
-				// If m == l, d[l] is an eigenvalue,
-				// otherwise, iterate.
-				
 				if (m > l)
 				{
 					int iter = 0;
 					do 
 					{
-						iter = iter + 1; // (Could check iteration count here.)
-						
-						// Compute implicit shift
-						
+						iter = iter + 1;
+						if (iter > 120) break;
 						decimal g = d[l];
 						decimal p = (d[l + 1] - g) / (2.0m * e[l]);
 						decimal r = Maths.Hypot(p, 1.0m);
@@ -259,8 +183,6 @@ namespace DotNetMatrix
 							d[i] -= h;
 						}
 						f = f + h;
-						
-						// Implicit QL transformation.
 						
 						p = d[m];
 						decimal c = 1.0m;
@@ -283,8 +205,6 @@ namespace DotNetMatrix
 							p = c * d[i] - s * g;
 							d[i + 1] = h + s * (c * g + s * d[i]);
 							
-							// Accumulate transformation.
-							
 							for (int k = 0; k < n; k++)
 							{
 								h = V[k][i + 1];
@@ -295,16 +215,12 @@ namespace DotNetMatrix
 						p = (- s) * s2 * c3 * el1 * e[l] / dl1;
 						e[l] = s * p;
 						d[l] = c * p;
-						
-						// Check for convergence.
 					}
 					while (System.Math.Abs(e[l]) > eps * tst1);
 				}
 				d[l] = d[l] + f;
 				e[l] = 0.0m;
 			}
-			
-			// Sort eigenvalues and corresponding vectors.
 			
 			for (int i = 0; i < n - 1; i++)
 			{
@@ -332,23 +248,13 @@ namespace DotNetMatrix
 			}
 		}
 		
-		// Nonsymmetric reduction to Hessenberg form.
-		
 		private void  orthes()
 		{
-			//  This is derived from the Algol procedures orthes and ortran,
-			//  by Martin and Wilkinson, Handbook for Auto. Comp.,
-			//  Vol.ii-Linear Algebra, and the corresponding
-			//  Fortran subroutines in EISPACK.
-			
 			int low = 0;
 			int high = n - 1;
 			
 			for (int m = low + 1; m <= high - 1; m++)
 			{
-				
-				// Scale column.
-				
 				decimal scale = 0.0m;
 				for (int i = m; i <= high; i++)
 				{
@@ -356,9 +262,6 @@ namespace DotNetMatrix
 				}
 				if (scale != 0.0m)
 				{
-					
-					// Compute Householder transformation.
-					
 					decimal h = 0.0m;
 					for (int i = high; i >= m; i--)
 					{
@@ -372,9 +275,6 @@ namespace DotNetMatrix
 					}
 					h = h - ort[m] * g;
 					ort[m] = ort[m] - g;
-					
-					// Apply Householder similarity transformation
-					// H = (I-u*u'/h)*H*(I-u*u')/h)
 					
 					for (int j = m; j < n; j++)
 					{
@@ -408,8 +308,6 @@ namespace DotNetMatrix
 				}
 			}
 			
-			// Accumulate transformations (Algol's ortran).
-			
 			for (int i = 0; i < n; i++)
 			{
 				for (int j = 0; j < n; j++)
@@ -433,7 +331,6 @@ namespace DotNetMatrix
 						{
 							g += ort[i] * V[i][j];
 						}
-						// decimal division avoids possible underflow
 						g = (g / ort[m]) / H[m][m - 1];
 						for (int i = m; i <= high; i++)
 						{
@@ -444,8 +341,6 @@ namespace DotNetMatrix
 			}
 		}
 		
-		
-		// Complex scalar division.
 		
 		[NonSerialized()]
 		private decimal cdivr, cdivi;
@@ -469,18 +364,8 @@ namespace DotNetMatrix
 			}
 		}
 		
-		
-		// Nonsymmetric reduction from Hessenberg to real Schur form.
-		
 		private void  hqr2()
 		{
-			//  This is derived from the Algol procedure hqr2,
-			//  by Martin and Wilkinson, Handbook for Auto. Comp.,
-			//  Vol.ii-Linear Algebra, and the corresponding
-			//  Fortran subroutine in EISPACK.
-			
-			// Initialize
-			
 			int nn = this.n;
 			int n = nn - 1;
 			int low = 0;
@@ -488,8 +373,6 @@ namespace DotNetMatrix
 			decimal eps = (decimal)DecimalMath.Pow(2.0m, - 52.0m);
 			decimal exshift = 0.0m;
 			decimal p = 0, q = 0, r = 0, s = 0, z = 0, t, w, x, y;
-			
-			// Store roots isolated by balanc and compute matrix norm
 			
 			decimal norm = 0.0m;
 			for (int i = 0; i < nn; i++)
@@ -505,14 +388,11 @@ namespace DotNetMatrix
 				}
 			}
 			
-			// Outer loop over eigenvalue index
-			
 			int iter = 0;
-			while (n >= low)
+			int totalIter = 0;
+			while (n >= low && totalIter < 400)
 			{
-				
-				// Look for single small sub-diagonal element
-				
+				totalIter++;
 				int l = n;
 				while (l > low)
 				{
@@ -528,9 +408,6 @@ namespace DotNetMatrix
 					l--;
 				}
 				
-				// Check for convergence
-				// One root found
-				
 				if (l == n)
 				{
 					H[n][n] = H[n][n] + exshift;
@@ -538,8 +415,6 @@ namespace DotNetMatrix
 					e[n] = 0.0m;
 					n--;
 					iter = 0;
-					
-					// Two roots found
 				}
 				else if (l == n - 1)
 				{
@@ -550,8 +425,6 @@ namespace DotNetMatrix
 					H[n][n] = H[n][n] + exshift;
 					H[n - 1][n - 1] = H[n - 1][n - 1] + exshift;
 					x = H[n][n];
-					
-					// Real pair
 					
 					if (q >= 0)
 					{
@@ -579,16 +452,12 @@ namespace DotNetMatrix
 						p = p / r;
 						q = q / r;
 						
-						// Row modification
-						
 						for (int j = n - 1; j < nn; j++)
 						{
 							z = H[n - 1][j];
 							H[n - 1][j] = q * z + p * H[n][j];
 							H[n][j] = q * H[n][j] - p * z;
 						}
-						
-						// Column modification
 						
 						for (int i = 0; i <= n; i++)
 						{
@@ -597,8 +466,6 @@ namespace DotNetMatrix
 							H[i][n] = q * H[i][n] - p * z;
 						}
 						
-						// Accumulate transformations
-						
 						for (int i = low; i <= high; i++)
 						{
 							z = V[i][n - 1];
@@ -606,7 +473,6 @@ namespace DotNetMatrix
 							V[i][n] = q * V[i][n] - p * z;
 						}
 						
-						// Complex pair
 					}
 					else
 					{
@@ -618,13 +484,9 @@ namespace DotNetMatrix
 					n = n - 2;
 					iter = 0;
 					
-					// No convergence yet
 				}
 				else
 				{
-					
-					// Form shift
-					
 					x = H[n][n];
 					y = 0.0m;
 					w = 0.0m;
@@ -633,8 +495,6 @@ namespace DotNetMatrix
 						y = H[n - 1][n - 1];
 						w = H[n][n - 1] * H[n - 1][n];
 					}
-					
-					// Wilkinson's original ad hoc shift
 					
 					if (iter == 10)
 					{
@@ -647,8 +507,6 @@ namespace DotNetMatrix
 						x = y = 0.75m * s;
 						w = (- 0.4375m) * s * s;
 					}
-					
-					// MATLAB's new ad hoc shift
 					
 					if (iter == 30)
 					{
@@ -671,9 +529,7 @@ namespace DotNetMatrix
 						}
 					}
 					
-					iter = iter + 1; // (Could check iteration count here.)
-					
-					// Look for two consecutive small sub-diagonal elements
+					iter = iter + 1;
 					
 					int m = n - 2;
 					while (m >= l)
@@ -707,8 +563,6 @@ namespace DotNetMatrix
 							H[i][i - 3] = 0.0m;
 						}
 					}
-					
-					// decimal QR step involving rows l:n and columns m:n
 					
 					for (int k = m; k <= n - 1; k++)
 					{
@@ -752,8 +606,6 @@ namespace DotNetMatrix
 							q = q / p;
 							r = r / p;
 							
-							// Row modification
-							
 							for (int j = k; j < nn; j++)
 							{
 								p = H[k][j] + q * H[k + 1][j];
@@ -765,8 +617,6 @@ namespace DotNetMatrix
 								H[k][j] = H[k][j] - p * x;
 								H[k + 1][j] = H[k + 1][j] - p * y;
 							}
-							
-							// Column modification
 							
 							for (int i = 0; i <= System.Math.Min(n, k + 3); i++)
 							{
@@ -780,8 +630,6 @@ namespace DotNetMatrix
 								H[i][k + 1] = H[i][k + 1] - p * q;
 							}
 							
-							// Accumulate transformations
-							
 							for (int i = low; i <= high; i++)
 							{
 								p = x * V[i][k] + y * V[i][k + 1];
@@ -793,12 +641,10 @@ namespace DotNetMatrix
 								V[i][k] = V[i][k] - p;
 								V[i][k + 1] = V[i][k + 1] - p * q;
 							}
-						} // (s != 0)
-					} // k loop
-				} // check convergence
-			} // while (n >= low)
-			
-			// Backsubstitute to find vectors of upper triangular form
+						}
+					}
+				}
+			}
 			
 			if (norm == 0.0m)
 			{
@@ -809,8 +655,6 @@ namespace DotNetMatrix
 			{
 				p = d[n];
 				q = e[n];
-				
-				// Real vector
 				
 				if (q == 0)
 				{
@@ -842,8 +686,6 @@ namespace DotNetMatrix
 								{
 									H[i][n] = (- r) / (eps * norm);
 								}
-								
-								// Solve real equations
 							}
 							else
 							{
@@ -862,10 +704,8 @@ namespace DotNetMatrix
 								}
 							}
 							
-							// Overflow control
-							
 							t = System.Math.Abs(H[i][n]);
-							if ((eps * t) * t > 1)
+							if (t > 0 && (t > 1000000000000m || (eps * t) > 1m / t))
 							{
 								for (int j = i; j <= n; j++)
 								{
@@ -874,15 +714,10 @@ namespace DotNetMatrix
 							}
 						}
 					}
-					
-					// Complex vector
 				}
 				else if (q < 0)
 				{
 					int l = n - 1;
-					
-					// Last vector component imaginary so matrix is triangular
-					
 					if (System.Math.Abs(H[n][n - 1]) > System.Math.Abs(H[n - 1][n]))
 					{
 						H[n - 1][n - 1] = q / H[n][n - 1];
@@ -925,9 +760,6 @@ namespace DotNetMatrix
 							}
 							else
 							{
-								
-								// Solve complex equations
-								
 								x = H[i][i + 1];
 								y = H[i + 1][i];
 								vr = (d[i] - p) * (d[i] - p) + e[i] * e[i] - q * q;
@@ -952,10 +784,8 @@ namespace DotNetMatrix
 								}
 							}
 							
-							// Overflow control
-							
 							t = System.Math.Max(System.Math.Abs(H[i][n - 1]), System.Math.Abs(H[i][n]));
-							if ((eps * t) * t > 1)
+							if (t > 0 && (t > 1000000000000m || (eps * t) > 1m / t))
 							{
 								for (int j = i; j <= n; j++)
 								{
@@ -968,8 +798,6 @@ namespace DotNetMatrix
 				}
 			}
 			
-			// Vectors of isolated roots
-			
 			for (int i = 0; i < nn; i++)
 			{
 				if (i < low | i > high)
@@ -980,8 +808,6 @@ namespace DotNetMatrix
 					}
 				}
 			}
-			
-			// Back transformation to get eigenvectors of original matrix
 			
 			for (int j = nn - 1; j >= low; j--)
 			{
@@ -997,17 +823,6 @@ namespace DotNetMatrix
 			}
 		}
 
-		#endregion //  Private Methods
-		
-		
-		#region Constructor
-		
-		/// <summary>Check for symmetry, then construct the eigenvalue decomposition</summary>
-		/// <param name="Arg">   Square matrix
-		/// </param>
-		/// <returns>     Structure to access D and V.
-		/// </returns>
-		
 		public EigenvalueDecomposition(GeneralMatrix Arg)
 		{
 			decimal[][] A = Arg.Array;
@@ -1039,10 +854,7 @@ namespace DotNetMatrix
 					}
 				}
 				
-				// Tridiagonalize.
 				tred2();
-				
-				// Diagonalize.
 				tql2();
 			}
 			else
@@ -1062,20 +874,11 @@ namespace DotNetMatrix
 					}
 				}
 				
-				// Reduce to Hessenberg form.
 				orthes();
-				
-				// Reduce Hessenberg to real Schur form.
 				hqr2();
 			}
 		}
 
-		#endregion //  Constructor
-		
-		#region Public Properties
-		/// <summary>Return the real parts of the eigenvalues</summary>
-		/// <returns>     real(diag(D))
-		/// </returns>
 		virtual public decimal[] RealEigenvalues
 		{
 			get
@@ -1083,9 +886,6 @@ namespace DotNetMatrix
 				return d;
 			}
 		}
-		/// <summary>Return the imaginary parts of the eigenvalues</summary>
-		/// <returns>     imag(diag(D))
-		/// </returns>
 		virtual public decimal[] ImagEigenvalues
 		{
 			get
@@ -1093,9 +893,6 @@ namespace DotNetMatrix
 				return e;
 			}
 		}
-		/// <summary>Return the block diagonal eigenvalue matrix</summary>
-		/// <returns>     D
-		/// </returns>
 		virtual public GeneralMatrix D
 		{
 			get
@@ -1121,21 +918,12 @@ namespace DotNetMatrix
 				return X;
 			}
 		}
-		#endregion //  Public Properties
-		
-		#region Public Methods
-		
-		/// <summary>Return the eigenvector matrix</summary>
-		/// <returns>     V
-		/// </returns>
 		
 		public virtual GeneralMatrix GetV()
 		{
 			return new GeneralMatrix(V, n, n);
 		}
-		#endregion //  Public Methods
 
-		// A method called when serializing this class.
 		void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) 
 		{
 		}

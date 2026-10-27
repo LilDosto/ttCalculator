@@ -2,16 +2,16 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationIcon>logo.ico</ApplicationIcon>
+    <AssemblyName>ttCalculator</AssemblyName>
+    <Product>ttCalculator - Gelişmiş Matematik &amp; Nümerik Analiz Stüdyosu</Product>
+    <Version>2.0.0</Version>
+    <Company>ttCalculator</Company>
+    <DefaultItemExcludes>$(DefaultItemExcludes);MathApp.Tests\**</DefaultItemExcludes>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="MathApp.Tests\**" />
-    <EmbeddedResource Remove="MathApp.Tests\**" />
-    <None Remove="MathApp.Tests\**" />
-  </ItemGroup>
 </Project>

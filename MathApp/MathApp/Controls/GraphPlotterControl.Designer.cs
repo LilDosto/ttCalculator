@@ -1,3 +1,6 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace MathApp.Controls
 {
@@ -16,159 +19,172 @@ namespace MathApp.Controls
 
         private void InitializeComponent()
         {
-            this.lblTitle = new System.Windows.Forms.Label();
-            this.pnlControls = new System.Windows.Forms.Panel();
-            this.pnlGraphConfig = new System.Windows.Forms.Panel();
-            this.pnlCanvas = new System.Windows.Forms.Panel();
-            
-            this.lblEquation = new System.Windows.Forms.Label();
-            this.txtEquation = new System.Windows.Forms.TextBox();
-            this.lblMinX = new System.Windows.Forms.Label();
-            this.txtMinX = new System.Windows.Forms.TextBox();
-            this.lblMaxX = new System.Windows.Forms.Label();
-            this.txtMaxX = new System.Windows.Forms.TextBox();
-            this.btnPlot = new System.Windows.Forms.Button();
+            this.pnlHeader = ThemeHelper.CreateHeaderPanel(
+                "Etkileşimli Fonksiyon Grafiği Çizici (Graph Plotter)",
+                "Gerçek zamanlı yakınlaştırma (Zoom), kaydırma (Pan), asimptot algılama ve eğri üzerinde koordinat inceleme.");
+
+            this.pnlControls = new Panel();
+            this.pnlPresets = new FlowLayoutPanel();
+            this.lblPresets = new Label();
+            this.btnEx1 = ThemeHelper.CreateExampleChip("sin(x) * x");
+            this.btnEx2 = ThemeHelper.CreateExampleChip("x³ - 3x");
+            this.btnEx3 = ThemeHelper.CreateExampleChip("e^(-x²/4)*cos(2x)");
+            this.btnEx4 = ThemeHelper.CreateExampleChip("1 / (x² - 1)");
+
+            this.lblEquation = new Label();
+            this.txtEquation = new TextBox();
+            this.lblMinX = new Label();
+            this.txtMinX = new TextBox();
+            this.lblMaxX = new Label();
+            this.txtMaxX = new TextBox();
+            this.btnPlot = ThemeHelper.CreateActionButton("📈 Grafiği Çiz", 130, 32, true);
+            this.btnResetView = ThemeHelper.CreateActionButton("🔄 Sıfırla", 100, 32, false);
+            this.btnClearMarks = ThemeHelper.CreateActionButton("📍 Noktaları Sil", 130, 32, false);
+
+            this.pnlStatusBar = new Panel();
+            this.lblStatus = new Label();
+            this.pnlCanvas = new Panel();
 
             this.pnlControls.SuspendLayout();
-            this.pnlGraphConfig.SuspendLayout();
+            this.pnlStatusBar.SuspendLayout();
             this.SuspendLayout();
 
-            // 
-            // lblTitle
-            // 
-            this.lblTitle.Dock = System.Windows.Forms.DockStyle.Top;
-            this.lblTitle.Font = new System.Drawing.Font("Segoe UI Light", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.lblTitle.ForeColor = System.Drawing.Color.White;
-            this.lblTitle.Location = new System.Drawing.Point(0, 0);
-            this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Size = new System.Drawing.Size(800, 60);
-            this.lblTitle.TabIndex = 0;
-            this.lblTitle.Text = "Graph Plotter";
-            this.lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-
-            // 
             // pnlControls
-            // 
-            this.pnlControls.Controls.Add(this.pnlGraphConfig);
-            this.pnlControls.Dock = System.Windows.Forms.DockStyle.Top;
-            this.pnlControls.Location = new System.Drawing.Point(0, 60);
-            this.pnlControls.Name = "pnlControls";
-            this.pnlControls.Size = new System.Drawing.Size(800, 80);
-            this.pnlControls.TabIndex = 1;
+            this.pnlControls.Dock = DockStyle.Top;
+            this.pnlControls.Height = 96;
+            this.pnlControls.BackColor = ThemeHelper.DarkBackground;
+            this.pnlControls.Padding = new Padding(24, 8, 24, 8);
 
-            // 
-            // pnlGraphConfig
-            // 
-            this.pnlGraphConfig.Controls.Add(this.btnPlot);
-            this.pnlGraphConfig.Controls.Add(this.txtMaxX);
-            this.pnlGraphConfig.Controls.Add(this.lblMaxX);
-            this.pnlGraphConfig.Controls.Add(this.txtMinX);
-            this.pnlGraphConfig.Controls.Add(this.lblMinX);
-            this.pnlGraphConfig.Controls.Add(this.txtEquation);
-            this.pnlGraphConfig.Controls.Add(this.lblEquation);
-            this.pnlGraphConfig.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlGraphConfig.Location = new System.Drawing.Point(0, 0);
-            this.pnlGraphConfig.Name = "pnlGraphConfig";
-            this.pnlGraphConfig.Size = new System.Drawing.Size(800, 80);
-            this.pnlGraphConfig.TabIndex = 0;
+            this.lblPresets.Text = "Hızlı Fonksiyonlar:";
+            this.lblPresets.AutoSize = true;
+            this.lblPresets.ForeColor = ThemeHelper.MutedText;
+            this.lblPresets.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            this.lblPresets.Margin = new Padding(0, 5, 10, 0);
 
-            int xPos = 20; int yPos = 25;
+            this.pnlPresets.Location = new Point(24, 8);
+            this.pnlPresets.Size = new Size(820, 34);
+            this.pnlPresets.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlPresets.Controls.Add(this.lblPresets);
+            this.pnlPresets.Controls.Add(this.btnEx1);
+            this.pnlPresets.Controls.Add(this.btnEx2);
+            this.pnlPresets.Controls.Add(this.btnEx3);
+            this.pnlPresets.Controls.Add(this.btnEx4);
 
-            // Equation
+            int y = 52;
+
             this.lblEquation.AutoSize = true;
-            this.lblEquation.ForeColor = System.Drawing.Color.White;
-            this.lblEquation.Text = "y = ";
-            this.lblEquation.Location = new System.Drawing.Point(xPos, yPos);
-            xPos += 30;
-            
-            this.txtEquation.Location = new System.Drawing.Point(xPos, yPos-3);
-            this.txtEquation.Size = new System.Drawing.Size(200, 23);
-            this.txtEquation.BackColor = System.Drawing.Color.FromArgb(40,40,40);
-            this.txtEquation.ForeColor = System.Drawing.Color.White;
-            this.txtEquation.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            xPos += 220;
+            this.lblEquation.ForeColor = ThemeHelper.LightText;
+            this.lblEquation.Font = new Font("Segoe UI Semibold", 10.5F, FontStyle.Bold);
+            this.lblEquation.Text = "f(x) =";
+            this.lblEquation.Location = new Point(24, y + 3);
 
-            // Min X
+            this.txtEquation.Location = new Point(74, y);
+            this.txtEquation.Size = new Size(210, 27);
+            this.txtEquation.Text = "sin(x)";
+            this.txtEquation.Font = new Font("Consolas", 11F);
+            this.txtEquation.BackColor = ThemeHelper.CardBackground;
+            this.txtEquation.ForeColor = Color.White;
+            this.txtEquation.BorderStyle = BorderStyle.FixedSingle;
+
             this.lblMinX.AutoSize = true;
-            this.lblMinX.ForeColor = System.Drawing.Color.White;
+            this.lblMinX.ForeColor = ThemeHelper.LightText;
+            this.lblMinX.Font = new Font("Segoe UI", 9.5F);
             this.lblMinX.Text = "Min X:";
-            this.lblMinX.Location = new System.Drawing.Point(xPos, yPos);
-            xPos += 50;
-            
-            this.txtMinX.Location = new System.Drawing.Point(xPos, yPos-3);
-            this.txtMinX.Size = new System.Drawing.Size(50, 23);
+            this.lblMinX.Location = new Point(296, y + 4);
+
+            this.txtMinX.Location = new Point(344, y);
+            this.txtMinX.Size = new Size(55, 27);
             this.txtMinX.Text = "-10";
-            this.txtMinX.BackColor = System.Drawing.Color.FromArgb(40,40,40);
-            this.txtMinX.ForeColor = System.Drawing.Color.White;
-            this.txtMinX.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            xPos += 70;
+            this.txtMinX.Font = new Font("Consolas", 10.5F);
+            this.txtMinX.BackColor = ThemeHelper.CardBackground;
+            this.txtMinX.ForeColor = Color.White;
+            this.txtMinX.BorderStyle = BorderStyle.FixedSingle;
 
-            // Max X
             this.lblMaxX.AutoSize = true;
-            this.lblMaxX.ForeColor = System.Drawing.Color.White;
+            this.lblMaxX.ForeColor = ThemeHelper.LightText;
+            this.lblMaxX.Font = new Font("Segoe UI", 9.5F);
             this.lblMaxX.Text = "Max X:";
-            this.lblMaxX.Location = new System.Drawing.Point(xPos, yPos);
-            xPos += 50;
+            this.lblMaxX.Location = new Point(408, y + 4);
 
-            this.txtMaxX.Location = new System.Drawing.Point(xPos, yPos-3);
-            this.txtMaxX.Size = new System.Drawing.Size(50, 23);
+            this.txtMaxX.Location = new Point(458, y);
+            this.txtMaxX.Size = new Size(55, 27);
             this.txtMaxX.Text = "10";
-            this.txtMaxX.BackColor = System.Drawing.Color.FromArgb(40,40,40);
-            this.txtMaxX.ForeColor = System.Drawing.Color.White;
-            this.txtMaxX.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            xPos += 70;
+            this.txtMaxX.Font = new Font("Consolas", 10.5F);
+            this.txtMaxX.BackColor = ThemeHelper.CardBackground;
+            this.txtMaxX.ForeColor = Color.White;
+            this.txtMaxX.BorderStyle = BorderStyle.FixedSingle;
 
-            // Plot Button
-            this.btnPlot.Location = new System.Drawing.Point(xPos, yPos-5);
-            this.btnPlot.Size = new System.Drawing.Size(100, 30);
-            this.btnPlot.Text = "Plot";
-            this.btnPlot.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnPlot.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
-            this.btnPlot.ForeColor = System.Drawing.Color.White;
-            this.btnPlot.FlatAppearance.BorderSize = 0;
+            this.btnPlot.Location = new Point(525, y - 2);
+            this.btnResetView.Location = new Point(663, y - 2);
+            this.btnClearMarks.Location = new Point(771, y - 2);
 
+            this.pnlControls.Controls.Add(this.pnlPresets);
+            this.pnlControls.Controls.Add(this.btnClearMarks);
+            this.pnlControls.Controls.Add(this.btnResetView);
+            this.pnlControls.Controls.Add(this.btnPlot);
+            this.pnlControls.Controls.Add(this.txtMaxX);
+            this.pnlControls.Controls.Add(this.lblMaxX);
+            this.pnlControls.Controls.Add(this.txtMinX);
+            this.pnlControls.Controls.Add(this.lblMinX);
+            this.pnlControls.Controls.Add(this.txtEquation);
+            this.pnlControls.Controls.Add(this.lblEquation);
 
-            // 
+            // pnlStatusBar
+            this.pnlStatusBar.Dock = DockStyle.Bottom;
+            this.pnlStatusBar.Height = 28;
+            this.pnlStatusBar.BackColor = Color.FromArgb(11, 17, 32);
+            this.pnlStatusBar.Padding = new Padding(16, 4, 16, 4);
+
+            this.lblStatus.Dock = DockStyle.Fill;
+            this.lblStatus.ForeColor = ThemeHelper.MutedText;
+            this.lblStatus.Font = new Font("Segoe UI", 9F);
+            this.lblStatus.TextAlign = ContentAlignment.MiddleLeft;
+            this.lblStatus.Text = "Hazır.";
+            this.pnlStatusBar.Controls.Add(this.lblStatus);
+
             // pnlCanvas
-            // 
-            this.pnlCanvas.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlCanvas.Location = new System.Drawing.Point(0, 140);
-            this.pnlCanvas.Name = "pnlCanvas";
-            this.pnlCanvas.Size = new System.Drawing.Size(800, 460);
-            this.pnlCanvas.TabIndex = 2;
-            this.pnlCanvas.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
-            this.pnlCanvas.Paint += new System.Windows.Forms.PaintEventHandler(this.pnlCanvas_Paint);
-            this.pnlCanvas.Resize += new System.EventHandler(this.pnlCanvas_Resize);
+            this.pnlCanvas.Dock = DockStyle.Fill;
+            this.pnlCanvas.BackColor = Color.FromArgb(11, 17, 32);
+            this.pnlCanvas.Cursor = Cursors.Cross;
+            this.pnlCanvas.Paint += new PaintEventHandler(this.pnlCanvas_Paint);
+            this.pnlCanvas.Resize += new EventHandler(this.pnlCanvas_Resize);
 
-            // 
             // GraphPlotterControl
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(20)))), ((int)(((byte)(20)))), ((int)(((byte)(20)))));
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.BackColor = ThemeHelper.DarkBackground;
             this.Controls.Add(this.pnlCanvas);
+            this.Controls.Add(this.pnlStatusBar);
             this.Controls.Add(this.pnlControls);
-            this.Controls.Add(this.lblTitle);
+            this.Controls.Add(this.pnlHeader);
             this.Name = "GraphPlotterControl";
-            this.Size = new System.Drawing.Size(800, 600);
-            this.pnlControls.ResumeLayout(false);
-            this.pnlGraphConfig.ResumeLayout(false);
-            this.pnlGraphConfig.PerformLayout();
-            this.ResumeLayout(false);
+            this.Size = new Size(920, 660);
 
+            this.pnlControls.ResumeLayout(false);
+            this.pnlControls.PerformLayout();
+            this.pnlStatusBar.ResumeLayout(false);
+            this.ResumeLayout(false);
         }
 
-        private System.Windows.Forms.Label lblTitle;
-        private System.Windows.Forms.Panel pnlControls;
-        private System.Windows.Forms.Panel pnlGraphConfig;
-        private System.Windows.Forms.Panel pnlCanvas;
-        
-        private System.Windows.Forms.Label lblEquation;
-        private System.Windows.Forms.TextBox txtEquation;
-        private System.Windows.Forms.Label lblMinX;
-        private System.Windows.Forms.TextBox txtMinX;
-        private System.Windows.Forms.Label lblMaxX;
-        private System.Windows.Forms.TextBox txtMaxX;
-        private System.Windows.Forms.Button btnPlot;
+        private Panel pnlHeader;
+        private Panel pnlControls;
+        private FlowLayoutPanel pnlPresets;
+        private Label lblPresets;
+        private Button btnEx1;
+        private Button btnEx2;
+        private Button btnEx3;
+        private Button btnEx4;
+        private Label lblEquation;
+        private TextBox txtEquation;
+        private Label lblMinX;
+        private TextBox txtMinX;
+        private Label lblMaxX;
+        private TextBox txtMaxX;
+        private Button btnPlot;
+        private Button btnResetView;
+        private Button btnClearMarks;
+        private Panel pnlStatusBar;
+        private Label lblStatus;
+        private Panel pnlCanvas;
     }
 }

@@ -12,9 +12,19 @@ namespace DotNetMatrix
 		
 		public SingularValueDecomposition(GeneralMatrix Arg)
 		{
-			decimal[][] A = Arg.ArrayCopy;
 			m = Arg.RowDimension;
 			n = Arg.ColumnDimension;
+
+			if (m < n)
+			{
+				SingularValueDecomposition svdTrans = new SingularValueDecomposition(Arg.Transpose());
+				s = (decimal[])svdTrans.s.Clone();
+				U = svdTrans.V;
+				V = svdTrans.U;
+				return;
+			}
+
+			decimal[][] A = Arg.ArrayCopy;
 			int nu = System.Math.Min(m, n);
 			s = new decimal[System.Math.Min(m + 1, n)];
 			U = new decimal[m][];
@@ -226,8 +236,8 @@ namespace DotNetMatrix
 			
 			int pp = p - 1;
 			int iter = 0;
-			decimal eps = (decimal)Math.Pow(2.0f, - 52.0f);
-			while (p > 0)
+			decimal eps = DecimalMath.Pow(2.0m, -64.0m);
+			while (p > 0 && iter < 150)
 			{
 				int k, kase;
 				for (k = p - 2; k >= - 1; k--)
@@ -456,11 +466,12 @@ namespace DotNetMatrix
 		{
 			get
 			{
-				GeneralMatrix X = new GeneralMatrix(n, n);
+				int nu = System.Math.Min(m, n);
+				GeneralMatrix X = new GeneralMatrix(nu, nu);
 				decimal[][] S = X.Array;
-				for (int i = 0; i < n; i++)
+				for (int i = 0; i < nu; i++)
 				{
-					for (int j = 0; j < n; j++)
+					for (int j = 0; j < nu; j++)
 					{
 						S[i][j] = 0.0m;
 					}
@@ -472,12 +483,12 @@ namespace DotNetMatrix
 		
 		public virtual GeneralMatrix GetU()
 		{
-			return new GeneralMatrix(U, m, System.Math.Min(m + 1, n));
+			return new GeneralMatrix(U, m, System.Math.Min(m, n));
 		}
 		
 		public virtual GeneralMatrix GetV()
 		{
-			return new GeneralMatrix(V, n, n);
+			return new GeneralMatrix(V, n, System.Math.Min(m, n));
 		}
 		
 		public virtual decimal Norm2()
@@ -487,7 +498,8 @@ namespace DotNetMatrix
 		
 		public virtual decimal Condition()
 		{
-			return s[0] / s[System.Math.Min(m, n) - 1];
+			decimal minS = s[System.Math.Min(m, n) - 1];
+			return minS != 0m ? s[0] / minS : decimal.MaxValue;
 		}
 		
 		public virtual int Rank()

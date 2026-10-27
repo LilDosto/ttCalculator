@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using DotNetMatrix;
 
 public class Matrix
 {
@@ -15,7 +16,6 @@ public class Matrix
             res[i] = new decimal[columns];
             for (int j = 0; j < columns; j++)
             {
-                // Replaced UnityEngine.Random with System.Random
                 double range = (double)(max - min);
                 double sample = random.NextDouble();
                 double scaled = (sample * range) + (double)min;
@@ -28,6 +28,7 @@ public class Matrix
 
     public static decimal[][] Transpoze(decimal[][] _m)
     {
+        if (_m == null || _m.Length == 0) return new decimal[0][];
         decimal[][] res = new decimal[_m[0].Length][];
         for (int i = 0; i < _m[0].Length; i++)
         {
@@ -45,183 +46,73 @@ public class Matrix
 
     public static decimal MatrixDeterminant(decimal[][] _m)
     {
-        if (_m.Length == _m[0].Length)
+        if (_m == null || _m.Length == 0) return 0;
+        if (_m.Length != _m[0].Length)
         {
-            int c = _m.Length;
-            if (c == 2)
-            {
-                return (decimal)Math.Round(_m[0][0] * _m[1][1] - _m[0][1] * _m[1][0], 5);
-            }
-            else if (c == 1)
-            {
-                return (decimal)Math.Round(_m[0][0], 5);
-            }
-            else if (c == 0)
-            {
-                Console.WriteLine("Matrix is empty!");
-                return 0;
-            }
-            else
-            {
-                decimal resDet = 0;
-                for (int i = 0; i < c; i++)
-                {
-                    for (int j = 0; j < c; j++)
-                    {
-                        decimal[][] newM = new decimal[c - 1][];
-                        for (int k = 0; k < c - 1; k++)
-                        {
-                            newM[k] = new decimal[c - 1];
-                        }
-
-                        bool isAddedK = false, isAddedL = false;
-                        int offsetK = 0, offsetL = 0;
-
-                        for (int k = 0; k < c; k++)
-                        {
-                            isAddedL = false;
-                            offsetL = 0;
-                            for (int l = 0; l < c; l++)
-                            {
-                                if (!(k == i || l == j))
-                                {
-                                    newM[k + offsetK][l + offsetL] = _m[k][l];
-                                }
-                                else
-                                {
-                                    if (!isAddedK && k == i)
-                                    {
-                                        offsetK = -1;
-                                        isAddedK = true;
-                                    }
-                                    if (!isAddedL && l == j)
-                                    {
-                                        offsetL = -1;
-                                        isAddedL = true;
-                                    }
-                                }
-                            }
-                        }
-
-                        decimal cofactor = (decimal)Math.Pow(-1, 0 + j + 2) * MatrixDeterminant(newM);
-                        resDet += cofactor * _m[0][j];
-                    }
-                }
-                return (decimal)Math.Round(resDet, 5);
-            }
+            throw new ArgumentException("Determinant hesabı için matris kare (N x N) olmalıdır.");
         }
-        else
-        {
-            Console.WriteLine("This matrix is not a square matrix!");
-            return 0;
-        }
+
+        int n = _m.Length;
+        if (n == 1) return _m[0][0];
+        if (n == 2) return _m[0][0] * _m[1][1] - _m[0][1] * _m[1][0];
+
+        // Use O(n^3) LU Decomposition instead of O(n!) recursive Laplace expansion
+        GeneralMatrix gm = GeneralMatrix.ConstructWithCopy(_m);
+        return gm.Determinant();
     }
 
     public static decimal[] SolveEquation(decimal[][] _m, decimal[] _v)
     {
+        if (_m == null || _v == null || _m.Length == 0) return new decimal[0];
         int len = _m.Length;
 
-        decimal[] res = new decimal[len];
-        decimal d0 = MatrixDeterminant(_m);
-
+        GeneralMatrix A = GeneralMatrix.ConstructWithCopy(_m);
+        GeneralMatrix b = new GeneralMatrix(len, 1);
         for (int i = 0; i < len; i++)
         {
-            decimal[][] testMa = new decimal[len][];
-            for (int j = 0; j < len; j++)
-            {
-                testMa[j] = new decimal[len];
-                for (int k = 0; k < len; k++)
-                {
-                    testMa[j][k] = _m[j][k];
-                }
-            }
-            for (int j = 0; j < len; j++)
-            {
-                testMa[j][i] = _v[j];
-            }
-            decimal di = MatrixDeterminant(testMa);
-            res[i] = (decimal)Math.Round(di / d0, 5);
+            b.Array[i][0] = _v[i];
         }
 
+        GeneralMatrix x = A.Solve(b);
+        decimal[] res = new decimal[len];
+        for (int i = 0; i < len; i++)
+        {
+            res[i] = x.Array[i][0];
+        }
         return res;
     }
 
     public static decimal[][] ConvertLinearEquationsToMatrix(List<string> equations, List<string> variables)
     {
-        if (equations.Count != variables.Count) return null;
+        if (equations == null || variables == null || equations.Count != variables.Count) return null;
 
-        decimal[][] res = new decimal[equations.Count][];
-        for (int i = 0; i < equations.Count; i++)
+        int n = equations.Count;
+        decimal[][] res = new decimal[n][];
+        for (int i = 0; i < n; i++)
         {
-            res[i] = new decimal[equations.Count];
-            string eq = equations[i].Replace(" ", ""); // Remove spaces
+            res[i] = new decimal[n];
+            string eq = equations[i];
+            if (eq.Contains("="))
+            {
+                string[] parts = eq.Split('=');
+                eq = parts[0] + "-(" + parts[1] + ")";
+            }
 
-            // Split by operators but keep them? 
-            // Better approach: Go through each variable and find its coefficient in the string
-            
-            for (int k = 0; k < variables.Count; k++)
+            // Use numerical evaluation to extract exact linear coefficients reliably:
+            // f(0, 0, ...) = c
+            // f(0, ..., x_k=1, ..., 0) - c = coeff_k
+            Dictionary<string, decimal> zeroPts = new Dictionary<string, decimal>();
+            foreach (string v in variables) zeroPts[v] = 0m;
+
+            decimal f0 = NumericalMethods.MethodMultiVar_EvaluateFunction(eq, zeroPts);
+
+            for (int k = 0; k < n; k++)
             {
                 string varName = variables[k];
-                // Find all occurrences? A variable should appear once per equation linearly.
-                // We need to look for "...[coeff]varName..."
-                // Simple parser: Scan the equation string.
-                
-                // Let's use a robust approach: Replace all other variables with 0 and evaluate? 
-                // No, that requires an expression evaluator.
-                
-                // String manipulation approach (as per original code intent but fixed):
-                int varIndex = eq.IndexOf(varName);
-                if (varIndex != -1)
-                {
-                    // Find coefficient ending at varIndex - 1
-                    string coeffStr = "";
-                    int curr = varIndex - 1;
-                    
-                    // Scan backwards to find numbers or sign
-                    while (curr >= 0)
-                    {
-                        char c = eq[curr];
-                        if (char.IsDigit(c) || c == '.')
-                        {
-                            coeffStr = c + coeffStr;
-                            curr--;
-                        }
-                        else if (c == '+' || c == '-')
-                        {
-                            coeffStr = c + coeffStr;
-                            break; // Sign is the start of the coefficient
-                        }
-                        else
-                        {
-                            break; // Another char (maybe another variable?)
-                        }
-                    }
-
-                    if (string.IsNullOrEmpty(coeffStr) || coeffStr == "+")
-                    {
-                        res[i][k] = 1;
-                    }
-                    else if (coeffStr == "-")
-                    {
-                        res[i][k] = -1;
-                    }
-                    else
-                    {
-                        if (decimal.TryParse(coeffStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal val))
-                        {
-                            res[i][k] = val;
-                        }
-                        else
-                        {
-                            // Parse error fallback
-                            res[i][k] = 1; 
-                        }
-                    }
-                }
-                else
-                {
-                    res[i][k] = 0;
-                }
+                zeroPts[varName] = 1m;
+                decimal f1 = NumericalMethods.MethodMultiVar_EvaluateFunction(eq, zeroPts);
+                res[i][k] = f1 - f0;
+                zeroPts[varName] = 0m;
             }
         }
         return res;
@@ -229,6 +120,7 @@ public class Matrix
 
     public static decimal[][] MatrixMultiplication(decimal[][] _m1, decimal[][] _m2)
     {
+        if (_m1 == null || _m2 == null || _m1.Length == 0 || _m2.Length == 0) return null;
         if (_m1[0].Length == _m2.Length)
         {
             decimal[][] res = new decimal[_m1.Length][];
@@ -253,18 +145,20 @@ public class Matrix
         }
         else
         {
-            Console.WriteLine("Matrices cannot be multiplied!");
-            return null;
+            throw new ArgumentException("Birinci matrisin sütun sayısı ile ikinci matrisin satır sayısı eşit olmalıdır.");
         }
     }
+
     public static decimal[][] MatrixMultiplication(decimal[][] _m, decimal _c)
     {
-        decimal[][] res = _m;
+        if (_m == null) return null;
+        decimal[][] res = new decimal[_m.Length][];
         for (int i = 0; i < _m.Length; i++)
         {
-            for (int j = 0; j < _m[0].Length; j++)
+            res[i] = new decimal[_m[i].Length];
+            for (int j = 0; j < _m[i].Length; j++)
             {
-                res[i][j] *= _c;
+                res[i][j] = _m[i][j] * _c;
             }
         }
         return res;
@@ -272,47 +166,42 @@ public class Matrix
 
     public static decimal[] TurnListToVector(List<decimal> _vec)
     {
-        decimal[] res = new decimal[_vec.Count];
-        for (int i = 0; i < _vec.Count; i++)
-        {
-            res[i] = _vec[i];
-        }
-        return res;
+        return _vec.ToArray();
     }
+
     public static decimal[][] TurnListToMatrix(List<List<decimal>> _m)
     {
         decimal[][] res = new decimal[_m.Count][];
         for (int i = 0; i < _m.Count; i++)
         {
-            res[i] = new decimal[_m[i].Count];
-            for (int j = 0; j < _m[i].Count; j++)
-            {
-                res[i][j] = _m[i][j];
-            }
+            res[i] = _m[i].ToArray();
         }
         return res;
     }
 
-    public static string DebugMatrix(decimal[][] _m, string _sep = " ")
+    public static string DebugMatrix(decimal[][] _m, string _sep = "\t")
     {
-        string sum = "";
+        if (_m == null || _m.Length == 0) return "";
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
         for (int i = 0; i < _m.Length; i++)
         {
-            for (int j = 0; j < _m[0].Length; j++)
+            for (int j = 0; j < _m[i].Length; j++)
             {
-                sum += _m[i][j] + ((j == _m[0].Length - 1) ? "\n" : _sep);
+                sb.Append(_m[i][j].ToString("0.######", CultureInfo.InvariantCulture));
+                sb.Append(j == _m[i].Length - 1 ? Environment.NewLine : _sep);
             }
         }
-        return sum;
-    }
-    public static string DebugVector(decimal[] _v, string _sep = " ")
-    {
-        string sum = "";
-        for (int i = 0; i < _v.Length; i++)
-        {
-            sum += _v[i] + "\n";
-        }
-        return sum;
+        return sb.ToString();
     }
 
+    public static string DebugVector(decimal[] _v, string _sep = " ")
+    {
+        if (_v == null) return "";
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        for (int i = 0; i < _v.Length; i++)
+        {
+            sb.AppendLine(_v[i].ToString("0.######", CultureInfo.InvariantCulture));
+        }
+        return sb.ToString();
+    }
 }

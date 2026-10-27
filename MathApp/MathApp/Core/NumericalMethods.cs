@@ -1,232 +1,440 @@
 using DotNetMatrix;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Text;
 using System.Linq;
-using System;
+using System.Text;
+using System.Text.RegularExpressions;
 
 public class NumericalMethods
 {
-    // --- Original Methods Ported ---
+    public static string NormalizeEquation(string eq)
+    {
+        if (string.IsNullOrWhiteSpace(eq)) return "";
+        eq = eq.Trim();
+        if (eq.Contains("="))
+        {
+            string[] parts = eq.Split('=');
+            if (parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                return "(" + parts[0] + ")-(" + parts[1] + ")";
+            }
+        }
+        return eq;
+    }
+
+    public static Function CompileFunction(string eq)
+    {
+        string norm = NormalizeEquation(eq);
+        Function f = new Function();
+        f.Parse(norm);
+        if (f.Error)
+        {
+            throw new ArgumentException("Denklem ayrıştırma hatası: " + f.ErrorDescription);
+        }
+        f.Infix2Postfix();
+        return f;
+    }
+
+    public static decimal EvaluateCompiled(Function f, string variable, decimal point)
+    {
+        f.SetVariable(variable, point);
+        f.EvaluatePostfix();
+        if (f.Error)
+        {
+            throw new ArithmeticException(f.ErrorDescription);
+        }
+        return f.Result;
+    }
+
+    public static decimal EvaluateCompiledMultiVar(Function f, Dictionary<string, decimal> points)
+    {
+        f.SetVariables(points);
+        f.EvaluatePostfix();
+        if (f.Error)
+        {
+            throw new ArithmeticException(f.ErrorDescription);
+        }
+        return f.Result;
+    }
 
     public static decimal Method_EvaluateFunction(string eq, string variable, decimal point)
     {
-        string newEq = eq;
-        newEq = newEq.Replace(variable, point.ToString(CultureInfo.InvariantCulture));
-        Function f = new Function();
-        f.Parse(newEq);
-        f.Infix2Postfix();
-        f.EvaluatePostfix();
-        return f.m_result;
+        Function f = CompileFunction(eq);
+        return EvaluateCompiled(f, variable, point);
     }
 
     public static decimal MethodMultiVar_EvaluateFunction(string eq, Dictionary<string, decimal> points)
     {
-        string newEq = eq;
-        foreach (KeyValuePair<string, decimal> pt in points)
-        {
-            newEq = newEq.Replace(pt.Key, pt.Value.ToString(CultureInfo.InvariantCulture));
-        }
-        Function f = new Function();
-        f.Parse(newEq);
-        f.Infix2Postfix();
-        f.EvaluatePostfix();
-        return f.m_result;
+        Function f = CompileFunction(eq);
+        return EvaluateCompiledMultiVar(f, points);
     }
 
-    public static Dictionary<string, decimal> MethodMultiVar_SolveEquationSystem(List<string> eqs, Dictionary<string, decimal> initPoints, int iterationCount = 5, decimal h = 0.001m)
+    /// <summary>
+    /// Solves a nonlinear or linear system of equations using Multivariable Newton-Raphson with analytical/numerical Jacobian
+    /// and returns step-by-step convergence logs as well as the final solution dictionary.
+    /// </summary>
+    public static Dictionary<string, decimal> MethodMultiVar_SolveEquationSystem(
+        List<string> eqs,
+        Dictionary<string, decimal> initPoints,
+        int iterationCount = 50,
+        decimal h = 0.0001m)
     {
-        Dictionary<string, decimal> dynamicPoints = new Dictionary<string, decimal>(initPoints);
-        for (int itC = 0; itC < iterationCount; itC++)
-        {
-            List<string> linearizedEqs = new List<string>();
-            List<string> variablesStr = new List<string>();
-            List<decimal> leftVector = new List<decimal>();
-            
-            for (int i = 0; i < eqs.Count; i++)
-            {
-                string le = MethodMultiVar_TaylorSeries(eqs[i], 1, dynamicPoints, h);
-
-                decimal leftV = 0;
-                Match m = Regex.Match(le, @"^([-+]?[0-9]*\.?[0-9]+)");
-                if (m.Success)
-                {
-                    if (m.Index + m.Length < le.Length && le[m.Index + m.Length] == '*')
-                    {
-                        leftV = 0;
-                    }
-                    else
-                    {
-                        leftV = decimal.Parse(m.Value, CultureInfo.InvariantCulture) * -1;
-                        le = le.Substring(m.Length);
-                    }
-                }
-
-                string sum = "";
-                foreach (KeyValuePair<string, decimal> p in dynamicPoints)
-                {
-                    sum += p.Key + ": " + p.Value.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture) + ", ";
-                }
-
-
-
-                foreach (KeyValuePair<string, decimal> p in dynamicPoints)
-                {
-                    le = le.Replace("(" + p.Key + (p.Value < 0 ? "+" + DecimalMath.Abs(p.Value).ToString("0." + new string('#', 339), CultureInfo.InvariantCulture) : "-" + p.Value.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture)) + ")", p.Key);
-                    le = le.Replace("(" + p.Key + ")", p.Key);
-                }
-
-                linearizedEqs.Add(le);
-                leftVector.Add(leftV);
-            }
-
-            foreach (KeyValuePair<string, decimal> p in dynamicPoints)
-            {
-                variablesStr.Add(p.Key);
-            }
-
-            decimal[][] jacobianMatrix = Matrix.ConvertLinearEquationsToMatrix(linearizedEqs, variablesStr);
-            decimal[] leftHandVector = leftVector.ToArray();
-
-            // Using DotNetMatrix to solve J * delta = -F
-            // Verify if Matrix.SolveEquation is ported or if we should use GeneralMatrix
-            // Matrix.cs in core likely has SolveEquation if I ported it.
-            // Let's assume Matrix.cs has it or we use GeneralMatrix directly.
-            // The original used Matrix.SolveEquation. 
-            // My ported Matrix.cs from step 20 (viewed 1-663) has SolveEquation.
-            
-            decimal[] newPoints = Matrix.SolveEquation(jacobianMatrix, leftHandVector);
-
-            List<decimal> newPointsList = new List<decimal>();
-            for (int i = 0; i < newPoints.Length; i++)
-            {
-                newPointsList.Add(newPoints[i]);
-            }
-
-            Dictionary<string, decimal> tempDynamicPoints = new Dictionary<string, decimal>();
-            foreach (KeyValuePair<string, decimal> p in dynamicPoints)
-            {
-                tempDynamicPoints.Add(p.Key, p.Value);
-            }
-
-            foreach (KeyValuePair<string, decimal> p in dynamicPoints)
-            {
-                tempDynamicPoints[p.Key] = newPointsList[0] + p.Value;
-                newPointsList.RemoveAt(0);
-            }
-            dynamicPoints = tempDynamicPoints;
-        }
-
-        return dynamicPoints;
+        var logs = new List<string>();
+        return SolveEquationSystemWithLogs(eqs, initPoints, iterationCount, out logs, h);
     }
 
-    public static string Method_TaylorSeries(string eq, int degree, string variable, decimal point, decimal h = 0.001m)
+    public static Dictionary<string, decimal> SolveEquationSystemWithLogs(
+        List<string> eqs,
+        Dictionary<string, decimal> initPoints,
+        int iterationCount,
+        out List<string> logs,
+        decimal h = 0.0001m)
     {
+        logs = new List<string>();
+        if (eqs == null || initPoints == null || eqs.Count == 0 || eqs.Count != initPoints.Count)
+        {
+            throw new ArgumentException("Denklem sayısı ile değişken sayısı birbirine eşit olmalıdır.");
+        }
+
+        int n = eqs.Count;
+        List<string> vars = initPoints.Keys.ToList();
+        Dictionary<string, decimal> currentPoints = new Dictionary<string, decimal>(initPoints);
+
+        List<Function> compiledEqs = new List<Function>(n);
+        for (int i = 0; i < n; i++)
+        {
+            compiledEqs.Add(CompileFunction(eqs[i]));
+        }
+
+        decimal tolerance = 0.0000000001m; // 1e-10m
+
+        for (int iter = 1; iter <= iterationCount; iter++)
+        {
+            decimal[] F = new decimal[n];
+            decimal maxAbsF = 0m;
+
+            for (int i = 0; i < n; i++)
+            {
+                F[i] = EvaluateCompiledMultiVar(compiledEqs[i], currentPoints);
+                decimal absF = DecimalMath.Abs(F[i]);
+                if (absF > maxAbsF) maxAbsF = absF;
+            }
+
+            if (maxAbsF <= tolerance)
+            {
+                logs.Add($"[Adım {iter - 1}] Yakınsama sağlandı! Maksimum hata |F| = {maxAbsF:E4}");
+                break;
+            }
+
+            // Compute Jacobian Matrix J[i][j] = df_i / dx_j via central finite difference
+            decimal[][] J = new decimal[n][];
+            for (int i = 0; i < n; i++)
+            {
+                J[i] = new decimal[n];
+                for (int j = 0; j < n; j++)
+                {
+                    string vName = vars[j];
+                    decimal origVal = currentPoints[vName];
+
+                    currentPoints[vName] = origVal + h;
+                    decimal fPlus = EvaluateCompiledMultiVar(compiledEqs[i], currentPoints);
+
+                    currentPoints[vName] = origVal - h;
+                    decimal fMinus = EvaluateCompiledMultiVar(compiledEqs[i], currentPoints);
+
+                    currentPoints[vName] = origVal;
+                    J[i][j] = (fPlus - fMinus) / (2m * h);
+                }
+            }
+
+            decimal[] negF = new decimal[n];
+            for (int i = 0; i < n; i++) negF[i] = -F[i];
+
+            decimal[] delta;
+            try
+            {
+                delta = Matrix.SolveEquation(J, negF);
+            }
+            catch
+            {
+                // Perturb slightly if Jacobian is singular at initial guess (e.g. (0,0) for x^2+y^2)
+                for (int j = 0; j < n; j++)
+                {
+                    currentPoints[vars[j]] += 0.01m * (j + 1);
+                }
+                logs.Add($"[Adım {iter}] Jakobiyen matrisi tekil (singular) noktaya denk geldi, nokta hafifçe kaydırılıyor...");
+                continue;
+            }
+
+            decimal maxStep = 0m;
+            for (int j = 0; j < n; j++)
+            {
+                currentPoints[vars[j]] += delta[j];
+                decimal absD = DecimalMath.Abs(delta[j]);
+                if (absD > maxStep) maxStep = absD;
+            }
+
+            string ptSummary = string.Join(", ", vars.Select(v => $"{v} = {currentPoints[v].ToString("0.########", CultureInfo.InvariantCulture)}"));
+            logs.Add($"[Adım {iter}] {ptSummary}   (|Δ| = {maxStep:E3})");
+
+            if (maxStep <= tolerance)
+            {
+                logs.Add($"[Adım {iter}] Çözüm başarıyla yakınsadı.");
+                break;
+            }
+        }
+
+        return currentPoints;
+    }
+
+    public static string Method_TaylorSeries(string eq, int degree, string variable, decimal point, decimal h = 0.005m)
+    {
+        if (string.IsNullOrWhiteSpace(variable)) variable = "x";
         decimal constant = Method_EvaluateFunction(eq, variable, point);
-        constant = DecimalMath.Abs(constant) <= 0.001m ? 0 : constant;
-        string newEq = constant != 0 ? constant.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture) : "";
-        for (int i = 1; i < degree + 1; i++)
+        if (DecimalMath.Abs(constant) <= 0.000001m) constant = 0;
+
+        List<string> terms = new List<string>();
+        if (constant != 0)
         {
-            decimal der = Method_NumericalDifferentiation(eq, i, variable, point, 4, h);
+            terms.Add(FormatCoeff(constant));
+        }
+
+        for (int i = 1; i <= degree; i++)
+        {
+            decimal step = i >= 4 ? 0.01m : h;
+            decimal der = Method_NumericalDifferentiation(eq, i, variable, point, 4, step);
             decimal fact = Factorial(i);
-            decimal coeff = (der / fact);
-            string varSTR = "";
-            if (coeff > 0) varSTR = "+";
-            if (coeff == 0) continue;
+            decimal coeff = der / fact;
 
-            string addingSTR = "";
-            if (point < 0)
-            {
-                addingSTR = "+" + DecimalMath.Abs(point).ToString("0." + new string('#', 339), CultureInfo.InvariantCulture);
-            }
-            else if (point > 0)
-            {
-                addingSTR = "-" + point.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture);
-            }
+            if (DecimalMath.Abs(coeff) <= 0.000001m) continue;
 
-            varSTR += coeff.ToString(CultureInfo.InvariantCulture) + "*(" + variable + addingSTR + (i == 1 ? ")" : ")^" + i.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture) + "");
-            newEq += varSTR;
+            string varPart = FormatVarPower(variable, point, i);
+            string coeffStr = FormatTermWithCoeff(coeff, varPart, terms.Count == 0);
+            terms.Add(coeffStr);
         }
-        if (constant == 0 && newEq.Length > 0 && newEq[0] == '+') newEq = newEq.Substring(1);
-        return newEq;
+
+        if (terms.Count == 0) return "0";
+        return string.Join(" ", terms);
     }
 
-    public static string MethodMultiVar_TaylorSeries(string eq, int degree, Dictionary<string, decimal> points, decimal h = 0.001m)
+    public static string MethodMultiVar_TaylorSeries(string eq, int degree, Dictionary<string, decimal> points, decimal h = 0.005m)
     {
-        decimal constant = MethodMultiVar_EvaluateFunction(eq, points);
-        constant = DecimalMath.Abs(constant) <= 0.0001m ? 0 : constant;
-        string newEq = constant != 0 ? constant.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture) : "";
-        for (int i = 1; i < degree + 1; i++)
+        if (points == null || points.Count == 0) return "0";
+
+        Function compiled = CompileFunction(eq);
+        decimal constant = EvaluateCompiledMultiVar(compiled, points);
+        if (DecimalMath.Abs(constant) <= 0.00001m) constant = 0;
+
+        List<string> terms = new List<string>();
+        if (constant != 0)
         {
-            foreach (KeyValuePair<string, decimal> pt in points)
-            {
-                decimal partDer = Method_NumericalPartialDifferentiation(eq, i, pt.Key, points, 4, h);
-                decimal fact = Factorial(i);
-                decimal coeff = partDer / fact;
-                string varSTR = "";
-                if (coeff > 0) varSTR = "+";
-                if (coeff == 0) continue;
+            terms.Add(FormatCoeff(constant));
+        }
 
-                string addingSTR = "";
-                if (pt.Value < 0)
+        List<string> varNames = points.Keys.ToList();
+        int kVars = varNames.Count;
+
+        for (int totalDeg = 1; totalDeg <= degree; totalDeg++)
+        {
+            List<int[]> multiIndices = GenerateMultiIndices(kVars, totalDeg);
+            foreach (int[] alpha in multiIndices)
+            {
+                decimal mixedDer = ComputeMixedPartialDerivative(compiled, varNames, alpha, points, h);
+                decimal denom = 1m;
+                for (int j = 0; j < kVars; j++)
                 {
-                    addingSTR = "+" + DecimalMath.Abs(pt.Value).ToString("0." + new string('#', 339), CultureInfo.InvariantCulture);
+                    denom *= Factorial(alpha[j]);
                 }
-                else if (pt.Value > 0)
+
+                decimal coeff = mixedDer / denom;
+                if (DecimalMath.Abs(coeff) <= 0.00001m) continue;
+
+                List<string> factors = new List<string>();
+                for (int j = 0; j < kVars; j++)
                 {
-                    addingSTR = "-" + pt.Value.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture);
+                    if (alpha[j] > 0)
+                    {
+                        string vName = varNames[j];
+                        factors.Add(FormatVarPower(vName, points[vName], alpha[j]));
+                    }
                 }
-                varSTR += coeff.ToString(CultureInfo.InvariantCulture) + "*(" + pt.Key + addingSTR + (i == 1 ? ")" : ")^" + i.ToString("0." + new string('#', 339), CultureInfo.InvariantCulture));
-                newEq += varSTR;
+
+                string varPart = string.Join(" * ", factors);
+                terms.Add(FormatTermWithCoeff(coeff, varPart, terms.Count == 0));
             }
         }
-        if (constant == 0 && newEq.Length > 0 && newEq[0] == '+') newEq = newEq.Substring(1);
-        // Assuming intent was to do nothing or it's buggy. I'll leave it as is (or fix it).
-        return newEq;
+
+        if (terms.Count == 0) return "0";
+        return string.Join(" ", terms);
     }
 
-    public static decimal Method_NewtonRaphson(string eq, string variable, decimal initialValue, int iterationCount, decimal h = 0.001m)
+    private static List<int[]> GenerateMultiIndices(int numVars, int totalSum)
     {
-        // Lipschitz check suppressed/incomplete in original
-        decimal init = initialValue;
+        List<int[]> results = new List<int[]>();
+        int[] current = new int[numVars];
+        GenerateMultiIndicesRecursive(numVars, totalSum, 0, current, results);
+        return results;
+    }
+
+    private static void GenerateMultiIndicesRecursive(int numVars, int remaining, int idx, int[] current, List<int[]> results)
+    {
+        if (idx == numVars - 1)
+        {
+            current[idx] = remaining;
+            results.Add((int[])current.Clone());
+            return;
+        }
+        for (int v = remaining; v >= 0; v--)
+        {
+            current[idx] = v;
+            GenerateMultiIndicesRecursive(numVars, remaining - v, idx + 1, current, results);
+        }
+    }
+
+    private static decimal ComputeMixedPartialDerivative(
+        Function f,
+        List<string> varNames,
+        int[] orders,
+        Dictionary<string, decimal> basePoints,
+        decimal h)
+    {
+        Dictionary<string, decimal> workPoints = new Dictionary<string, decimal>(basePoints);
+        return ComputeMixedRecursive(f, varNames, orders, 0, workPoints, h);
+    }
+
+    private static decimal ComputeMixedRecursive(
+        Function f,
+        List<string> varNames,
+        int[] orders,
+        int varIndex,
+        Dictionary<string, decimal> workPoints,
+        decimal h)
+    {
+        while (varIndex < orders.Length && orders[varIndex] == 0)
+        {
+            varIndex++;
+        }
+
+        if (varIndex >= orders.Length)
+        {
+            return EvaluateCompiledMultiVar(f, workPoints);
+        }
+
+        string vName = varNames[varIndex];
+        int m = orders[varIndex];
+        decimal origVal = workPoints[vName];
+
+        // Central finite difference weights for order m
+        decimal sum = 0m;
+        for (int i = 0; i <= m; i++)
+        {
+            decimal shift = (m - 2m * i) * (h * 0.5m);
+            workPoints[vName] = origVal + shift;
+            decimal sign = (i % 2 == 0) ? 1m : -1m;
+            decimal comb = Combination(m, i);
+            decimal subVal = ComputeMixedRecursive(f, varNames, orders, varIndex + 1, workPoints, h);
+            sum += sign * comb * subVal;
+        }
+
+        workPoints[vName] = origVal;
+        return sum / DecimalMath.Pow(h, m);
+    }
+
+    private static string FormatCoeff(decimal c)
+    {
+        decimal rounded = Math.Round(c, 6);
+        foreach (int denom in new[] { 1, 2, 3, 4, 6, 8, 12 })
+        {
+            decimal candidate = Math.Round(c * denom) / (decimal)denom;
+            if (DecimalMath.Abs(c - candidate) < 0.00005m)
+            {
+                rounded = candidate;
+                break;
+            }
+        }
+        return rounded.ToString("0.######", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatVarPower(string variable, decimal center, int power)
+    {
+        string core;
+        if (center == 0m)
+        {
+            core = variable;
+        }
+        else if (center > 0m)
+        {
+            core = $"({variable} - {FormatCoeff(center)})";
+        }
+        else
+        {
+            core = $"({variable} + {FormatCoeff(DecimalMath.Abs(center))})";
+        }
+
+        if (power == 1) return core;
+        return $"{core}^{power}";
+    }
+
+    private static string FormatTermWithCoeff(decimal coeff, string varPart, bool isFirst)
+    {
+        decimal absC = DecimalMath.Abs(coeff);
+        string sign = coeff < 0 ? (isFirst ? "-" : "- ") : (isFirst ? "" : "+ ");
+        string cStr = FormatCoeff(absC);
+
+        if (cStr == "1")
+        {
+            return $"{sign}{varPart}";
+        }
+        return $"{sign}{cStr}*{varPart}";
+    }
+
+    public static decimal Method_NewtonRaphson(string eq, string variable, decimal initialValue, int iterationCount, decimal h = 0.0001m)
+    {
+        Function f = CompileFunction(eq);
+        decimal curr = initialValue;
         for (int i = 0; i < iterationCount; i++)
         {
-            decimal next = init - Method_EvaluateFunction(eq, variable, init) / Method_NumericalDifferentiation(eq, 1, variable, init, 6, h);
-            init = next;
-        }
-        return init;
-    }
+            decimal fx = EvaluateCompiled(f, variable, curr);
+            if (DecimalMath.Abs(fx) <= 1e-12m) break;
 
-    // Overload for single-variable Newton-Raphson from UIController's simpler usage (assuming UIController calls this one if I didn't verify signature)
-    // UIController calls: NumericalMethods.Method_NewtonRaphson(eq, variable, initialP, iterCount);
-    // Matches the one above.
-    
-    // My previous implementation had a simplified one. I should keep the one matching signature.
+            decimal dfx = (EvaluateCompiled(f, variable, curr + h) - EvaluateCompiled(f, variable, curr - h)) / (2m * h);
+            if (DecimalMath.Abs(dfx) <= 1e-15m) break;
+
+            curr = curr - fx / dfx;
+        }
+        return curr;
+    }
 
     public static decimal Method_BisectionMethod(string eq, string variable, decimal lowerValue, decimal higherValue, int iterationCount)
     {
-        if (lowerValue >= higherValue)
-            return 0;
+        if (lowerValue >= higherValue) return lowerValue;
 
-        decimal mp = (lowerValue + higherValue) / 2;
+        Function f = CompileFunction(eq);
+        decimal fa = EvaluateCompiled(f, variable, lowerValue);
+        if (DecimalMath.Abs(fa) <= 1e-12m) return lowerValue;
+        decimal fb = EvaluateCompiled(f, variable, higherValue);
+        if (DecimalMath.Abs(fb) <= 1e-12m) return higherValue;
+
+        decimal mp = (lowerValue + higherValue) / 2m;
 
         for (int i = 0; i < iterationCount; i++)
         {
-            mp = (lowerValue + higherValue) / 2;
+            mp = (lowerValue + higherValue) / 2m;
+            decimal evMiddle = EvaluateCompiled(f, variable, mp);
 
-            decimal evLower = Method_EvaluateFunction(eq, variable, lowerValue);
-            // decimal evHigher = Method_EvaluateFunction(eq, variable, higherValue); // unused
-            decimal evMiddle = Method_EvaluateFunction(eq, variable, mp);
+            if (DecimalMath.Abs(evMiddle) <= 1e-12m) break;
 
-            if (evLower * evMiddle < 0)
+            if (fa * evMiddle <= 0)
             {
                 higherValue = mp;
+                fb = evMiddle;
             }
             else
             {
                 lowerValue = mp;
+                fa = evMiddle;
             }
         }
 
@@ -235,34 +443,27 @@ public class NumericalMethods
 
     public static decimal Method_Derivative(string eq, int degree, string variable, decimal point, decimal h = 0.001m)
     {
-        decimal sum = 0;
-        for (int i = 0; i <= degree; i++)
-        {
-            sum += DecimalMath.Pow(-1, i) * Combination(degree, i) * Method_EvaluateFunction(eq, variable, point + (degree - i) * h);
-        }
-        return sum / DecimalMath.Pow(h, degree);
+        return Method_NumericalDifferentiation(eq, degree, variable, point, 4, h);
     }
 
     public static decimal Method_PartialDerivative(string eq, int degree, string toVar, Dictionary<string, decimal> points, decimal h = 0.001m)
     {
-        decimal sum = 0;
-        Dictionary<string, decimal> testPS = new Dictionary<string, decimal>(points);
-        decimal firstToVar = testPS[toVar];
-        for (int i = 0; i <= degree; i++)
-        {
-            testPS[toVar] = firstToVar + (degree - i) * h;
-            sum += DecimalMath.Pow(-1, i) * Combination(degree, i) * MethodMultiVar_EvaluateFunction(eq, testPS);
-        }
-        return sum / DecimalMath.Pow(h, degree);
+        return Method_NumericalPartialDifferentiation(eq, degree, toVar, points, 4, h);
     }
 
     public static decimal Method_NumericalDifferentiation(string eq, int degree, string variable, decimal point, int accuracy = 2, decimal h = 0.001m)
     {
         int m = degree, n = accuracy;
+        if (m >= 11) { n = 2; h = 0.08m; }
+        else if (m == 10) { n = 2; h = 0.04m; }
+        else if (m == 9) { n = 4; h = 0.015m; }
+        else if (m >= 7 && h < 0.012m) h = 0.012m;
+
+        Function f = CompileFunction(eq);
         int p = (2 * (int)Math.Floor((m + 1) / 2.0) - 2 + n) / 2;
 
         decimal[][] _matrix = new decimal[2 * p + 1][];
-        decimal[] _rhsVector = new decimal[2 * p + 1], functionPointsX = new decimal[2 * p + 1], 
+        decimal[] _rhsVector = new decimal[2 * p + 1], functionPointsX = new decimal[2 * p + 1],
             functionPointsY = new decimal[2 * p + 1];
 
         for (int i = 0; i < _matrix.Length; i++)
@@ -270,20 +471,12 @@ public class NumericalMethods
             _matrix[i] = new decimal[2 * p + 1];
             for (int j = 0; j < _matrix[i].Length; j++)
             {
-                _matrix[i][j] = (decimal)Math.Pow(-p + j, i);
+                _matrix[i][j] = DecimalMath.PowerN(-p + j, i);
             }
 
-            if (i != m)
-            {
-                _rhsVector[i] = 0;
-            }
-            else if (i == m)
-            {
-                _rhsVector[i] = Factorial(m);
-            }
-
+            _rhsVector[i] = (i == m) ? Factorial(m) : 0m;
             functionPointsX[i] = point - (p - i) * h;
-            functionPointsY[i] = Method_EvaluateFunction(eq, variable, functionPointsX[i]);
+            functionPointsY[i] = EvaluateCompiled(f, variable, functionPointsX[i]);
         }
 
         GeneralMatrix _A = new GeneralMatrix(_matrix);
@@ -307,6 +500,7 @@ public class NumericalMethods
 
     public static decimal Method_NumericalPartialDifferentiation(string eq, int degree, string toVar, Dictionary<string, decimal> points, int accuracy = 2, decimal h = 0.001m)
     {
+        Function f = CompileFunction(eq);
         int m = degree, n = accuracy;
         int p = (2 * (int)Math.Floor((m + 1) / 2.0) - 2 + n) / 2;
 
@@ -319,11 +513,10 @@ public class NumericalMethods
             _matrix[i] = new decimal[2 * p + 1];
             for (int j = 0; j < _matrix[i].Length; j++)
             {
-                _matrix[i][j] = (decimal)Math.Pow(-p + j, i);
+                _matrix[i][j] = DecimalMath.PowerN(-p + j, i);
             }
 
-            if (i != m) _rhsVector[i] = 0;
-            else if (i == m) _rhsVector[i] = Factorial(m);
+            _rhsVector[i] = (i == m) ? Factorial(m) : 0m;
         }
 
         foreach (KeyValuePair<string, decimal> item in points)
@@ -347,7 +540,7 @@ public class NumericalMethods
             {
                 pair.Add(item.Key, item.Value[i]);
             }
-            functionPointsRange[i] = MethodMultiVar_EvaluateFunction(eq, pair);
+            functionPointsRange[i] = EvaluateCompiledMultiVar(f, pair);
         }
 
         GeneralMatrix _A = new GeneralMatrix(_matrix);
@@ -368,18 +561,35 @@ public class NumericalMethods
 
     public static decimal Factorial(int num)
     {
-        if (num >= 2) return num * Factorial(num - 1);
-        else return 1;
+        if (num < 0) return 0m;
+        decimal res = 1m;
+        for (int i = 2; i <= num; i++) res *= i;
+        return res;
     }
 
     public static decimal Combination(int n, int k)
     {
-        return Factorial(n) / (Factorial(n - k) * Factorial(k));
+        if (k < 0 || k > n || n < 0) return 0m;
+        if (k == 0 || k == n) return 1m;
+        if (k > n - k) k = n - k;
+        decimal res = 1m;
+        for (int i = 1; i <= k; i++)
+        {
+            res = (res * (n - k + i)) / i;
+        }
+        return res;
     }
-    
+
     public static decimal Permutation(int n, int k)
     {
-        return Factorial(n) / Factorial(n - k);
+        if (k < 0 || k > n || n < 0) return 0m;
+        if (k == 0) return 1m;
+        decimal res = 1m;
+        for (int i = 0; i < k; i++)
+        {
+            res *= (n - i);
+        }
+        return res;
     }
 
     public static string GenerateCombinations(string chars, string prefix, int length)
@@ -388,6 +598,7 @@ public class NumericalMethods
         GenerateCombinationsRecursive(prefix, chars, length, sb);
         return sb.ToString();
     }
+
     static void GenerateCombinationsRecursive(string prefix, string chars, int length, StringBuilder sb)
     {
         if (length == 0)
@@ -402,142 +613,502 @@ public class NumericalMethods
         }
     }
 
-    // --- Added Linear Solvers (Optional but kept for completeness if UI uses them) ---
-    // Update: UI uses MethodMultiVar_SolveEquationSystem for System Solver now (based on UIController)
-    // But I implemented btnSolveSystem_Click in MainForm.cs to use Method_LUDecomposition previously.
-    // I should update MainForm.cs to use MethodMultiVar_SolveEquationSystem if it's non-linear or general.
-    // The original app used MethodMultiVar_SolveEquationSystem (Newton-Raphson) for general systems.
-    
-    // So I should keep MethodMultiVar_SolveEquationSystem and update MainForm to use IT instead of LUDecomposition if I want to match original behavior.
-    
-    // I'll keep the linear solvers just in case.
-
-    public static List<string> Method_Inverse(List<string> _eq, List<string> _vars)
+    /// <summary>
+    /// Gauss-Seidel Iterative Linear System Solver with Diagonal Dominance Verification & Row Reordering.
+    /// Ported and enhanced from NumericalMethods / NumericalMethods2.
+    /// </summary>
+    public static Dictionary<string, decimal> Method_GaussSeidel(
+        List<string> eqs,
+        Dictionary<string, decimal> initPoints,
+        int iterationCount,
+        out List<string> logs)
     {
-        // Implementation from previous turn
-        decimal[][] A = Matrix.ConvertLinearEquationsToMatrix(_eq, _vars);
-        if (A == null) return null;
-        decimal[] B = new decimal[_eq.Count];
-        for (int i = 0; i < _eq.Count; i++)
+        logs = new List<string>();
+        if (eqs == null || initPoints == null || eqs.Count == 0 || eqs.Count != initPoints.Count)
         {
-            int ind = _eq[i].IndexOf('=');
-            if (ind != -1) B[i] = decimal.Parse(_eq[i].Substring(ind + 1), CultureInfo.InvariantCulture);
-            else B[i] = 0;
+            throw new ArgumentException("Denklem sayısı ile değişken sayısı birbirine eşit olmalıdır.");
         }
-        
+
+        int n = eqs.Count;
+        List<string> vars = initPoints.Keys.ToList();
+
+        // Extract linear matrix A and right-hand vector b such that A * x = b
+        // Note: ConvertLinearEquationsToMatrix evaluates f(x) = LHS - RHS = A*x - b
+        decimal[][] A = Matrix.ConvertLinearEquationsToMatrix(eqs, vars);
+        decimal[] b = new decimal[n];
+        Dictionary<string, decimal> zeroPts = new Dictionary<string, decimal>();
+        foreach (string v in vars) zeroPts[v] = 0m;
+
+        for (int i = 0; i < n; i++)
+        {
+            string normEq = NormalizeEquation(eqs[i]);
+            // f(0) = -b  =>  b = -f(0)
+            b[i] = -MethodMultiVar_EvaluateFunction(normEq, zeroPts);
+        }
+
+        // Check / reorder rows for diagonal dominance: |a_ii| > sum_{j != i} |a_ij|
+        int[] dominantColForRow = new int[n];
+        bool strictDominance = true;
+        for (int i = 0; i < n; i++)
+        {
+            int domCol = -1;
+            for (int j = 0; j < n; j++)
+            {
+                decimal sumOthers = 0m;
+                for (int k = 0; k < n; k++)
+                {
+                    if (k != j) sumOthers += DecimalMath.Abs(A[i][k]);
+                }
+                if (DecimalMath.Abs(A[i][j]) >= sumOthers && DecimalMath.Abs(A[i][j]) > 0m)
+                {
+                    domCol = j;
+                    break;
+                }
+            }
+            dominantColForRow[i] = domCol;
+            if (domCol == -1) strictDominance = false;
+        }
+
+        // Attempt to permute rows if each row has a distinct dominant column
+        if (strictDominance && dominantColForRow.Distinct().Count() == n)
+        {
+            decimal[][] newA = new decimal[n][];
+            decimal[] newB = new decimal[n];
+            for (int i = 0; i < n; i++)
+            {
+                int targetRow = dominantColForRow[i];
+                newA[targetRow] = A[i];
+                newB[targetRow] = b[i];
+            }
+            A = newA;
+            b = newB;
+            logs.Add("✓ Köşegen baskınlığı (Diagonal Dominance) doğrulandı (|a_ii| ≥ Σ|a_ij|).");
+        }
+        else
+        {
+            logs.Add("⚠️ Uyarı: Matris tam köşegen baskın değil; Gauss-Seidel yakınsamayabilir.");
+        }
+
+        decimal[] x = new decimal[n];
+        for (int i = 0; i < n; i++) x[i] = initPoints[vars[i]];
+
+        decimal tol = 1e-10m;
+        for (int iter = 1; iter <= iterationCount; iter++)
+        {
+            decimal maxDiff = 0m;
+            for (int i = 0; i < n; i++)
+            {
+                if (DecimalMath.Abs(A[i][i]) <= 1e-15m)
+                {
+                    throw new ArithmeticException($"Köşegen elemanı A[{i + 1},{i + 1}] = 0 olduğu için Gauss-Seidel uygulanamaz.");
+                }
+
+                decimal sigma = 0m;
+                for (int j = 0; j < n; j++)
+                {
+                    if (j != i) sigma += A[i][j] * x[j];
+                }
+
+                decimal nextXi = (b[i] - sigma) / A[i][i];
+                decimal diff = DecimalMath.Abs(nextXi - x[i]);
+                if (diff > maxDiff) maxDiff = diff;
+                x[i] = nextXi;
+            }
+
+            string stepStr = string.Join(", ", Enumerable.Range(0, n).Select(idx => $"{vars[idx]} = {x[idx].ToString("0.########", CultureInfo.InvariantCulture)}"));
+            logs.Add($"[Adım {iter,2}] {stepStr}   (|Δ| = {maxDiff:E3})");
+
+            if (maxDiff <= tol)
+            {
+                logs.Add($"✓ Gauss-Seidel {iter}. adımda başarıyla yakınsadı.");
+                break;
+            }
+        }
+
+        Dictionary<string, decimal> result = new Dictionary<string, decimal>();
+        for (int i = 0; i < n; i++) result[vars[i]] = x[i];
+        return result;
+    }
+
+    public static Dictionary<string, decimal> Method_LinearMatrixSolve(
+        List<string> eqs,
+        List<string> vars,
+        string methodType,
+        out List<string> logs)
+    {
+        logs = new List<string>();
+        int n = eqs.Count;
+        decimal[][] A = Matrix.ConvertLinearEquationsToMatrix(eqs, vars);
+        decimal[] b = new decimal[n];
+
+        Dictionary<string, decimal> zeroPts = new Dictionary<string, decimal>();
+        foreach (string v in vars) zeroPts[v] = 0m;
+        bool isNonLinear = false;
+        for (int i = 0; i < n; i++)
+        {
+            string normEq = NormalizeEquation(eqs[i]);
+            b[i] = -MethodMultiVar_EvaluateFunction(normEq, zeroPts);
+
+            if (vars.Count > 0)
+            {
+                zeroPts[vars[0]] = 2m;
+                decimal f2 = MethodMultiVar_EvaluateFunction(normEq, zeroPts);
+                zeroPts[vars[0]] = 0m;
+                if (DecimalMath.Abs(f2 - (2m * A[i][0] - b[i])) > 1e-4m)
+                {
+                    isNonLinear = true;
+                }
+            }
+        }
+
+        if (isNonLinear)
+        {
+            logs.Add("UYARI: Denklemler doğrusal değil. Çözüm doğrusal yaklaşım olarak sunulmuştur.");
+        }
+
+        logs.Add("--- Katsayılar Matrisi (A) ve Sağ Taraf Vektörü (b) ---");
+        for (int i = 0; i < n; i++)
+        {
+            string rowStr = string.Join("  ", A[i].Select(v => $"{v,8:0.####}"));
+            logs.Add($"  [ {rowStr} ]  |  [ {b[i],8:0.####} ]");
+        }
+        logs.Add("");
+
         GeneralMatrix gA = new GeneralMatrix(A);
-        GeneralMatrix gB = new GeneralMatrix(B, B.Length);
-        GeneralMatrix gX = gA.Solve(gB);
-        decimal[] X = gX.ColumnPackedCopy;
-        
-        List<string> res = new List<string>();
-        for (int i = 0; i < X.Length; i++) res.Add(_vars[i] + " = " + X[i].ToString("F5", CultureInfo.InvariantCulture));
+        GeneralMatrix gB = new GeneralMatrix(n, 1);
+        for (int i = 0; i < n; i++) gB.Array[i][0] = b[i];
+
+        GeneralMatrix gX;
+        if (methodType == "INVERSE")
+        {
+            logs.Add("Yöntem: Ters Matris (X = A⁻¹ · b)");
+            GeneralMatrix invA = gA.Inverse();
+            gX = invA.Multiply(gB);
+        }
+        else if (methodType == "QR")
+        {
+            logs.Add("Yöntem: QR Ayrışımı (Q·R·X = b)");
+            gX = gA.QRD().Solve(gB);
+        }
+        else
+        {
+            logs.Add("Yöntem: LU Ayrışımı (L·U·X = P·b)");
+            gX = gA.LUD().Solve(gB);
+        }
+
+        Dictionary<string, decimal> res = new Dictionary<string, decimal>();
+        for (int i = 0; i < n; i++)
+        {
+            res[vars[i]] = gX.Array[i][0];
+            logs.Add($"  {vars[i]} = {Math.Round(gX.Array[i][0], 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+        }
         return res;
     }
 
-    public static List<string> Method_LUDecomposition(List<string> _eq, List<string> _vars)
+    public static decimal Method_BackwardDifferenceDerivative(string eq, int degree, string variable, decimal point, decimal h = 0.001m)
     {
-         // Implementation from previous turn
-         decimal[][] A = Matrix.ConvertLinearEquationsToMatrix(_eq, _vars);
-         if (A == null) return null;
-         decimal[] B = new decimal[_eq.Count];
-         for (int i = 0; i < _eq.Count; i++)
-         {
-             int ind = _eq[i].IndexOf('=');
-             if (ind != -1) B[i] = decimal.Parse(_eq[i].Substring(ind + 1), CultureInfo.InvariantCulture);
-             else B[i] = 0;
-         }
- 
-         GeneralMatrix gA = new GeneralMatrix(A);
-         GeneralMatrix gB = new GeneralMatrix(B, B.Length);
-         GeneralMatrix gX = gA.Solve(gB);
-         decimal[] X = gX.ColumnPackedCopy;
- 
-         List<string> res = new List<string>();
-         for (int i = 0; i < X.Length; i++) res.Add(_vars[i] + " = " + X[i].ToString("F5", CultureInfo.InvariantCulture));
-         return res;
+        Function f = CompileFunction(eq);
+        decimal f0 = EvaluateCompiled(f, variable, point);
+        decimal f1 = EvaluateCompiled(f, variable, point - h);
+        decimal f2 = EvaluateCompiled(f, variable, point - 2m * h);
+
+        if (degree == 1)
+        {
+            return (3m * f0 + f2 - 4m * f1) / (2m * h);
+        }
+        else if (degree == 2)
+        {
+            return (f0 + f2 - 2m * f1) / (h * h);
+        }
+        else if (degree == 3)
+        {
+            decimal f3 = EvaluateCompiled(f, variable, point - 3m * h);
+            decimal f4 = EvaluateCompiled(f, variable, point - 4m * h);
+            return (3m * f4 - 14m * f3 + 24m * f2 - 18m * f1 + 5m * f0) / (2m * h * h * h);
+        }
+        else if (degree == 4)
+        {
+            decimal f3 = EvaluateCompiled(f, variable, point - 3m * h);
+            decimal f4 = EvaluateCompiled(f, variable, point - 4m * h);
+            decimal f5 = EvaluateCompiled(f, variable, point - 5m * h);
+            return (-2m * f5 + 11m * f4 - 24m * f3 + 26m * f2 - 14m * f1 + 3m * f0) / (h * h * h * h);
+        }
+        else
+        {
+            return Method_ForwardBinomialDerivative(eq, degree, variable, point, h);
+        }
     }
 
-    // Additional wrappers for MainForm compatibility if needed
-    public static List<string> Method_NewtonRaphson(string _eq, decimal _initialPoint, int _iterationCount)
+    public static decimal Method_ForwardBinomialDerivative(string eq, int degree, string variable, decimal point, decimal h = 0.001m)
     {
-         // Wrapper for UI
-         if (_eq.Contains("="))
-         {
-            string[] parts = _eq.Split('=');
-            _eq = parts[0] + "-(" + parts[1] + ")";
-         }
-         decimal res = Method_NewtonRaphson(_eq, "x", _initialPoint, _iterationCount);
-         return new List<string> { res.ToString(CultureInfo.InvariantCulture) };
+        Function f = CompileFunction(eq);
+        decimal sum = 0m;
+        for (int i = 0; i <= degree; i++)
+        {
+            decimal sign = (i % 2 == 0) ? 1m : -1m;
+            sum += sign * Combination(degree, i) * EvaluateCompiled(f, variable, point + (degree - i) * h);
+        }
+        return sum / DecimalMath.Pow(h, degree);
     }
-    
-    public static List<string> Method_Bisection(string _eq, decimal _min, decimal _max, int _iterationCount)
-    {
-         if (_eq.Contains("="))
-         {
-            string[] parts = _eq.Split('=');
-            _eq = parts[0] + "-(" + parts[1] + ")";
-         }
-         decimal res = Method_BisectionMethod(_eq, "x", _min, _max, _iterationCount);
-         return new List<string> { res.ToString(CultureInfo.InvariantCulture) };
-    }
-    
-    public static List<string> Method_Secant(string _eq, decimal _min, decimal _max, int _iterationCount) 
-    {
-         if (_eq.Contains("="))
-         {
-            string[] parts = _eq.Split('=');
-            _eq = parts[0] + "-(" + parts[1] + ")";
-         }
-         
-         decimal x0 = _min;
-         decimal x1 = _max;
-         decimal x2 = 0;
-         
-         for(int i=0; i<_iterationCount; i++)
-         {
-             decimal f0 = Method_EvaluateFunction(_eq, "x", x0);
-             decimal f1 = Method_EvaluateFunction(_eq, "x", x1);
-             
-             if (f1 - f0 == 0) break; // Avoid divide by zero
-             
-             x2 = x1 - f1 * (x1 - x0) / (f1 - f0);
-             x0 = x1;
-             x1 = x2;
-             
-             if (DecimalMath.Abs(f1) < 0.00000001m) break; 
-         }
-         
-         return new List<string> { x2.ToString(CultureInfo.InvariantCulture) };
-    } 
 
-    public static List<string> Method_RegulaFalsi(string _eq, decimal _min, decimal _max, int _iterationCount) 
+    public static decimal Method_ForwardBinomialPartialDerivative(string eq, int degree, string toVar, Dictionary<string, decimal> points, decimal h = 0.001m)
     {
-         if (_eq.Contains("="))
-         {
-            string[] parts = _eq.Split('=');
-            _eq = parts[0] + "-(" + parts[1] + ")";
-         }
-         
-         decimal a = _min;
-         decimal b = _max;
-         decimal c = 0;
-         
-         for(int i=0; i<_iterationCount; i++)
-         {
-             decimal fa = Method_EvaluateFunction(_eq, "x", a);
-             decimal fb = Method_EvaluateFunction(_eq, "x", b);
-             
-             if (fa * fb >= 0) return new List<string> { "Root not bracketed or multiple roots" };
-             
-             c = (a * fb - b * fa) / (fb - fa);
-             decimal fc = Method_EvaluateFunction(_eq, "x", c);
-             
-             if (fc == 0) break;
-             else if (fa * fc < 0) b = c;
-             else a = c;
-         }
-         
-         return new List<string> { c.ToString(CultureInfo.InvariantCulture) };
+        Function f = CompileFunction(eq);
+        decimal sum = 0m;
+        Dictionary<string, decimal> testPS = new Dictionary<string, decimal>(points);
+        decimal firstToVar = testPS[toVar];
+        for (int i = 0; i <= degree; i++)
+        {
+            testPS[toVar] = firstToVar + (degree - i) * h;
+            decimal sign = (i % 2 == 0) ? 1m : -1m;
+            sum += sign * Combination(degree, i) * EvaluateCompiledMultiVar(f, testPS);
+        }
+        return sum / DecimalMath.Pow(h, degree);
+    }
+
+    // --- Root Finding Methods with Full Iteration Logs & Variable Support ---
+
+    public static List<string> Method_NewtonRaphson(string _eq, decimal _initialPoint, int _iterationCount, string variable = "x")
+    {
+        if (string.IsNullOrWhiteSpace(variable)) variable = "x";
+        Function f = CompileFunction(_eq);
+        List<string> logs = new List<string>();
+        decimal x = _initialPoint;
+        decimal h = 0.0001m;
+        decimal tol = 1e-12m;
+
+        logs.Add($"--- Newton-Raphson Yöntemi (Başlangıç: {variable}₀ = {x.ToString(CultureInfo.InvariantCulture)}) ---");
+
+        for (int i = 1; i <= _iterationCount; i++)
+        {
+            decimal fx = EvaluateCompiled(f, variable, x);
+            decimal dfx = (EvaluateCompiled(f, variable, x + h) - EvaluateCompiled(f, variable, x - h)) / (2m * h);
+
+            if (DecimalMath.Abs(dfx) <= 1e-15m)
+            {
+                logs.Add($"[Adım {i}] Türev sıfıra çok yakın (f'({variable}) ≈ 0). İşlem durduruldu.");
+                break;
+            }
+
+            decimal nextX = x - fx / dfx;
+            decimal err = DecimalMath.Abs(nextX - x);
+            x = nextX;
+
+            logs.Add($"[Adım {i,2}] {variable} = {x.ToString("0.############", CultureInfo.InvariantCulture),-18} | f({variable}) = {fx.ToString("E3", CultureInfo.InvariantCulture),-11} | |Δ| = {err.ToString("E3", CultureInfo.InvariantCulture)}");
+
+            if (err <= tol || DecimalMath.Abs(fx) <= tol)
+            {
+                logs.Add($"✓ Yakınsama {i}. adımda tamamlandı.");
+                break;
+            }
+        }
+
+        decimal finalFx = EvaluateCompiled(f, variable, x);
+        logs.Add("");
+        logs.Add($">>> BULUNAN KÖK: {variable} = {x.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = {finalFx.ToString("0.##########", CultureInfo.InvariantCulture)})");
+        return logs;
+    }
+
+    public static List<string> Method_Bisection(string _eq, decimal _min, decimal _max, int _iterationCount, string variable = "x")
+    {
+        if (string.IsNullOrWhiteSpace(variable)) variable = "x";
+        Function f = CompileFunction(_eq);
+        List<string> logs = new List<string>();
+
+        decimal a = _min;
+        decimal b = _max;
+        if (a >= b)
+        {
+            return new List<string> { "Hata: Alt sınır (Min) üst sınırdan (Max) küçük olmalıdır." };
+        }
+
+        decimal fa = EvaluateCompiled(f, variable, a);
+        decimal fb = EvaluateCompiled(f, variable, b);
+
+        if (DecimalMath.Abs(fa) <= 1e-12m)
+        {
+            logs.Add($"✓ Alt sınır {variable} = {a} zaten bir köktür: f({a}) = {fa}");
+            logs.Add($">>> BULUNAN KÖK: {variable} = {a.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = 0)");
+            return logs;
+        }
+        if (DecimalMath.Abs(fb) <= 1e-12m)
+        {
+            logs.Add($"✓ Üst sınır {variable} = {b} zaten bir köktür: f({b}) = {fb}");
+            logs.Add($">>> BULUNAN KÖK: {variable} = {b.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = 0)");
+            return logs;
+        }
+
+        if (fa * fb > 0)
+        {
+            return new List<string>
+            {
+                $"Uyarı: Seçilen [{a}, {b}] aralığında işaret değişimi yok!",
+                $"f({a}) = {fa:0.######} ve f({b}) = {fb:0.######} aynı işaretli.",
+                "Bisection (İkiye Bölme) yöntemi için f(Min) * f(Max) <= 0 olmalıdır."
+            };
+        }
+
+        logs.Add($"--- Bisection (İkiye Bölme) Yöntemi [{a}, {b}] ---");
+        decimal mid = (a + b) / 2m;
+        decimal tol = 1e-11m;
+
+        for (int i = 1; i <= _iterationCount; i++)
+        {
+            mid = (a + b) / 2m;
+            decimal fMid = EvaluateCompiled(f, variable, mid);
+            decimal width = (b - a) / 2m;
+
+            logs.Add($"[Adım {i,2}] {variable} = {mid.ToString("0.############", CultureInfo.InvariantCulture),-18} | f({variable}) = {fMid.ToString("E3", CultureInfo.InvariantCulture),-11} | Aralık: [{a:0.####}, {b:0.####}]");
+
+            if (DecimalMath.Abs(fMid) <= tol || width <= tol)
+            {
+                logs.Add($"✓ Yakınsama {i}. adımda tamamlandı.");
+                break;
+            }
+
+            if (fa * fMid <= 0)
+            {
+                b = mid;
+                fb = fMid;
+            }
+            else
+            {
+                a = mid;
+                fa = fMid;
+            }
+        }
+
+        decimal finalFx = EvaluateCompiled(f, variable, mid);
+        logs.Add("");
+        logs.Add($">>> BULUNAN KÖK: {variable} = {mid.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = {finalFx.ToString("0.##########", CultureInfo.InvariantCulture)})");
+        return logs;
+    }
+
+    public static List<string> Method_Secant(string _eq, decimal _min, decimal _max, int _iterationCount, string variable = "x")
+    {
+        if (string.IsNullOrWhiteSpace(variable)) variable = "x";
+        Function f = CompileFunction(_eq);
+        List<string> logs = new List<string>();
+
+        decimal x0 = _min;
+        decimal x1 = _max;
+        decimal x2 = x1;
+        decimal tol = 1e-11m;
+
+        logs.Add($"--- Secant (Kiriş) Yöntemi ({variable}₀ = {x0}, {variable}₁ = {x1}) ---");
+
+        for (int i = 1; i <= _iterationCount; i++)
+        {
+            decimal f0 = EvaluateCompiled(f, variable, x0);
+            decimal f1 = EvaluateCompiled(f, variable, x1);
+
+            if (DecimalMath.Abs(f1 - f0) <= 1e-15m)
+            {
+                logs.Add($"[Adım {i}] f({variable}₁) - f({variable}₀) ≈ 0 oldu. İşlem durduruldu.");
+                break;
+            }
+
+            x2 = x1 - f1 * (x1 - x0) / (f1 - f0);
+            decimal err = DecimalMath.Abs(x2 - x1);
+            x0 = x1;
+            x1 = x2;
+
+            decimal f2 = EvaluateCompiled(f, variable, x2);
+            logs.Add($"[Adım {i,2}] {variable} = {x2.ToString("0.############", CultureInfo.InvariantCulture),-18} | f({variable}) = {f2.ToString("E3", CultureInfo.InvariantCulture),-11} | |Δ| = {err.ToString("E3", CultureInfo.InvariantCulture)}");
+
+            if (err <= tol || DecimalMath.Abs(f2) <= tol)
+            {
+                logs.Add($"✓ Yakınsama {i}. adımda tamamlandı.");
+                break;
+            }
+        }
+
+        decimal finalFx = EvaluateCompiled(f, variable, x2);
+        logs.Add("");
+        logs.Add($">>> BULUNAN KÖK: {variable} = {x2.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = {finalFx.ToString("0.##########", CultureInfo.InvariantCulture)})");
+        return logs;
+    }
+
+    public static List<string> Method_RegulaFalsi(string _eq, decimal _min, decimal _max, int _iterationCount, string variable = "x")
+    {
+        if (string.IsNullOrWhiteSpace(variable)) variable = "x";
+        Function f = CompileFunction(_eq);
+        List<string> logs = new List<string>();
+
+        decimal a = _min;
+        decimal b = _max;
+        if (a >= b)
+        {
+            return new List<string> { "Hata: Alt sınır (Min) üst sınırdan (Max) küçük olmalıdır." };
+        }
+
+        decimal fa = EvaluateCompiled(f, variable, a);
+        decimal fb = EvaluateCompiled(f, variable, b);
+
+        if (DecimalMath.Abs(fa) <= 1e-12m)
+        {
+            logs.Add($"✓ Alt sınır {variable} = {a} zaten bir köktür: f({a}) = {fa}");
+            logs.Add($">>> BULUNAN KÖK: {variable} = {a.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = 0)");
+            return logs;
+        }
+        if (DecimalMath.Abs(fb) <= 1e-12m)
+        {
+            logs.Add($"✓ Üst sınır {variable} = {b} zaten bir köktür: f({b}) = {fb}");
+            logs.Add($">>> BULUNAN KÖK: {variable} = {b.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = 0)");
+            return logs;
+        }
+
+        if (fa * fb > 0)
+        {
+            return new List<string>
+            {
+                $"Uyarı: Seçilen [{a}, {b}] aralığında işaret değişimi yok!",
+                $"f({a}) = {fa:0.######} ve f({b}) = {fb:0.######} aynı işaretli.",
+                "Regula Falsi yöntemi için f(Min) * f(Max) <= 0 olmalıdır."
+            };
+        }
+
+        logs.Add($"--- Regula Falsi (Yer Değiştirme) Yöntemi [{a}, {b}] ---");
+        decimal c = a;
+        decimal tol = 1e-11m;
+        int side = 0;
+
+        for (int i = 1; i <= _iterationCount; i++)
+        {
+            if (DecimalMath.Abs(fb - fa) <= 1e-15m) break;
+
+            decimal prevC = c;
+            c = (a * fb - b * fa) / (fb - fa);
+            decimal fc = EvaluateCompiled(f, variable, c);
+            decimal err = DecimalMath.Abs(c - prevC);
+
+            logs.Add($"[Adım {i,2}] {variable} = {c.ToString("0.############", CultureInfo.InvariantCulture),-18} | f({variable}) = {fc.ToString("E3", CultureInfo.InvariantCulture),-11} | |Δ| = {err.ToString("E3", CultureInfo.InvariantCulture)}");
+
+            if (DecimalMath.Abs(fc) <= tol || (i > 1 && err <= tol))
+            {
+                logs.Add($"✓ Yakınsama {i}. adımda tamamlandı.");
+                break;
+            }
+
+            if (fa * fc <= 0)
+            {
+                b = c;
+                fb = fc;
+                if (side == -1) fa *= 0.5m;
+                side = -1;
+            }
+            else
+            {
+                a = c;
+                fa = fc;
+                if (side == 1) fb *= 0.5m;
+                side = 1;
+            }
+        }
+
+        decimal finalFx = EvaluateCompiled(f, variable, c);
+        logs.Add("");
+        logs.Add($">>> BULUNAN KÖK: {variable} = {c.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = {finalFx.ToString("0.##########", CultureInfo.InvariantCulture)})");
+        return logs;
     }
 }

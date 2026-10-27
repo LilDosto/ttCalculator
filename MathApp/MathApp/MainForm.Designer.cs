@@ -1,3 +1,6 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace MathApp
 {
@@ -16,124 +19,185 @@ namespace MathApp
 
         private void InitializeComponent()
         {
-            this.pnlSidebar = new System.Windows.Forms.Panel();
-            this.pnlContent = new System.Windows.Forms.Panel();
-            this.btnNavCalc = new System.Windows.Forms.Button();
-            this.btnNavRoot = new System.Windows.Forms.Button();
-            this.btnNavSystem = new System.Windows.Forms.Button();
-            this.pnlLogo = new System.Windows.Forms.Panel();
-            this.lblLogo = new System.Windows.Forms.Label();
+            this.pnlSidebar = new Panel();
+            this.pnlNavButtons = new Panel();
+            this.pnlContent = new Panel();
+            this.pnlLogo = new Panel();
+            this.lblLogo = new Label();
+            this.lblLogoSub = new Label();
+            this.lblVersion = new Label();
 
-            this.btnNavTaylor = new System.Windows.Forms.Button();
-            this.btnNavMultiTaylor = new System.Windows.Forms.Button(); // New
-            this.btnNavGraph = new System.Windows.Forms.Button();
+            this.lblCat1 = new Label();
+            this.btnNavCalc = new Button();
+            this.btnNavGraph = new Button();
+            this.btnNavCombinatorics = new Button();
+
+            this.lblCat2 = new Label();
+            this.btnNavRoot = new Button();
+            this.btnNavSystem = new Button();
+            this.btnNavDerivative = new Button();
+
+            this.lblCat3 = new Label();
+            this.btnNavMatrix = new Button();
+            this.btnNavTaylor = new Button();
+            this.btnNavMultiTaylor = new Button();
 
             this.pnlSidebar.SuspendLayout();
+            this.pnlNavButtons.SuspendLayout();
             this.pnlLogo.SuspendLayout();
             this.SuspendLayout();
 
-            // 
-            // pnlSidebar
-            // 
-            this.pnlSidebar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
-            this.pnlSidebar.Controls.Add(this.btnNavGraph);
-            this.pnlSidebar.Controls.Add(this.btnNavMultiTaylor); // New
-            this.pnlSidebar.Controls.Add(this.btnNavTaylor);
-            this.pnlSidebar.Controls.Add(this.btnNavSystem);
-            this.pnlSidebar.Controls.Add(this.btnNavRoot);
-            this.pnlSidebar.Controls.Add(this.btnNavCalc);
-            this.pnlSidebar.Controls.Add(this.pnlLogo);
-            this.pnlSidebar.Dock = System.Windows.Forms.DockStyle.Right; // Sidebar on Right as requested
-            this.pnlSidebar.Location = new System.Drawing.Point(600, 0);
-            this.pnlSidebar.Name = "pnlSidebar";
-            this.pnlSidebar.Size = new System.Drawing.Size(200, 600);
-            this.pnlSidebar.TabIndex = 0;
+            // pnlSidebar (Left Navigation Bar)
+            this.pnlSidebar.BackColor = ThemeHelper.SidebarBackground;
+            this.pnlSidebar.Dock = DockStyle.Left;
+            this.pnlSidebar.Width = 245;
+            this.pnlSidebar.Padding = new Padding(8, 0, 8, 8);
 
-            // 
             // pnlLogo
-            // 
+            this.pnlLogo.Dock = DockStyle.Top;
+            this.pnlLogo.Height = 80;
+            this.pnlLogo.Padding = new Padding(10, 12, 10, 6);
+
+            this.lblLogo.Dock = DockStyle.Top;
+            this.lblLogo.Height = 32;
+            this.lblLogo.Font = new Font("Segoe UI Semibold", 16F, FontStyle.Bold);
+            this.lblLogo.ForeColor = Color.FromArgb(56, 189, 248);
+            this.lblLogo.Text = "ƒ(x) ttCalculator";
+            this.lblLogo.TextAlign = ContentAlignment.MiddleLeft;
+
+            this.lblLogoSub.Dock = DockStyle.Top;
+            this.lblLogoSub.Height = 20;
+            this.lblLogoSub.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
+            this.lblLogoSub.ForeColor = ThemeHelper.MutedText;
+            this.lblLogoSub.Text = "Nümerik Matematik Stüdyosu";
+            this.lblLogoSub.TextAlign = ContentAlignment.MiddleLeft;
+
+            this.pnlLogo.Controls.Add(this.lblLogoSub);
             this.pnlLogo.Controls.Add(this.lblLogo);
-            this.pnlLogo.Dock = System.Windows.Forms.DockStyle.Top;
-            this.pnlLogo.Location = new System.Drawing.Point(0, 0);
-            this.pnlLogo.Name = "pnlLogo";
-            this.pnlLogo.Size = new System.Drawing.Size(200, 100);
-            this.pnlLogo.TabIndex = 0;
 
-            // 
-            // lblLogo
-            // 
-            this.lblLogo.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblLogo.Font = new System.Drawing.Font("Segoe UI Light", 20F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.lblLogo.ForeColor = System.Drawing.Color.White;
-            this.lblLogo.Location = new System.Drawing.Point(0, 0);
-            this.lblLogo.Name = "lblLogo";
-            this.lblLogo.Size = new System.Drawing.Size(200, 100);
-            this.lblLogo.TabIndex = 0;
-            this.lblLogo.Text = "Math App";
-            this.lblLogo.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // pnlNavButtons container with autoscroll support
+            this.pnlNavButtons.Dock = DockStyle.Fill;
+            this.pnlNavButtons.AutoScroll = true;
 
-            // Helper for Nav Buttons
-            void StyleNavButton(System.Windows.Forms.Button btn, string text, int index)
+            void StyleNavCategory(Label lbl, string text)
             {
-                btn.Dock = System.Windows.Forms.DockStyle.Top;
-                btn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-                btn.FlatAppearance.BorderSize = 0;
-                btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(60, 60, 60);
-                btn.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(0, 120, 215);
-                btn.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-                btn.ForeColor = System.Drawing.Color.White;
-                btn.Location = new System.Drawing.Point(0, 100 + (index * 60));
-                btn.Name = "btnNav" + index;
-                btn.Size = new System.Drawing.Size(200, 60);
-                btn.TabIndex = index + 1;
-                btn.Text = text;
-                btn.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-                btn.Padding = new System.Windows.Forms.Padding(20, 0, 0, 0);
-                btn.UseVisualStyleBackColor = true;
+                lbl.Dock = DockStyle.Top;
+                lbl.Height = 28;
+                lbl.Text = text;
+                lbl.Font = new Font("Segoe UI Semibold", 8F, FontStyle.Bold);
+                lbl.ForeColor = Color.FromArgb(100, 116, 139);
+                lbl.TextAlign = ContentAlignment.BottomLeft;
+                lbl.Padding = new Padding(12, 0, 0, 4);
             }
 
-            StyleNavButton(this.btnNavCalc, "Calculator", 0);
-            StyleNavButton(this.btnNavRoot, "Root Finder", 1);
-            StyleNavButton(this.btnNavSystem, "System Solver", 2);
-            StyleNavButton(this.btnNavTaylor, "Taylor Series", 3);
-            StyleNavButton(this.btnNavMultiTaylor, "MultiVar Taylor", 4); // New
-            StyleNavButton(this.btnNavGraph, "Graph Plotter", 5);
+            void StyleNavButton(Button btn, string text, int index)
+            {
+                btn.Dock = DockStyle.Top;
+                btn.FlatStyle = FlatStyle.Flat;
+                btn.FlatAppearance.BorderSize = 0;
+                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59);
+                btn.FlatAppearance.MouseDownBackColor = ThemeHelper.AccentBlue;
+                btn.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+                btn.ForeColor = Color.FromArgb(203, 213, 225);
+                btn.Size = new Size(229, 38);
+                btn.TabIndex = index + 1;
+                btn.Text = text;
+                btn.TextAlign = ContentAlignment.MiddleLeft;
+                btn.Padding = new Padding(14, 0, 0, 0);
+                btn.Cursor = Cursors.Hand;
+                btn.UseVisualStyleBackColor = false;
+            }
 
-            // 
+            // Categories
+            StyleNavCategory(this.lblCat1, "HESAPLAMA & TEMEL");
+            StyleNavButton(this.btnNavCalc, "🧮  Hesap Makinesi", 0);
+            StyleNavButton(this.btnNavGraph, "📈  Grafik Çizici", 1);
+            StyleNavButton(this.btnNavCombinatorics, "🎲  Kombinatorik & Özel", 2);
+
+            StyleNavCategory(this.lblCat2, "NÜMERİK ANALİZ");
+            StyleNavButton(this.btnNavRoot, "🔍  Denklem Kökü Bulucu", 3);
+            StyleNavButton(this.btnNavSystem, "⚡  Denklem Sistemi Çözücü", 4);
+            StyleNavButton(this.btnNavDerivative, "∂  Türev & Gradyan", 5);
+
+            StyleNavCategory(this.lblCat3, "LİNEER CEBİR & SERİLER");
+            StyleNavButton(this.btnNavMatrix, "🔢  Matris & Ayrışım", 6);
+            StyleNavButton(this.btnNavTaylor, "📐  Taylor Serisi (1D)", 7);
+            StyleNavButton(this.btnNavMultiTaylor, "🌐  Çok Değişkenli Taylor", 8);
+
+            // Footer version label
+            this.lblVersion.Dock = DockStyle.Bottom;
+            this.lblVersion.Height = 26;
+            this.lblVersion.Text = "v2.0 • 128-bit Decimal Motoru";
+            this.lblVersion.Font = new Font("Segoe UI", 8F);
+            this.lblVersion.ForeColor = Color.FromArgb(100, 116, 139);
+            this.lblVersion.TextAlign = ContentAlignment.MiddleCenter;
+
+            // Add navigation controls in reverse order for DockStyle.Top inside pnlNavButtons
+            // Group 3
+            this.pnlNavButtons.Controls.Add(this.btnNavMultiTaylor);
+            this.pnlNavButtons.Controls.Add(this.btnNavTaylor);
+            this.pnlNavButtons.Controls.Add(this.btnNavMatrix);
+            this.pnlNavButtons.Controls.Add(this.lblCat3);
+
+            // Group 2
+            this.pnlNavButtons.Controls.Add(this.btnNavDerivative);
+            this.pnlNavButtons.Controls.Add(this.btnNavSystem);
+            this.pnlNavButtons.Controls.Add(this.btnNavRoot);
+            this.pnlNavButtons.Controls.Add(this.lblCat2);
+
+            // Group 1
+            this.pnlNavButtons.Controls.Add(this.btnNavCombinatorics);
+            this.pnlNavButtons.Controls.Add(this.btnNavGraph);
+            this.pnlNavButtons.Controls.Add(this.btnNavCalc);
+            this.pnlNavButtons.Controls.Add(this.lblCat1);
+
+            // Assemble pnlSidebar
+            this.pnlSidebar.Controls.Add(this.pnlNavButtons);
+            this.pnlSidebar.Controls.Add(this.pnlLogo);
+            this.pnlSidebar.Controls.Add(this.lblVersion);
+
             // pnlContent
-            // 
-            this.pnlContent.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(20)))), ((int)(((byte)(20)))), ((int)(((byte)(20))))); // Dark Content Area
-            this.pnlContent.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlContent.Location = new System.Drawing.Point(0, 0);
-            this.pnlContent.Name = "pnlContent";
-            this.pnlContent.Size = new System.Drawing.Size(600, 600);
-            this.pnlContent.TabIndex = 1;
+            this.pnlContent.BackColor = ThemeHelper.DarkBackground;
+            this.pnlContent.Dock = DockStyle.Fill;
 
-            // 
             // MainForm
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 600);
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.ClientSize = new Size(1180, 740);
+            this.MinimumSize = new Size(1020, 660);
+            this.StartPosition = FormStartPosition.CenterScreen;
             this.Controls.Add(this.pnlContent);
             this.Controls.Add(this.pnlSidebar);
             this.Name = "MainForm";
-            this.Text = "Math Application";
+            this.Text = "ttCalculator — Gelişmiş Matematik & Nümerik Analiz Stüdyosu";
+
             this.pnlSidebar.ResumeLayout(false);
+            this.pnlNavButtons.ResumeLayout(false);
             this.pnlLogo.ResumeLayout(false);
             this.ResumeLayout(false);
-
         }
 
-        private System.Windows.Forms.Panel pnlSidebar;
-        private System.Windows.Forms.Panel pnlContent;
-        private System.Windows.Forms.Button btnNavCalc;
-        private System.Windows.Forms.Button btnNavRoot;
-        private System.Windows.Forms.Button btnNavSystem;
-        private System.Windows.Forms.Button btnNavTaylor;
-        private System.Windows.Forms.Button btnNavMultiTaylor; // New
-        private System.Windows.Forms.Button btnNavGraph;
-        private System.Windows.Forms.Panel pnlLogo;
-        private System.Windows.Forms.Label lblLogo;
+        private Panel pnlSidebar;
+        private Panel pnlNavButtons;
+        private Panel pnlContent;
+        private Panel pnlLogo;
+        private Label lblLogo;
+        private Label lblLogoSub;
+        private Label lblVersion;
+
+        private Label lblCat1;
+        private Button btnNavCalc;
+        private Button btnNavGraph;
+        private Button btnNavCombinatorics;
+
+        private Label lblCat2;
+        private Button btnNavRoot;
+        private Button btnNavSystem;
+        private Button btnNavDerivative;
+
+        private Label lblCat3;
+        private Button btnNavMatrix;
+        private Button btnNavTaylor;
+        private Button btnNavMultiTaylor;
     }
 }
