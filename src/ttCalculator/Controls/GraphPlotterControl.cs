@@ -482,6 +482,206 @@ namespace MathApp.Controls
             lstCurves.EndUpdate();
             if (_curves.Count > 0 && lstCurves.SelectedIndex < 0)
                 lstCurves.SelectedIndex = _curves.Count - 1;
+
+            if (pnlCurvesContainer == null) return;
+
+            pnlCurvesContainer.SuspendLayout();
+            pnlCurvesContainer.Controls.Clear();
+
+            if (_curves.Count == 0)
+            {
+                Label lblEmpty = new Label
+                {
+                    Text = "Henüz eğri eklenmedi.\n\nÜst paneldeki 'f(x) =' kutusuna formül yazıp\n'+ Ekle / Çiz' butonuna basarak eğri ekleyebilirsiniz.",
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    ForeColor = Color.FromArgb(100, 116, 139),
+                    Font = new Font("Segoe UI", 9F)
+                };
+                pnlCurvesContainer.Controls.Add(lblEmpty);
+            }
+            else
+            {
+                for (int i = _curves.Count - 1; i >= 0; i--)
+                {
+                    var curve = _curves[i];
+                    pnlCurvesContainer.Controls.Add(CreateCurveCard(curve));
+                }
+            }
+
+            if (lblCurvesCount != null)
+                lblCurvesCount.Text = $"Toplam {_curves.Count} Eğri";
+
+            pnlCurvesContainer.ResumeLayout();
+        }
+
+        private Panel CreateCurveCard(PlotCurve curve)
+        {
+            Panel card = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 52,
+                BackColor = Color.FromArgb(22, 32, 50),
+                Padding = new Padding(4)
+            };
+
+            Panel div = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 1,
+                BackColor = Color.FromArgb(35, 48, 72)
+            };
+            card.Controls.Add(div);
+
+            // Color picker swatch
+            Button btnColor = new Button
+            {
+                Location = new Point(8, 14),
+                Size = new Size(20, 20),
+                BackColor = curve.Color,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnColor.FlatAppearance.BorderSize = 1;
+            btnColor.FlatAppearance.BorderColor = Color.FromArgb(100, 116, 139);
+            btnColor.Click += (s, e) =>
+            {
+                using (ColorDialog cd = new ColorDialog { Color = curve.Color })
+                {
+                    if (cd.ShowDialog() == DialogResult.OK)
+                    {
+                        curve.Color = cd.Color;
+                        btnColor.BackColor = cd.Color;
+                        pnlCanvas.Invalidate();
+                    }
+                }
+            };
+            card.Controls.Add(btnColor);
+
+            // Badge & equation
+            string badgeText = curve.IsPolar ? "r(θ)" : (curve.IsVerticalLine ? "x =" : "y =");
+            Color badgeColor = curve.IsPolar ? Color.FromArgb(56, 189, 248) : Color.FromArgb(168, 85, 247);
+
+            Label lblBadge = new Label
+            {
+                Location = new Point(34, 10),
+                AutoSize = true,
+                Font = new Font("Segoe UI Semibold", 8F, FontStyle.Bold),
+                ForeColor = badgeColor,
+                Text = badgeText
+            };
+            card.Controls.Add(lblBadge);
+
+            Label lblEq = new Label
+            {
+                Location = new Point(62, 8),
+                Size = new Size(155, 20),
+                Font = new Font("Consolas", 9.5F, FontStyle.Bold),
+                ForeColor = curve.Visible ? Color.White : Color.FromArgb(100, 116, 139),
+                Text = curve.IsVerticalLine ? $"{curve.VerticalX:F2}" : curve.Equation
+            };
+            card.Controls.Add(lblEq);
+
+            string domainText = curve.ClampDomain ? $"[{curve.DomainMinX:F1}, {curve.DomainMaxX:F1}]" : "Tüm Aralık";
+            string styleText = curve.DashStyle switch { DashStyle.Dash => "Kesikli", DashStyle.Dot => "Noktalı", _ => "Düz" };
+            Label lblDetails = new Label
+            {
+                Location = new Point(34, 28),
+                Size = new Size(185, 16),
+                Font = new Font("Segoe UI", 7.5F),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Text = $"{domainText} • {styleText} • {curve.Thickness:F0}px"
+            };
+            card.Controls.Add(lblDetails);
+
+            // Visibility button
+            Button btnVis = new Button
+            {
+                Location = new Point(224, 12),
+                Size = new Size(34, 24),
+                FlatStyle = FlatStyle.Flat,
+                Text = curve.Visible ? "Açık" : "Gizli",
+                Font = new Font("Segoe UI Semibold", 7.5F, FontStyle.Bold),
+                BackColor = curve.Visible ? Color.FromArgb(20, 50, 75) : Color.FromArgb(30, 35, 48),
+                ForeColor = curve.Visible ? Color.FromArgb(56, 189, 248) : Color.FromArgb(100, 116, 139),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnVis.FlatAppearance.BorderSize = 1;
+            btnVis.FlatAppearance.BorderColor = curve.Visible ? Color.FromArgb(14, 165, 233) : Color.FromArgb(51, 65, 85);
+            btnVis.Click += (s, e) =>
+            {
+                curve.Visible = !curve.Visible;
+                RefreshCurvesList();
+                DetectCriticalPoints();
+                pnlCanvas.Invalidate();
+            };
+            card.Controls.Add(btnVis);
+
+            // Edit button
+            Button btnEdit = new Button
+            {
+                Location = new Point(262, 12),
+                Size = new Size(40, 24),
+                FlatStyle = FlatStyle.Flat,
+                Text = "Yükle",
+                Font = new Font("Segoe UI", 7.5F),
+                BackColor = Color.FromArgb(30, 41, 64),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnEdit.FlatAppearance.BorderSize = 1;
+            btnEdit.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            btnEdit.Click += (s, e) =>
+            {
+                if (!curve.IsVerticalLine)
+                {
+                    txtEquation.Text = curve.Equation;
+                    chkPolar.Checked = curve.IsPolar;
+                    if (curve.ClampDomain)
+                    {
+                        chkClampRange.Checked = true;
+                        txtMinX.Text = curve.DomainMinX.ToString("0.##", CultureInfo.InvariantCulture);
+                        txtMaxX.Text = curve.DomainMaxX.ToString("0.##", CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        chkClampRange.Checked = false;
+                    }
+                    txtEquation.Focus();
+                    lblStatus.Text = $"Eğri düzenleme için kutuya aktarıldı: {curve.Equation}";
+                }
+            };
+            card.Controls.Add(btnEdit);
+
+            // Delete button
+            Button btnDel = new Button
+            {
+                Location = new Point(306, 12),
+                Size = new Size(26, 24),
+                FlatStyle = FlatStyle.Flat,
+                Text = "✕",
+                Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold),
+                BackColor = Color.FromArgb(45, 20, 25),
+                ForeColor = Color.FromArgb(244, 63, 94),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnDel.FlatAppearance.BorderSize = 1;
+            btnDel.FlatAppearance.BorderColor = Color.FromArgb(127, 29, 29);
+            btnDel.Click += (s, e) =>
+            {
+                _curves.Remove(curve);
+                RefreshCurvesList();
+                RefreshToolCombos();
+                DetectCriticalPoints();
+                pnlCanvas.Invalidate();
+            };
+            card.Controls.Add(btnDel);
+
+            return card;
         }
 
         private void RefreshToolCombos()
@@ -1506,6 +1706,122 @@ namespace MathApp.Controls
                 lstPoints.Items.Add(p);
             }
             lstPoints.EndUpdate();
+
+            if (pnlPointsContainer == null) return;
+
+            pnlPointsContainer.SuspendLayout();
+            pnlPointsContainer.Controls.Clear();
+
+            if (_points.Count == 0)
+            {
+                Label lblEmpty = new Label
+                {
+                    Text = "Henüz serbest nokta eklenmedi.\n\nGrafik tuvali üzerine tıklayarak veya aşağıdaki giriş alanından koordinat belirterek nokta ekleyebilirsiniz.",
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    ForeColor = Color.FromArgb(100, 116, 139),
+                    Font = new Font("Segoe UI", 9F)
+                };
+                pnlPointsContainer.Controls.Add(lblEmpty);
+            }
+            else
+            {
+                for (int i = _points.Count - 1; i >= 0; i--)
+                {
+                    var pt = _points[i];
+                    pnlPointsContainer.Controls.Add(CreatePointCard(pt));
+                }
+            }
+
+            if (lblPointsCount != null)
+                lblPointsCount.Text = $"Toplam {_points.Count} Nokta";
+
+            pnlPointsContainer.ResumeLayout();
+        }
+
+        private Panel CreatePointCard(PlotPoint pt)
+        {
+            Panel card = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 38,
+                BackColor = Color.FromArgb(22, 32, 50),
+                Padding = new Padding(4)
+            };
+
+            Panel div = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 1,
+                BackColor = Color.FromArgb(35, 48, 72)
+            };
+            card.Controls.Add(div);
+
+            // Shape and color icon swatch
+            string shapeIcon = pt.Shape switch
+            {
+                PointShape.Square => "■",
+                PointShape.Diamond => "◆",
+                PointShape.Cross => "+",
+                _ => "●"
+            };
+
+            Label lblIcon = new Label
+            {
+                Location = new Point(8, 8),
+                Size = new Size(20, 20),
+                ForeColor = pt.Color,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = shapeIcon,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            card.Controls.Add(lblIcon);
+
+            // Coordinate label
+            Label lblCoord = new Label
+            {
+                Location = new Point(34, 9),
+                Size = new Size(180, 20),
+                Font = new Font("Consolas", 9.5F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Text = $"(X: {pt.X:F2},  Y: {pt.Y:F2})"
+            };
+            card.Controls.Add(lblCoord);
+
+            Label lblShapeName = new Label
+            {
+                Location = new Point(216, 10),
+                Size = new Size(80, 18),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Text = $"{pt.Shape}"
+            };
+            card.Controls.Add(lblShapeName);
+
+            // Delete button
+            Button btnDel = new Button
+            {
+                Location = new Point(308, 7),
+                Size = new Size(26, 24),
+                FlatStyle = FlatStyle.Flat,
+                Text = "✕",
+                Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold),
+                BackColor = Color.FromArgb(45, 20, 25),
+                ForeColor = Color.FromArgb(244, 63, 94),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnDel.FlatAppearance.BorderSize = 1;
+            btnDel.FlatAppearance.BorderColor = Color.FromArgb(127, 29, 29);
+            btnDel.Click += (s, e) =>
+            {
+                _points.Remove(pt);
+                RefreshPointsList();
+                pnlCanvas.Invalidate();
+            };
+            card.Controls.Add(btnDel);
+
+            return card;
         }
 
         private void BtnAddPoint_Click(object sender, EventArgs e)
@@ -1631,7 +1947,7 @@ namespace MathApp.Controls
         {
             var validCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar).ToList();
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("% ttCalculator v3.1 LaTeX Pgfplots / TikZ Kodu");
+            sb.AppendLine("% ttCalculator v3.2 LaTeX Pgfplots / TikZ Kodu");
             sb.AppendLine("\\begin{tikzpicture}");
             sb.AppendLine("\\begin{axis}[");
             sb.AppendLine($"    xmin={rangeMinX:F1}, xmax={rangeMaxX:F1},");

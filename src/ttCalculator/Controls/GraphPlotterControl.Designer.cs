@@ -65,18 +65,25 @@ namespace MathApp.Controls
             this.tabTools = new TabPage();
             this.tabShapes = new TabPage();
 
-            // Function Tab Controls
+            // Function Tab Controls (Card-based modern list)
             this.lstCurves = new ListBox();
+            this.pnlCurvesContainer = new Panel();
+            this.pnlCurvesBottomBar = new Panel();
+            this.lblCurvesCount = new Label();
+            this.btnCurveClearAll = new Button();
+
             this.btnCurveColor = new Button();
             this.cmbCurveStyle = new ComboBox();
             this.cmbCurveThickness = new ComboBox();
             this.btnCurveToggle = new Button();
             this.btnCurveDelete = new Button();
             this.btnCurveEdit = new Button();
-            this.btnCurveClearAll = new Button();
 
-            // Points Tab Controls
+            // Points Tab Controls (Card-based modern list)
             this.lstPoints = new ListBox();
+            this.pnlPointsContainer = new Panel();
+            this.pnlPointsBottom = new Panel();
+            this.lblPointsCount = new Label();
             this.lblPtX = new Label();
             this.txtPtX = new TextBox();
             this.lblPtY = new Label();
@@ -308,9 +315,9 @@ namespace MathApp.Controls
             this.pnlControls.Controls.Add(this.chkShowAsymptotes);
             this.pnlControls.Controls.Add(this.pnlControlsBorder);
 
-            // pnlRightSide (Tabbed Manager)
+            // pnlRightSide (Tabbed Manager - Desmos/GeoGebra Card Architecture)
             this.pnlRightSide.Dock = DockStyle.Right;
-            this.pnlRightSide.Width = 320;
+            this.pnlRightSide.Width = 350;
             this.pnlRightSide.BackColor = ThemeHelper.CardBackground;
             this.pnlRightSide.Padding = new Padding(4);
 
@@ -322,167 +329,150 @@ namespace MathApp.Controls
             this.tabManager.Controls.Add(this.tabShapes);
             this.pnlRightSide.Controls.Add(this.tabManager);
 
-            // tabFunctions
+            // ==================== TAB 1: EĞRİLER (Curves Card List) ====================
             this.tabFunctions.Text = "Eğriler";
-            this.tabFunctions.BackColor = ThemeHelper.DarkBackground;
-            this.tabFunctions.Padding = new Padding(8);
+            this.tabFunctions.BackColor = Color.FromArgb(11, 15, 28);
+            this.tabFunctions.Padding = new Padding(0);
 
-            this.lstCurves.Dock = DockStyle.Top;
-            this.lstCurves.Height = 220;
-            this.lstCurves.BackColor = Color.FromArgb(11, 17, 32);
-            this.lstCurves.ForeColor = Color.White;
-            this.lstCurves.Font = new Font("Consolas", 9.5F);
+            this.pnlCurvesBottomBar.Dock = DockStyle.Bottom;
+            this.pnlCurvesBottomBar.Height = 36;
+            this.pnlCurvesBottomBar.BackColor = Color.FromArgb(15, 23, 42);
+            this.pnlCurvesBottomBar.Padding = new Padding(8, 4, 8, 4);
 
-            this.btnCurveColor.Text = "Renk";
-            this.btnCurveColor.Size = new Size(70, 26);
-            this.btnCurveColor.Location = new Point(8, 230);
-            this.btnCurveColor.BackColor = Color.FromArgb(30, 41, 59);
-            this.btnCurveColor.ForeColor = Color.White;
-            this.btnCurveColor.FlatStyle = FlatStyle.Flat;
+            this.lblCurvesCount.Text = "Toplam 0 Eğri";
+            this.lblCurvesCount.Location = new Point(8, 9);
+            this.lblCurvesCount.AutoSize = true;
+            this.lblCurvesCount.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblCurvesCount.Font = new Font("Segoe UI", 8.5F);
 
-            this.cmbCurveStyle.Location = new Point(82, 230);
-            this.cmbCurveStyle.Size = new Size(110, 25);
-            this.cmbCurveStyle.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.cmbCurveStyle.BackColor = ThemeHelper.CardBackground;
-            this.cmbCurveStyle.ForeColor = Color.White;
-
-            this.cmbCurveThickness.Location = new Point(196, 230);
-            this.cmbCurveThickness.Size = new Size(95, 25);
-            this.cmbCurveThickness.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.cmbCurveThickness.BackColor = ThemeHelper.CardBackground;
-            this.cmbCurveThickness.ForeColor = Color.White;
-
-            this.btnCurveToggle.Text = "Göster/Gizle";
-            this.btnCurveToggle.Size = new Size(135, 28);
-            this.btnCurveToggle.Location = new Point(8, 265);
-            this.btnCurveToggle.BackColor = Color.FromArgb(14, 116, 144);
-            this.btnCurveToggle.ForeColor = Color.White;
-            this.btnCurveToggle.FlatStyle = FlatStyle.Flat;
-
-            this.btnCurveDelete.Text = "Eğriyi Sil";
-            this.btnCurveDelete.Size = new Size(135, 28);
-            this.btnCurveDelete.Location = new Point(155, 265);
-            this.btnCurveDelete.BackColor = Color.FromArgb(185, 28, 28);
-            this.btnCurveDelete.ForeColor = Color.White;
-            this.btnCurveDelete.FlatStyle = FlatStyle.Flat;
-
-            this.btnCurveEdit.Text = "Düzenle";
-            this.btnCurveEdit.Size = new Size(135, 28);
-            this.btnCurveEdit.Location = new Point(8, 300);
-            this.btnCurveEdit.BackColor = Color.FromArgb(40, 58, 85);
-            this.btnCurveEdit.ForeColor = Color.White;
-            this.btnCurveEdit.FlatStyle = FlatStyle.Flat;
-
-            this.btnCurveClearAll.Text = "Tümünü Sil";
-            this.btnCurveClearAll.Size = new Size(135, 28);
-            this.btnCurveClearAll.Location = new Point(155, 300);
+            this.btnCurveClearAll.Text = "Tümünü Temizle";
+            this.btnCurveClearAll.Size = new Size(110, 26);
+            this.btnCurveClearAll.Location = new Point(220, 5);
             this.btnCurveClearAll.BackColor = Color.FromArgb(127, 29, 29);
             this.btnCurveClearAll.ForeColor = Color.White;
             this.btnCurveClearAll.FlatStyle = FlatStyle.Flat;
+            this.btnCurveClearAll.Font = new Font("Segoe UI", 8F);
+            this.btnCurveClearAll.Cursor = Cursors.Hand;
+            this.btnCurveClearAll.FlatAppearance.BorderSize = 0;
 
-            this.tabFunctions.Controls.Add(this.lstCurves);
-            this.tabFunctions.Controls.Add(this.btnCurveColor);
-            this.tabFunctions.Controls.Add(this.cmbCurveStyle);
-            this.tabFunctions.Controls.Add(this.cmbCurveThickness);
-            this.tabFunctions.Controls.Add(this.btnCurveToggle);
-            this.tabFunctions.Controls.Add(this.btnCurveDelete);
-            this.tabFunctions.Controls.Add(this.btnCurveEdit);
-            this.tabFunctions.Controls.Add(this.btnCurveClearAll);
+            this.pnlCurvesBottomBar.Controls.Add(this.lblCurvesCount);
+            this.pnlCurvesBottomBar.Controls.Add(this.btnCurveClearAll);
 
-            // tabPoints
+            this.pnlCurvesContainer.Dock = DockStyle.Fill;
+            this.pnlCurvesContainer.AutoScroll = true;
+            this.pnlCurvesContainer.BackColor = Color.FromArgb(11, 17, 32);
+            this.pnlCurvesContainer.Padding = new Padding(4);
+
+            this.tabFunctions.Controls.Add(this.pnlCurvesContainer);
+            this.tabFunctions.Controls.Add(this.pnlCurvesBottomBar);
+
+            // ==================== TAB 2: NOKTALAR (Points Card List) ====================
             this.tabPoints.Text = "Noktalar";
-            this.tabPoints.BackColor = ThemeHelper.DarkBackground;
-            this.tabPoints.Padding = new Padding(8);
+            this.tabPoints.BackColor = Color.FromArgb(11, 15, 28);
+            this.tabPoints.Padding = new Padding(0);
 
-            this.lstPoints.Dock = DockStyle.Top;
-            this.lstPoints.Height = 180;
-            this.lstPoints.BackColor = Color.FromArgb(11, 17, 32);
-            this.lstPoints.ForeColor = Color.White;
-            this.lstPoints.Font = new Font("Consolas", 9.5F);
+            this.pnlPointsBottom.Dock = DockStyle.Bottom;
+            this.pnlPointsBottom.Height = 92;
+            this.pnlPointsBottom.BackColor = Color.FromArgb(15, 23, 42);
+            this.pnlPointsBottom.Padding = new Padding(6);
 
+            // Row 1 inputs
             this.lblPtX.Text = "X:";
-            this.lblPtX.Location = new Point(8, 192);
+            this.lblPtX.Location = new Point(6, 9);
             this.lblPtX.AutoSize = true;
             this.lblPtX.ForeColor = ThemeHelper.LightText;
+            this.lblPtX.Font = new Font("Segoe UI", 8.5F);
 
-            this.txtPtX.Location = new Point(28, 189);
-            this.txtPtX.Size = new Size(60, 24);
+            this.txtPtX.Location = new Point(22, 6);
+            this.txtPtX.Size = new Size(42, 24);
             this.txtPtX.Text = "0";
             this.txtPtX.Font = new Font("Consolas", 9F);
             this.txtPtX.BackColor = ThemeHelper.CardBackground;
             this.txtPtX.ForeColor = Color.White;
+            this.txtPtX.BorderStyle = BorderStyle.FixedSingle;
 
             this.lblPtY.Text = "Y:";
-            this.lblPtY.Location = new Point(96, 192);
+            this.lblPtY.Location = new Point(68, 9);
             this.lblPtY.AutoSize = true;
             this.lblPtY.ForeColor = ThemeHelper.LightText;
+            this.lblPtY.Font = new Font("Segoe UI", 8.5F);
 
-            this.txtPtY.Location = new Point(116, 189);
-            this.txtPtY.Size = new Size(60, 24);
+            this.txtPtY.Location = new Point(84, 6);
+            this.txtPtY.Size = new Size(42, 24);
             this.txtPtY.Text = "0";
             this.txtPtY.Font = new Font("Consolas", 9F);
             this.txtPtY.BackColor = ThemeHelper.CardBackground;
             this.txtPtY.ForeColor = Color.White;
+            this.txtPtY.BorderStyle = BorderStyle.FixedSingle;
 
-            this.btnPtColor.Text = "Renk";
-            this.btnPtColor.Location = new Point(184, 188);
-            this.btnPtColor.Size = new Size(48, 25);
-            this.btnPtColor.BackColor = Color.FromArgb(250, 204, 21);
-            this.btnPtColor.FlatStyle = FlatStyle.Flat;
-
-            this.btnAddPoint.Text = "+ Ekle";
-            this.btnAddPoint.Location = new Point(236, 188);
-            this.btnAddPoint.Size = new Size(58, 25);
-            this.btnAddPoint.BackColor = ThemeHelper.AccentBlue;
-            this.btnAddPoint.ForeColor = Color.White;
-            this.btnAddPoint.FlatStyle = FlatStyle.Flat;
-
-            this.lblPtShape.Text = "Şekil:";
-            this.lblPtShape.Location = new Point(8, 225);
-            this.lblPtShape.AutoSize = true;
-            this.lblPtShape.ForeColor = ThemeHelper.LightText;
-
-            this.cmbPtShape.Location = new Point(50, 222);
-            this.cmbPtShape.Size = new Size(130, 24);
+            this.cmbPtShape.Location = new Point(130, 6);
+            this.cmbPtShape.Size = new Size(82, 24);
             this.cmbPtShape.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbPtShape.BackColor = ThemeHelper.CardBackground;
             this.cmbPtShape.ForeColor = Color.White;
 
-            this.btnDeletePoint.Text = "Seçiliyi Sil";
-            this.btnDeletePoint.Location = new Point(8, 255);
-            this.btnDeletePoint.Size = new Size(135, 27);
-            this.btnDeletePoint.BackColor = Color.FromArgb(185, 28, 28);
-            this.btnDeletePoint.ForeColor = Color.White;
-            this.btnDeletePoint.FlatStyle = FlatStyle.Flat;
+            this.btnPtColor.Text = "";
+            this.btnPtColor.Location = new Point(216, 6);
+            this.btnPtColor.Size = new Size(28, 24);
+            this.btnPtColor.BackColor = Color.FromArgb(250, 204, 21);
+            this.btnPtColor.FlatStyle = FlatStyle.Flat;
+            this.btnPtColor.Cursor = Cursors.Hand;
+
+            this.btnAddPoint.Text = "+ Ekle";
+            this.btnAddPoint.Location = new Point(248, 6);
+            this.btnAddPoint.Size = new Size(60, 24);
+            this.btnAddPoint.BackColor = ThemeHelper.AccentBlue;
+            this.btnAddPoint.ForeColor = Color.White;
+            this.btnAddPoint.FlatStyle = FlatStyle.Flat;
+            this.btnAddPoint.Font = new Font("Segoe UI Semibold", 8.2F, FontStyle.Bold);
+            this.btnAddPoint.Cursor = Cursors.Hand;
+            this.btnAddPoint.FlatAppearance.BorderSize = 0;
+
+            // Row 2 summary & clear
+            this.lblPointsCount.Text = "Toplam 0 Nokta";
+            this.lblPointsCount.Location = new Point(6, 38);
+            this.lblPointsCount.AutoSize = true;
+            this.lblPointsCount.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblPointsCount.Font = new Font("Segoe UI", 8.5F);
 
             this.btnClearPoints.Text = "Tümünü Sil";
-            this.btnClearPoints.Location = new Point(152, 255);
-            this.btnClearPoints.Size = new Size(135, 27);
+            this.btnClearPoints.Location = new Point(226, 34);
+            this.btnClearPoints.Size = new Size(82, 24);
             this.btnClearPoints.BackColor = Color.FromArgb(127, 29, 29);
             this.btnClearPoints.ForeColor = Color.White;
             this.btnClearPoints.FlatStyle = FlatStyle.Flat;
+            this.btnClearPoints.Font = new Font("Segoe UI", 8F);
+            this.btnClearPoints.Cursor = Cursors.Hand;
+            this.btnClearPoints.FlatAppearance.BorderSize = 0;
 
-            this.lblPointHint.Text = "İpucu: Grafik tuvalinde bir noktanın üzerine sağ tıklayarak da o noktayı silebilirsiniz.";
-            this.lblPointHint.Location = new Point(8, 295);
-            this.lblPointHint.Size = new Size(280, 50);
+            // Row 3 hint
+            this.lblPointHint.Text = "İpucu: Tuvalde noktanın üzerine sağ tıklayarak da silebilirsiniz.";
+            this.lblPointHint.Location = new Point(6, 66);
+            this.lblPointHint.Size = new Size(330, 20);
             this.lblPointHint.ForeColor = ThemeHelper.MutedText;
-            this.lblPointHint.Font = new Font("Segoe UI", 8.5F);
+            this.lblPointHint.Font = new Font("Segoe UI", 7.8F);
 
-            this.tabPoints.Controls.Add(this.lstPoints);
-            this.tabPoints.Controls.Add(this.lblPtX);
-            this.tabPoints.Controls.Add(this.txtPtX);
-            this.tabPoints.Controls.Add(this.lblPtY);
-            this.tabPoints.Controls.Add(this.txtPtY);
-            this.tabPoints.Controls.Add(this.btnPtColor);
-            this.tabPoints.Controls.Add(this.btnAddPoint);
-            this.tabPoints.Controls.Add(this.lblPtShape);
-            this.tabPoints.Controls.Add(this.cmbPtShape);
-            this.tabPoints.Controls.Add(this.btnDeletePoint);
-            this.tabPoints.Controls.Add(this.btnClearPoints);
-            this.tabPoints.Controls.Add(this.lblPointHint);
+            this.pnlPointsBottom.Controls.Add(this.lblPtX);
+            this.pnlPointsBottom.Controls.Add(this.txtPtX);
+            this.pnlPointsBottom.Controls.Add(this.lblPtY);
+            this.pnlPointsBottom.Controls.Add(this.txtPtY);
+            this.pnlPointsBottom.Controls.Add(this.cmbPtShape);
+            this.pnlPointsBottom.Controls.Add(this.btnPtColor);
+            this.pnlPointsBottom.Controls.Add(this.btnAddPoint);
+            this.pnlPointsBottom.Controls.Add(this.lblPointsCount);
+            this.pnlPointsBottom.Controls.Add(this.btnClearPoints);
+            this.pnlPointsBottom.Controls.Add(this.lblPointHint);
 
-            // tabSliders
-            this.tabSliders.Text = "Parametreler";
+            this.pnlPointsContainer.Dock = DockStyle.Fill;
+            this.pnlPointsContainer.AutoScroll = true;
+            this.pnlPointsContainer.BackColor = Color.FromArgb(11, 17, 32);
+            this.pnlPointsContainer.Padding = new Padding(4);
+
+            this.tabPoints.Controls.Add(this.pnlPointsContainer);
+            this.tabPoints.Controls.Add(this.pnlPointsBottom);
+
+            // ==================== TAB 3: SÜRGÜLER (Sliders) ====================
+            this.tabSliders.Text = "Sürgüler";
             this.tabSliders.BackColor = ThemeHelper.DarkBackground;
             this.tabSliders.Padding = new Padding(8);
 
@@ -816,6 +806,9 @@ namespace MathApp.Controls
         private TabPage tabShapes;
 
         private ListBox lstCurves;
+        private Panel pnlCurvesContainer;
+        private Panel pnlCurvesBottomBar;
+        private Label lblCurvesCount;
         private Button btnCurveColor;
         private ComboBox cmbCurveStyle;
         private ComboBox cmbCurveThickness;
@@ -825,6 +818,9 @@ namespace MathApp.Controls
         private Button btnCurveClearAll;
 
         private ListBox lstPoints;
+        private Panel pnlPointsContainer;
+        private Panel pnlPointsBottom;
+        private Label lblPointsCount;
         private Label lblPtX;
         private TextBox txtPtX;
         private Label lblPtY;

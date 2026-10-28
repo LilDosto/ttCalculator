@@ -214,7 +214,7 @@ namespace MathApp
 
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl.SizeMode = TabSizeMode.Fixed;
-            tabControl.ItemSize = new Size(Math.Max(58, (tabControl.Width > 50 ? tabControl.Width - 14 : 306) / Math.Max(1, tabControl.TabCount)), 32);
+            tabControl.ItemSize = new Size(Math.Max(64, (tabControl.Width > 50 ? tabControl.Width - 10 : 338) / Math.Max(1, tabControl.TabCount)), 32);
 
             tabControl.DrawItem += (s, e) =>
             {
@@ -242,13 +242,14 @@ namespace MathApp
                 }
 
                 Color textColor = isSelected ? Color.FromArgb(56, 189, 248) : MutedText;
-                using (Font font = new Font("Segoe UI Semibold", 8.5F, isSelected ? FontStyle.Bold : FontStyle.Regular))
+                using (Font font = new Font("Segoe UI Semibold", 8.2F, isSelected ? FontStyle.Bold : FontStyle.Regular))
                 using (Brush textBrush = new SolidBrush(textColor))
                 {
                     StringFormat sf = new StringFormat
                     {
                         Alignment = StringAlignment.Center,
-                        LineAlignment = StringAlignment.Center
+                        LineAlignment = StringAlignment.Center,
+                        FormatFlags = StringFormatFlags.NoWrap
                     };
                     g.DrawString(page.Text, font, textBrush, tabRect, sf);
                 }

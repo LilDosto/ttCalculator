@@ -11,7 +11,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("=================================================");
-            Console.WriteLine("ttCalculator v3.1 Graph Plotter Studio Verification");
+            Console.WriteLine("ttCalculator v3.2 Graph Plotter Studio Verification");
             Console.WriteLine("=================================================");
 
             int passed = 0;
