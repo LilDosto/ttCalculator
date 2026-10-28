@@ -147,14 +147,18 @@ namespace MathApp.Controls
 
             // Curve management
             lstCurves.SelectedIndexChanged += LstCurves_SelectedIndexChanged;
+            lstCurves.DoubleClick += (s, e) => EditSelectedCurve();
+            lstCurves.KeyDown += (s, e) => { if (e.KeyCode == Keys.Delete) BtnCurveDelete_Click(this, EventArgs.Empty); };
             btnCurveColor.Click += BtnCurveColor_Click;
             cmbCurveStyle.SelectedIndexChanged += CmbCurveStyle_SelectedIndexChanged;
             cmbCurveThickness.SelectedIndexChanged += CmbCurveThickness_SelectedIndexChanged;
             btnCurveToggle.Click += BtnCurveToggle_Click;
             btnCurveDelete.Click += BtnCurveDelete_Click;
+            btnCurveEdit.Click += (s, e) => EditSelectedCurve();
             btnCurveClearAll.Click += BtnCurveClearAll_Click;
 
             // Point management
+            lstPoints.KeyDown += (s, e) => { if (e.KeyCode == Keys.Delete) BtnDeletePoint_Click(this, EventArgs.Empty); };
             btnAddPoint.Click += BtnAddPoint_Click;
             btnDeletePoint.Click += BtnDeletePoint_Click;
             btnClearPoints.Click += (s, e) => { _points.Clear(); RefreshPointsList(); pnlCanvas.Invalidate(); };
@@ -416,6 +420,23 @@ namespace MathApp.Controls
                 RefreshCurvesList();
                 RefreshToolCombos();
                 pnlCanvas.Invalidate();
+                lblStatus.Text = "Eğri listeden silindi.";
+            }
+        }
+
+        private void EditSelectedCurve()
+        {
+            if (lstCurves.SelectedItem is PlotCurve c && !c.IsVerticalLine)
+            {
+                txtEquation.Text = c.Equation;
+                chkClampRange.Checked = c.ClampDomain;
+                if (c.ClampDomain)
+                {
+                    txtMinX.Text = c.DomainMinX.ToString(CultureInfo.InvariantCulture);
+                    txtMaxX.Text = c.DomainMaxX.ToString(CultureInfo.InvariantCulture);
+                }
+                txtEquation.Focus();
+                lblStatus.Text = $"Eğri düzenleme için yüklendi: y = {c.Equation}";
             }
         }
 
@@ -1278,6 +1299,19 @@ namespace MathApp.Controls
             float cy = ParseFloat(txtShapeCenterY.Text, 0f);
             float d1 = Math.Max(0.1f, ParseFloat(txtShapeDim1.Text, 4f));
             float d2 = Math.Max(0.1f, ParseFloat(txtShapeDim2.Text, 2f));
+            float angleDeg = ParseFloat(txtShapeAngle.Text, 0f);
+            float angleRad = (float)(angleDeg * Math.PI / 180.0);
+            PointF center = new PointF(cx, cy);
+
+            PointF RotatePt(PointF pt)
+            {
+                if (Math.Abs(angleDeg) < 1e-3f) return pt;
+                float cos = (float)Math.Cos(angleRad);
+                float sin = (float)Math.Sin(angleRad);
+                float dx = pt.X - center.X;
+                float dy = pt.Y - center.Y;
+                return new PointF(center.X + dx * cos - dy * sin, center.Y + dx * sin + dy * cos);
+            }
 
             int shapeIdx = cmbShapeType.SelectedIndex;
             Color shapeColor = _palette[_colorIndex % _palette.Length];
@@ -1286,7 +1320,6 @@ namespace MathApp.Controls
             switch (shapeIdx)
             {
                 case 0: // Daire (Çember)
-                    // y = cy ± sqrt(R^2 - (x - cx)^2)
                     string upCircle = $"{cy:F3} + sqrt({d1 * d1:F4} - (x - {cx:F3})^2)";
                     string lowCircle = $"{cy:F3} - sqrt({d1 * d1:F4} - (x - {cx:F3})^2)";
                     AddFunctionCurve(upCircle, true, cx - d1, cx + d1, shapeColor, DashStyle.Solid, 2.5f);
@@ -1295,44 +1328,52 @@ namespace MathApp.Controls
                     break;
 
                 case 1: // Kare (Kenar d1)
-                    float halfSide = d1 / 2f;
-                    // Top, Bottom, Left, Right
-                    AddFunctionCurve($"{cy + halfSide:F3}", true, cx - halfSide, cx + halfSide, shapeColor, DashStyle.Solid, 2.5f);
-                    AddFunctionCurve($"{cy - halfSide:F3}", true, cx - halfSide, cx + halfSide, shapeColor, DashStyle.Solid, 2.5f);
-                    AddVerticalLine(cx - halfSide, cy - halfSide, cy + halfSide, shapeColor, DashStyle.Solid, 2.5f);
-                    AddVerticalLine(cx + halfSide, cy - halfSide, cy + halfSide, shapeColor, DashStyle.Solid, 2.5f);
-                    lblStatus.Text = $"Kare eklendi [Merkez: ({cx}, {cy}), Kenar: {d1}]";
+                    float hs = d1 / 2f;
+                    PointF[] sq = new PointF[]
+                    {
+                        RotatePt(new PointF(cx - hs, cy - hs)),
+                        RotatePt(new PointF(cx + hs, cy - hs)),
+                        RotatePt(new PointF(cx + hs, cy + hs)),
+                        RotatePt(new PointF(cx - hs, cy + hs))
+                    };
+                    for (int i = 0; i < 4; i++) AddLineSegmentCurve(sq[i], sq[(i + 1) % 4], shapeColor);
+                    lblStatus.Text = $"Kare eklendi [Merkez: ({cx}, {cy}), Kenar: {d1}, Dönüş: {angleDeg}°]";
                     break;
 
                 case 2: // Dikdörtgen (Genişlik d1, Yükseklik d2)
                     float hw = d1 / 2f;
                     float hh = d2 / 2f;
-                    AddFunctionCurve($"{cy + hh:F3}", true, cx - hw, cx + hw, shapeColor, DashStyle.Solid, 2.5f);
-                    AddFunctionCurve($"{cy - hh:F3}", true, cx - hw, cx + hw, shapeColor, DashStyle.Solid, 2.5f);
-                    AddVerticalLine(cx - hw, cy - hh, cy + hh, shapeColor, DashStyle.Solid, 2.5f);
-                    AddVerticalLine(cx + hw, cy - hh, cy + hh, shapeColor, DashStyle.Solid, 2.5f);
-                    lblStatus.Text = $"Dikdörtgen eklendi [Merkez: ({cx}, {cy}), {d1} × {d2}]";
+                    PointF[] rect = new PointF[]
+                    {
+                        RotatePt(new PointF(cx - hw, cy - hh)),
+                        RotatePt(new PointF(cx + hw, cy - hh)),
+                        RotatePt(new PointF(cx + hw, cy + hh)),
+                        RotatePt(new PointF(cx - hw, cy + hh))
+                    };
+                    for (int i = 0; i < 4; i++) AddLineSegmentCurve(rect[i], rect[(i + 1) % 4], shapeColor);
+                    lblStatus.Text = $"Dikdörtgen eklendi [Merkez: ({cx}, {cy}), {d1} × {d2}, Dönüş: {angleDeg}°]";
                     break;
 
                 case 3: // Eşkenar Üçgen (Yarıçap d1)
-                    // 3 vertices on circle of radius d1
-                    PointF v1 = new PointF(cx, cy + d1);
-                    PointF v2 = new PointF(cx - d1 * 0.866f, cy - d1 * 0.5f);
-                    PointF v3 = new PointF(cx + d1 * 0.866f, cy - d1 * 0.5f);
-
+                    PointF v1 = RotatePt(new PointF(cx, cy + d1));
+                    PointF v2 = RotatePt(new PointF(cx - d1 * 0.866025f, cy - d1 * 0.5f));
+                    PointF v3 = RotatePt(new PointF(cx + d1 * 0.866025f, cy - d1 * 0.5f));
                     AddLineSegmentCurve(v1, v2, shapeColor);
                     AddLineSegmentCurve(v2, v3, shapeColor);
                     AddLineSegmentCurve(v3, v1, shapeColor);
-                    lblStatus.Text = $"Eşkenar Üçgen eklendi [Merkez: ({cx}, {cy})]";
+                    lblStatus.Text = $"Eşkenar Üçgen eklendi [Merkez: ({cx}, {cy}), Dönüş: {angleDeg}°]";
                     break;
 
-                case 4: // Elips (a=d1, b=d2)
-                    // y = cy ± (b/a)*sqrt(a^2 - (x - cx)^2)
-                    string upEllipse = $"{cy:F3} + ({d2:F3}/{d1:F3}) * sqrt({d1 * d1:F4} - (x - {cx:F3})^2)";
-                    string lowEllipse = $"{cy:F3} - ({d2:F3}/{d1:F3}) * sqrt({d1 * d1:F4} - (x - {cx:F3})^2)";
-                    AddFunctionCurve(upEllipse, true, cx - d1, cx + d1, shapeColor, DashStyle.Solid, 2.5f);
-                    AddFunctionCurve(lowEllipse, true, cx - d1, cx + d1, shapeColor, DashStyle.Solid, 2.5f);
-                    lblStatus.Text = $"Elips eklendi [Merkez: ({cx}, {cy}), a={d1}, b={d2}]";
+                case 4: // Elips (a=d1, b=d2, Dönüş Açılı)
+                    int nEll = 36;
+                    PointF[] ell = new PointF[nEll];
+                    for (int i = 0; i < nEll; i++)
+                    {
+                        double t = i * 2.0 * Math.PI / nEll;
+                        ell[i] = RotatePt(new PointF((float)(cx + d1 * Math.Cos(t)), (float)(cy + d2 * Math.Sin(t))));
+                    }
+                    for (int i = 0; i < nEll; i++) AddLineSegmentCurve(ell[i], ell[(i + 1) % nEll], shapeColor);
+                    lblStatus.Text = $"Elips eklendi [Merkez: ({cx}, {cy}), a={d1}, b={d2}, Dönüş: {angleDeg}°]";
                     break;
 
                 case 5: // Düzgün Altıgen (Yarıçap d1)
@@ -1340,13 +1381,10 @@ namespace MathApp.Controls
                     for (int i = 0; i < 6; i++)
                     {
                         double ang = i * Math.PI / 3.0;
-                        hex[i] = new PointF((float)(cx + d1 * Math.Cos(ang)), (float)(cy + d1 * Math.Sin(ang)));
+                        hex[i] = RotatePt(new PointF((float)(cx + d1 * Math.Cos(ang)), (float)(cy + d1 * Math.Sin(ang))));
                     }
-                    for (int i = 0; i < 6; i++)
-                    {
-                        AddLineSegmentCurve(hex[i], hex[(i + 1) % 6], shapeColor);
-                    }
-                    lblStatus.Text = $"Düzgün Altıgen eklendi [Merkez: ({cx}, {cy}), R={d1}]";
+                    for (int i = 0; i < 6; i++) AddLineSegmentCurve(hex[i], hex[(i + 1) % 6], shapeColor);
+                    lblStatus.Text = $"Düzgün Altıgen eklendi [Merkez: ({cx}, {cy}), R={d1}, Dönüş: {angleDeg}°]";
                     break;
             }
         }

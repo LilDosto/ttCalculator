@@ -35,12 +35,24 @@ namespace MathApp.Controls
 
             cmbPdeType.SelectedIndexChanged += (s, e) =>
             {
-                bool isWave = cmbPdeType.SelectedIndex == 1;
+                int sel = cmbPdeType.SelectedIndex;
+                bool isWave = sel == 2;
+                bool isLaplace = sel == 4;
+
                 lblInitVel.Visible = isWave;
                 txtInitVel.Visible = isWave;
-                if (cmbPdeType.SelectedIndex == 0) lblParam.Text = "Difüzyon Katsayısı (α):";
-                else if (cmbPdeType.SelectedIndex == 1) lblParam.Text = "Dalga Hızı (c):";
-                else lblParam.Text = "Taşınım Hızı (v):";
+
+                lblInitU.Visible = !isLaplace;
+                txtInitU.Visible = !isLaplace;
+                lblT.Visible = !isLaplace;
+                txtT.Visible = !isLaplace;
+                lblNt.Visible = !isLaplace;
+                numNt.Visible = !isLaplace;
+
+                if (sel == 0 || sel == 1) lblParam.Text = "Difüzyon Katsayısı (α):";
+                else if (sel == 2) lblParam.Text = "Dalga Hızı (c):";
+                else if (sel == 3) lblParam.Text = "Taşınım Hızı (v):";
+                else lblParam.Text = "Boşta (Laplace):";
             };
         }
 
@@ -60,7 +72,7 @@ namespace MathApp.Controls
 
         private void SetPresetWave()
         {
-            cmbPdeType.SelectedIndex = 1;
+            cmbPdeType.SelectedIndex = 2;
             txtInitU.Text = "sin(pi * x)";
             txtInitVel.Text = "0";
             txtParam.Text = "2";
@@ -74,7 +86,7 @@ namespace MathApp.Controls
 
         private void SetPresetAdvection()
         {
-            cmbPdeType.SelectedIndex = 2;
+            cmbPdeType.SelectedIndex = 3;
             txtInitU.Text = "exp(-40 * (x - 0.3)^2)";
             txtInitVel.Text = "0";
             txtParam.Text = "1";
@@ -88,12 +100,12 @@ namespace MathApp.Controls
 
         private void SetPresetGauss()
         {
-            cmbPdeType.SelectedIndex = 0;
+            cmbPdeType.SelectedIndex = 1; // Crank-Nicolson
             txtInitU.Text = "exp(-100 * (x - 0.5)^2)";
             txtInitVel.Text = "0";
-            txtParam.Text = "0.05";
+            txtParam.Text = "0.2";
             txtL.Text = "1";
-            txtT.Text = "0.2";
+            txtT.Text = "0.3";
             numNx.Value = 31;
             numNt.Value = 200;
             txtBcLeft.Text = "0";
@@ -107,13 +119,7 @@ namespace MathApp.Controls
                 btnSolve.Enabled = false;
                 btnSolve.Text = "⏳ Hesaplanıyor...";
 
-                DifferentialEquations.PdeType pdeType;
-                if (cmbPdeType.SelectedIndex == 0) pdeType = DifferentialEquations.PdeType.HeatEquation;
-                else if (cmbPdeType.SelectedIndex == 1) pdeType = DifferentialEquations.PdeType.WaveEquation;
-                else pdeType = DifferentialEquations.PdeType.AdvectionEquation;
-
-                string initU = txtInitU.Text.Trim();
-                string initVel = txtInitVel.Text.Trim();
+                int sel = cmbPdeType.SelectedIndex;
 
                 if (!decimal.TryParse(txtParam.Text.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal paramVal))
                     paramVal = 0.1m;
@@ -129,6 +135,61 @@ namespace MathApp.Controls
                     bcLeft = 0m;
                 if (!decimal.TryParse(txtBcRight.Text.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal bcRight))
                     bcRight = 0m;
+
+                if (sel == 4)
+                {
+                    // 2D Laplace
+                    decimal topBc = 100m;
+                    decimal bottomBc = 0m;
+                    var laplace = await Task.Run(() =>
+                    {
+                        return DifferentialEquations.Solve2DLaplace(nx, nx, bcLeft, bcRight, topBc, bottomBc);
+                    });
+
+                    lblStability.Text = $"2B Laplace Denklemi (SOR): {laplace.Iterations} iterasyonda yakınsadı (Kalıntı: {laplace.FinalResidual:G4})";
+                    lblDetails.Text = $"Izgara: {nx} × {nx} düğüm | Sınırlar: Sol={bcLeft}, Sağ={bcRight}, Üst={topBc}, Alt={bottomBc}";
+
+                    StringBuilder sbL = new StringBuilder();
+                    sbL.AppendLine("==========================================================================================");
+                    sbL.AppendLine("2 BOYUTLU ELLİPTİK LAPLACE DENKLEMİ (∇²u = u_xx + u_yy = 0) POTANSİYEL DAĞILIMI");
+                    sbL.AppendLine($"Izgara: {nx} x {nx} | İterasyon: {laplace.Iterations} | Yakınsama Residual: {laplace.FinalResidual:G4}");
+                    sbL.AppendLine("==========================================================================================");
+
+                    int stepX = Math.Max(1, nx / 10);
+                    int stepY = Math.Max(1, nx / 10);
+
+                    sbL.Append(string.Format("{0,-8}", "y \\ x"));
+                    for (int i = 0; i < nx; i += stepX)
+                    {
+                        decimal xPos = (decimal)i / (nx - 1);
+                        sbL.Append(string.Format(" | {0,-8:F2}", xPos));
+                    }
+                    sbL.AppendLine();
+                    sbL.AppendLine(new string('-', 100));
+
+                    for (int j = nx - 1; j >= 0; j -= stepY)
+                    {
+                        decimal yPos = (decimal)j / (nx - 1);
+                        sbL.Append(string.Format("{0,-8:F2}", yPos));
+                        for (int i = 0; i < nx; i += stepX)
+                        {
+                            sbL.Append(string.Format(" | {0,-8:F2}", laplace.Grid[i, j]));
+                        }
+                        sbL.AppendLine();
+                    }
+                    sbL.AppendLine("==========================================================================================");
+                    txtOutput.Text = sbL.ToString();
+                    return;
+                }
+
+                DifferentialEquations.PdeType pdeType;
+                if (sel == 0) pdeType = DifferentialEquations.PdeType.HeatEquation;
+                else if (sel == 1) pdeType = DifferentialEquations.PdeType.HeatEquationCrankNicolson;
+                else if (sel == 2) pdeType = DifferentialEquations.PdeType.WaveEquation;
+                else pdeType = DifferentialEquations.PdeType.AdvectionEquation;
+
+                string initU = txtInitU.Text.Trim();
+                string initVel = txtInitVel.Text.Trim();
 
                 var grid = await Task.Run(() =>
                 {
@@ -159,7 +220,6 @@ namespace MathApp.Controls
                 sb.AppendLine($"Izgara: {nx} mekan noktası, {nt} zaman adımı | dx = {dx:F5}, dt = {dt:F5}");
                 sb.AppendLine("==========================================================================================");
 
-                // Select 5 key time slices: t=0, 25%, 50%, 75%, 100%
                 int[] timeIndices = new int[]
                 {
                     0,

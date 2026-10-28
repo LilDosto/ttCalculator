@@ -63,6 +63,7 @@ namespace MathApp.Controls
             this.cmbCurveThickness = new ComboBox();
             this.btnCurveToggle = new Button();
             this.btnCurveDelete = new Button();
+            this.btnCurveEdit = new Button();
             this.btnCurveClearAll = new Button();
 
             // Points Tab Controls
@@ -103,6 +104,8 @@ namespace MathApp.Controls
             this.txtShapeDim1 = new TextBox();
             this.lblShapeDim2 = new Label();
             this.txtShapeDim2 = new TextBox();
+            this.lblShapeAngle = new Label();
+            this.txtShapeAngle = new TextBox();
             this.btnAddShape = ThemeHelper.CreateActionButton("📐 Şekli Grafiğe Ekle", 260, 32, true);
 
             this.pnlStatusBar = new Panel();
@@ -180,10 +183,10 @@ namespace MathApp.Controls
             this.txtMaxX.ForeColor = Color.White;
             this.txtMaxX.BorderStyle = BorderStyle.FixedSingle;
 
-            this.chkClampRange.Text = "Aralıkta Kısıtla";
+            this.chkClampRange.Text = "[Min, Max] Kısıtla";
             this.chkClampRange.ForeColor = ThemeHelper.LightText;
             this.chkClampRange.Location = new Point(452, yRow1 + 3);
-            this.chkClampRange.Size = new Size(110, 22);
+            this.chkClampRange.Size = new Size(125, 22);
 
             this.btnPlot.Location = new Point(570, yRow1 - 1);
 
@@ -273,9 +276,16 @@ namespace MathApp.Controls
             this.btnCurveDelete.ForeColor = Color.White;
             this.btnCurveDelete.FlatStyle = FlatStyle.Flat;
 
-            this.btnCurveClearAll.Text = "🧹 Tüm Eğrileri Temizle";
-            this.btnCurveClearAll.Size = new Size(284, 28);
-            this.btnCurveClearAll.Location = new Point(8, 300);
+            this.btnCurveEdit.Text = "✏️ Düzenle";
+            this.btnCurveEdit.Size = new Size(138, 28);
+            this.btnCurveEdit.Location = new Point(8, 298);
+            this.btnCurveEdit.BackColor = Color.FromArgb(30, 41, 59);
+            this.btnCurveEdit.ForeColor = Color.White;
+            this.btnCurveEdit.FlatStyle = FlatStyle.Flat;
+
+            this.btnCurveClearAll.Text = "🧹 Tümünü Sil";
+            this.btnCurveClearAll.Size = new Size(138, 28);
+            this.btnCurveClearAll.Location = new Point(154, 298);
             this.btnCurveClearAll.BackColor = Color.FromArgb(45, 55, 72);
             this.btnCurveClearAll.ForeColor = Color.White;
             this.btnCurveClearAll.FlatStyle = FlatStyle.Flat;
@@ -286,6 +296,7 @@ namespace MathApp.Controls
             this.tabFunctions.Controls.Add(this.cmbCurveThickness);
             this.tabFunctions.Controls.Add(this.btnCurveToggle);
             this.tabFunctions.Controls.Add(this.btnCurveDelete);
+            this.tabFunctions.Controls.Add(this.btnCurveEdit);
             this.tabFunctions.Controls.Add(this.btnCurveClearAll);
 
             // tabPoints
@@ -530,6 +541,18 @@ namespace MathApp.Controls
             this.txtShapeDim2.BackColor = ThemeHelper.CardBackground;
             this.txtShapeDim2.ForeColor = Color.White;
 
+            this.lblShapeAngle.Text = "Dönüş (°):";
+            this.lblShapeAngle.Location = new Point(190, sy2);
+            this.lblShapeAngle.AutoSize = true;
+            this.lblShapeAngle.ForeColor = ThemeHelper.LightText;
+
+            this.txtShapeAngle.Location = new Point(190, sy2 + 20);
+            this.txtShapeAngle.Size = new Size(60, 24);
+            this.txtShapeAngle.Text = "0";
+            this.txtShapeAngle.Font = new Font("Consolas", 9.5F);
+            this.txtShapeAngle.BackColor = ThemeHelper.CardBackground;
+            this.txtShapeAngle.ForeColor = Color.White;
+
             this.btnAddShape.Location = new Point(8, 180);
 
             this.tabShapes.Controls.Add(this.lblShapeType);
@@ -541,6 +564,8 @@ namespace MathApp.Controls
             this.tabShapes.Controls.Add(this.txtShapeDim1);
             this.tabShapes.Controls.Add(this.lblShapeDim2);
             this.tabShapes.Controls.Add(this.txtShapeDim2);
+            this.tabShapes.Controls.Add(this.lblShapeAngle);
+            this.tabShapes.Controls.Add(this.txtShapeAngle);
             this.tabShapes.Controls.Add(this.btnAddShape);
 
             this.pnlRightSide.Controls.Add(this.tabManager);
@@ -630,6 +655,7 @@ namespace MathApp.Controls
         private ComboBox cmbCurveThickness;
         private Button btnCurveToggle;
         private Button btnCurveDelete;
+        private Button btnCurveEdit;
         private Button btnCurveClearAll;
 
         private ListBox lstPoints;
@@ -667,6 +693,8 @@ namespace MathApp.Controls
         private TextBox txtShapeDim1;
         private Label lblShapeDim2;
         private TextBox txtShapeDim2;
+        private Label lblShapeAngle;
+        private TextBox txtShapeAngle;
         private Button btnAddShape;
 
         private Panel pnlStatusBar;

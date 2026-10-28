@@ -10,7 +10,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("========================================");
-            Console.WriteLine("ttCalculator v2.3 Algorithm Verification");
+            Console.WriteLine("ttCalculator v2.4 Algorithm Verification");
             Console.WriteLine("========================================");
 
             int passed = 0;
@@ -162,6 +162,43 @@ namespace MathApp.Tests
             catch (Exception ex)
             {
                 AssertTrue(false, "SolveCoupledPdeSystem: " + ex.Message);
+            }
+
+            // Test 8: 1D Crank-Nicolson Heat Equation (Unconditionally Stable)
+            try
+            {
+                var cnHeat = DifferentialEquations.Solve1DPde(
+                    DifferentialEquations.PdeType.HeatEquationCrankNicolson,
+                    "sin(pi * x)",
+                    1.0m,
+                    0.2m,
+                    21,
+                    50,
+                    0.1m,
+                    0m,
+                    0m
+                );
+                decimal midU = cnHeat.U[10, 49];
+                double expected = Math.Exp(-0.1 * Math.PI * Math.PI * 0.2) * Math.Sin(Math.PI * 0.5);
+                AssertTrue(Math.Abs((double)midU - expected) < 0.02, 
+                    $"1D Crank-Nicolson Heat U={midU:F4} (expected ≈ {expected:F4})");
+            }
+            catch (Exception ex)
+            {
+                AssertTrue(false, "Crank-Nicolson: " + ex.Message);
+            }
+
+            // Test 9: 2D Laplace Elliptic Solver
+            try
+            {
+                var laplace = DifferentialEquations.Solve2DLaplace(15, 15, 0m, 0m, 100m, 0m);
+                decimal centerVal = laplace.Grid[7, 7];
+                AssertTrue(centerVal > 0m && centerVal < 100m && laplace.Iterations > 0, 
+                    $"2D Laplace SOR center potential = {centerVal:F2} (expected 0 < V < 100)");
+            }
+            catch (Exception ex)
+            {
+                AssertTrue(false, "2D Laplace: " + ex.Message);
             }
 
             Console.WriteLine("========================================");

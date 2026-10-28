@@ -104,9 +104,11 @@ namespace MathApp.Controls
             this.cmbPdeType.ForeColor = Color.White;
             this.cmbPdeType.Font = new Font("Segoe UI", 9.5F);
             this.cmbPdeType.Items.AddRange(new object[] {
-                "Isı Denklemi [u_t = α·u_xx]",
-                "Dalga Denklemi [u_tt = c²·u_xx]",
-                "Taşınım Denklemi [u_t + v·u_x = 0]"
+                "Isı Denklemi [FTCS Açık - u_t = α·u_xx]",
+                "Isı Denklemi [Crank-Nicolson Koşulsuz Kararlı]",
+                "Dalga Denklemi [Leapfrog - u_tt = c²·u_xx]",
+                "Taşınım Denklemi [Upwind - u_t + v·u_x = 0]",
+                "2B Laplace Denklemi [SOR - ∇²u = 0]"
             });
             this.cmbPdeType.SelectedIndex = 0;
 

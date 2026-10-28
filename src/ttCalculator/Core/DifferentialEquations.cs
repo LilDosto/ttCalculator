@@ -287,7 +287,7 @@ namespace MathApp
 
         #region 3. Partial Differential Equations (1D Heat, Wave, Advection)
 
-        public enum PdeType { HeatEquation, WaveEquation, AdvectionEquation }
+        public enum PdeType { HeatEquation, HeatEquationCrankNicolson, WaveEquation, AdvectionEquation }
 
         public class PdeSolutionGrid
         {
@@ -367,6 +367,48 @@ namespace MathApp
                     for (int i = 1; i < spatialPointsNx - 1; i++)
                     {
                         u[i, n + 1] = u[i, n] + r * (u[i + 1, n] - 2m * u[i, n] + u[i - 1, n]);
+                    }
+                }
+            }
+            else if (pdeType == PdeType.HeatEquationCrankNicolson)
+            {
+                // Crank-Nicolson Implicit Scheme: O(dt^2 + dx^2) unconditionally stable for all r > 0
+                decimal r = (paramAlphaOrC * dt) / (dx * dx);
+                decimal rHalf = r * 0.5m;
+                stabilityNote = $"Isı Denklemi (Crank-Nicolson): r = α·Δt / Δx² = {r:G4} ✓ Koşulsuz Kararlı (Unconditionally Stable)";
+
+                int m = spatialPointsNx - 2;
+                decimal diagA = -rHalf;
+                decimal diagB = 1m + r;
+                decimal diagC = -rHalf;
+
+                decimal[] d = new decimal[m];
+                decimal[] cPrime = new decimal[m];
+                decimal[] dPrime = new decimal[m];
+
+                for (int n = 0; n < timeStepsNt - 1; n++)
+                {
+                    for (int i = 1; i <= m; i++)
+                    {
+                        d[i - 1] = rHalf * u[i - 1, n] + (1m - r) * u[i, n] + rHalf * u[i + 1, n];
+                    }
+                    d[0] += rHalf * leftBoundaryVal;
+                    d[m - 1] += rHalf * rightBoundaryVal;
+
+                    // Thomas algorithm
+                    cPrime[0] = diagC / diagB;
+                    dPrime[0] = d[0] / diagB;
+                    for (int k = 1; k < m; k++)
+                    {
+                        decimal denom = diagB - diagA * cPrime[k - 1];
+                        if (k < m - 1) cPrime[k] = diagC / denom;
+                        dPrime[k] = (d[k] - diagA * dPrime[k - 1]) / denom;
+                    }
+
+                    u[m, n + 1] = dPrime[m - 1];
+                    for (int k = m - 2; k >= 0; k--)
+                    {
+                        u[k + 1, n + 1] = dPrime[k] - cPrime[k] * u[k + 2, n + 1];
                     }
                 }
             }
@@ -526,6 +568,80 @@ namespace MathApp
                 U = u,
                 V = v,
                 SystemInfo = $"1B Reaksiyon-Difüzyon Sistemi (r_u = {ru:G4}, r_v = {rv:G4}, dx = {dx:G4}, dt = {dt:G4})"
+            };
+        }
+
+        #endregion
+
+        #region 5. 2D Elliptic PDEs (Laplace / Poisson Equation: u_xx + u_yy = 0)
+
+        public class Laplace2DSolution
+        {
+            public int Nx { get; set; }
+            public int Ny { get; set; }
+            public decimal[,] Grid { get; set; }
+            public int Iterations { get; set; }
+            public decimal FinalResidual { get; set; }
+        }
+
+        public static Laplace2DSolution Solve2DLaplace(
+            int nx,
+            int ny,
+            decimal leftBc,
+            decimal rightBc,
+            decimal topBc,
+            decimal bottomBc,
+            int maxIter = 1000,
+            decimal tol = 1e-5m)
+        {
+            if (nx < 4) nx = 20;
+            if (ny < 4) ny = 20;
+            decimal[,] u = new decimal[nx, ny];
+
+            for (int j = 0; j < ny; j++)
+            {
+                u[0, j] = leftBc;
+                u[nx - 1, j] = rightBc;
+            }
+            for (int i = 0; i < nx; i++)
+            {
+                u[i, 0] = bottomBc;
+                u[i, ny - 1] = topBc;
+            }
+
+            decimal avg = (leftBc + rightBc + topBc + bottomBc) / 4m;
+            for (int i = 1; i < nx - 1; i++)
+                for (int j = 1; j < ny - 1; j++)
+                    u[i, j] = avg;
+
+            int iter = 0;
+            decimal maxDiff = 1m;
+            decimal omega = 1.35m; // SOR factor
+
+            while (iter < maxIter && maxDiff > tol)
+            {
+                maxDiff = 0m;
+                for (int i = 1; i < nx - 1; i++)
+                {
+                    for (int j = 1; j < ny - 1; j++)
+                    {
+                        decimal uNew = 0.25m * (u[i + 1, j] + u[i - 1, j] + u[i, j + 1] + u[i, j - 1]);
+                        decimal uRelaxed = (1m - omega) * u[i, j] + omega * uNew;
+                        decimal diff = DecimalMath.Abs(uRelaxed - u[i, j]);
+                        if (diff > maxDiff) maxDiff = diff;
+                        u[i, j] = uRelaxed;
+                    }
+                }
+                iter++;
+            }
+
+            return new Laplace2DSolution
+            {
+                Nx = nx,
+                Ny = ny,
+                Grid = u,
+                Iterations = iter,
+                FinalResidual = maxDiff
             };
         }
 

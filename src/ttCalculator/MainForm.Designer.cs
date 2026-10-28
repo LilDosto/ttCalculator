@@ -139,7 +139,7 @@ namespace MathApp
             // Footer version label
             this.lblVersion.Dock = DockStyle.Bottom;
             this.lblVersion.Height = 26;
-            this.lblVersion.Text = "v2.3 • 128-bit Decimal Motoru";
+            this.lblVersion.Text = "v2.4 • 128-bit Decimal Motoru";
             this.lblVersion.Font = new Font("Segoe UI", 8F);
             this.lblVersion.ForeColor = Color.FromArgb(100, 116, 139);
             this.lblVersion.TextAlign = ContentAlignment.MiddleCenter;
