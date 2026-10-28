@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using MathApp.Core;
 
 namespace MathApp.Controls
 {
@@ -22,21 +23,38 @@ namespace MathApp.Controls
 
         private void BtnAngleMode_Click(object sender, EventArgs e)
         {
-            Function.UseRadians = !Function.UseRadians;
+            switch (Function.CurrentAngleUnit)
+            {
+                case AngleUnit.Radian:
+                    Function.CurrentAngleUnit = AngleUnit.Degree;
+                    break;
+                case AngleUnit.Degree:
+                    Function.CurrentAngleUnit = AngleUnit.Gradian;
+                    break;
+                case AngleUnit.Gradian:
+                default:
+                    Function.CurrentAngleUnit = AngleUnit.Radian;
+                    break;
+            }
             UpdateAngleButtonState();
         }
 
         private void UpdateAngleButtonState()
         {
-            if (Function.UseRadians)
+            switch (Function.CurrentAngleUnit)
             {
-                btnAngleMode.Text = "Açı Birimi: RAD (Radyan)";
-                btnAngleMode.BackColor = Color.FromArgb(14, 165, 233);
-            }
-            else
-            {
-                btnAngleMode.Text = "Açı Birimi: DEG (Derece)";
-                btnAngleMode.BackColor = Color.FromArgb(99, 102, 241);
+                case AngleUnit.Radian:
+                    btnAngleMode.Text = "Açı Birimi: RAD (Radyan)";
+                    btnAngleMode.BackColor = Color.FromArgb(14, 165, 233);
+                    break;
+                case AngleUnit.Degree:
+                    btnAngleMode.Text = "Açı Birimi: DEG (Derece)";
+                    btnAngleMode.BackColor = Color.FromArgb(99, 102, 241);
+                    break;
+                case AngleUnit.Gradian:
+                    btnAngleMode.Text = "Açı Birimi: GRAD (Gradian)";
+                    btnAngleMode.BackColor = Color.FromArgb(16, 185, 129);
+                    break;
             }
         }
 
@@ -70,29 +88,6 @@ namespace MathApp.Controls
             for (int r = 0; r < 7; r++)
                 pnlButtons.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7f));
 
-            string[] layout = {
-                // Row 0: Trig & Inverse Trig
-                "sin(",  "cos(",  "tan(",  "cot(",  "asin(", "acos(",
-                // Row 1: Hyperbolic, Inverse Tan & Logs
-                "sinh(", "cosh(", "tanh(", "atan(", "ln(",   "log(",
-                // Row 2: Powers, Exp, Grouping
-                "sqrt(", "^",     "exp(",  "abs(",  "(",     ")",
-                // Row 3: Constants & Symbols
-                "pi",    "e",     "%",     "DEL",   "C",     "/",
-                // Row 4: Digits 7,8,9, Ops
-                "7",     "8",     "9",     "*",     "-",     "+",
-                // Row 5: Digits 4,5,6
-                "4",     "5",     "6",     "0",     ".",     "=",
-                // Row 6: Digits 1,2,3
-                "1",     "2",     "3",     "x",     "y",     "z"
-            };
-
-            // Let's arrange so the standard keypad is natural:
-            // Let's reorder rows 4, 5, 6:
-            // Row 3: pi, e, %, (, ), /
-            // Row 4: 7, 8, 9, *, DEL, C
-            // Row 5: 4, 5, 6, -, +, x
-            // Row 6: 1, 2, 3, 0, ., =
             string[] standardKeypad = {
                 // Row 0: Trig
                 "sin(",  "cos(",  "tan(",  "cot(",  "asin(", "acos(",
@@ -100,12 +95,12 @@ namespace MathApp.Controls
                 "sinh(", "cosh(", "tanh(", "atan(", "ln(",   "log(",
                 // Row 2: Roots, Powers & Constants
                 "sqrt(", "^",     "exp(",  "abs(",  "pi",    "e",
-                // Row 3: Grouping & Ops
-                "(",     ")",     "%",     "DEL",   "C",     "/",
+                // Row 3: Advanced, Grouping, Clear
+                "!",     "(",     ")",     "%",     "DEL",   "C",
                 // Row 4: Keypad Row 1
-                "7",     "8",     "9",     "*",     "-",     "+",
+                "7",     "8",     "9",     "/",     "*",     "-",
                 // Row 5: Keypad Row 2
-                "4",     "5",     "6",     "x",     "y",     "z",
+                "4",     "5",     "6",     "+",     "x",     "y",
                 // Row 6: Keypad Row 3 & Action
                 "1",     "2",     "3",     "0",     ".",     "="
             };
@@ -140,7 +135,7 @@ namespace MathApp.Controls
                     btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(185, 28, 28);
                     btn.FlatAppearance.BorderColor = Color.FromArgb(153, 27, 27);
                 }
-                else if (IsOperator(text) || text == "^")
+                else if (IsOperator(text) || text == "^" || text == "!")
                 {
                     btn.BackColor = Color.FromArgb(51, 65, 85);
                     btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(71, 85, 105);
@@ -188,6 +183,7 @@ namespace MathApp.Controls
                 "log(" => "log₁₀",
                 "sqrt(" => "√x",
                 "abs(" => "|x|",
+                "!" => "n!",
                 "pi" => "π",
                 "DEL" => "⌫ Sil",
                 "C" => "AC",
@@ -233,11 +229,14 @@ namespace MathApp.Controls
                 case Keys.Add:
                 case Keys.Oemplus:
                     input = "+"; break;
+
                 case Keys.Subtract:
                 case Keys.OemMinus:
                     input = "-"; break;
+
                 case Keys.Multiply:
                     input = "*"; break;
+
                 case Keys.Divide:
                 case Keys.OemQuestion:
                     input = "/"; break;
@@ -258,7 +257,8 @@ namespace MathApp.Controls
                     input = "="; break;
 
                 default:
-                    if (keyData == (Keys.Shift | Keys.D8)) input = "(";
+                    if (keyData == (Keys.Shift | Keys.D1)) input = "!";
+                    else if (keyData == (Keys.Shift | Keys.D8)) input = "(";
                     else if (keyData == (Keys.Shift | Keys.D9)) input = ")";
                     else if (keyData == (Keys.Shift | Keys.D0)) input = "=";
                     else if (keyData == (Keys.Shift | Keys.D3)) input = "^";
@@ -326,44 +326,41 @@ namespace MathApp.Controls
                         isResultShown = false;
                     }
                 }
-                currentExpression += text;
-                txtDisplay.Text = currentExpression;
+
+                currentExpression = CalculatorEngine.SanitizeInput(currentExpression, text);
+                txtDisplay.Text = string.IsNullOrEmpty(currentExpression) ? "0" : currentExpression;
             }
         }
 
-        private void Evaluate()
+        private async void Evaluate()
         {
             if (string.IsNullOrWhiteSpace(currentExpression)) return;
 
+            string exprToEval = currentExpression;
+            lblExpressionHistory.Text = exprToEval + " = ...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
-                string exprToEval = BalanceParentheses(currentExpression);
-                Function f = new Function();
-                f.Parse(exprToEval);
-                if (f.Error)
+                var result = await CalculatorEngine.EvaluateAsync(exprToEval, Function.CurrentAngleUnit);
+
+                if (!result.IsSuccess)
                 {
-                    lblExpressionHistory.Text = "Hata: " + f.ErrorDescription;
-                    txtDisplay.Text = "Hata";
+                    lblExpressionHistory.Text = $"{exprToEval} = Hata: {result.ErrorMessage}";
+                    txtDisplay.Text = result.ErrorCategory;
                     isResultShown = true;
                     return;
                 }
 
-                f.Infix2Postfix();
-                f.EvaluatePostfix();
-
-                if (f.Error)
-                {
-                    lblExpressionHistory.Text = "Hata: " + f.ErrorDescription;
-                    txtDisplay.Text = "Tanımsız";
-                    isResultShown = true;
-                    return;
-                }
-
-                decimal result = Math.Round(f.Result, 14);
-                string resStr = result.ToString("0.##############", CultureInfo.InvariantCulture);
-
+                string resStr = result.FormattedValue;
                 string historyEntry = $"{exprToEval} = {resStr}";
+
+                // Bounded LRU history cap (max 50 items)
                 lstHistory.Items.Insert(0, historyEntry);
+                while (lstHistory.Items.Count > 50)
+                {
+                    lstHistory.Items.RemoveAt(lstHistory.Items.Count - 1);
+                }
 
                 lblExpressionHistory.Text = exprToEval + " =";
                 txtDisplay.Text = resStr;
@@ -377,21 +374,10 @@ namespace MathApp.Controls
                 currentExpression = "";
                 isResultShown = true;
             }
-        }
-
-        private string BalanceParentheses(string expr)
-        {
-            int open = 0;
-            foreach (char c in expr)
+            finally
             {
-                if (c == '(') open++;
-                else if (c == ')') open--;
+                Cursor = Cursors.Default;
             }
-            if (open > 0)
-            {
-                return expr + new string(')', open);
-            }
-            return expr;
         }
     }
 }

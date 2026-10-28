@@ -5,6 +5,8 @@ using System.Globalization;
 
 public enum Type { Variable, Value, UnaryOperator, Operator, Function, Result, Bracket, Comma, Error }
 
+public enum AngleUnit { Radian, Degree, Gradian }
+
 public struct Symbol
 {
     public string m_name;
@@ -26,10 +28,17 @@ public class Function
         "sin", "cos", "tan", "cot", "cosh", "sinh", "tanh",
         "log", "ln", "logn", "sqrt", "cbrt", "abs",
         "acos", "asin", "atan", "atan2", "exp",
-        "max", "min", "floor", "ceil", "round", "sign"
+        "max", "min", "floor", "ceil", "round", "sign",
+        "fact", "factorial"
     };
 
-    public static bool UseRadians { get; set; } = true;
+    public static AngleUnit CurrentAngleUnit { get; set; } = AngleUnit.Radian;
+
+    public static bool UseRadians
+    {
+        get => CurrentAngleUnit == AngleUnit.Radian;
+        set => CurrentAngleUnit = value ? AngleUnit.Radian : AngleUnit.Degree;
+    }
 
     public decimal Result => m_result;
     public ArrayList Equation => (ArrayList)m_equation.Clone();
@@ -657,8 +666,24 @@ public class Function
         result.m_value = 0;
 
         string lowerName = name.ToLowerInvariant();
-        decimal angleFactor = UseRadians ? 1.0m : (DecimalMath.PI / 180.0m);
-        decimal invAngleFactor = UseRadians ? 1.0m : (180.0m / DecimalMath.PI);
+        decimal angleFactor = 1.0m;
+        decimal invAngleFactor = 1.0m;
+
+        switch (CurrentAngleUnit)
+        {
+            case AngleUnit.Degree:
+                angleFactor = DecimalMath.PI / 180.0m;
+                invAngleFactor = 180.0m / DecimalMath.PI;
+                break;
+            case AngleUnit.Gradian:
+                angleFactor = DecimalMath.PI / 200.0m;
+                invAngleFactor = 200.0m / DecimalMath.PI;
+                break;
+            default: // Radian
+                angleFactor = 1.0m;
+                invAngleFactor = 1.0m;
+                break;
+        }
 
         try
         {
@@ -669,7 +694,29 @@ public class Function
                     {
                         decimal v = ((Symbol)args[0]).m_value;
                         result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
-                        result.m_value = DecimalMath.Cos(v * angleFactor);
+                        if (CurrentAngleUnit == AngleUnit.Degree)
+                        {
+                            decimal absV = Math.Abs(v);
+                            if (absV % 180m == 90m) result.m_value = 0m;
+                            else if (absV % 360m == 0m) result.m_value = 1m;
+                            else if (absV % 360m == 180m) result.m_value = -1m;
+                            else result.m_value = DecimalMath.Cos(v * angleFactor);
+                        }
+                        else if (CurrentAngleUnit == AngleUnit.Gradian)
+                        {
+                            decimal absV = Math.Abs(v);
+                            if (absV % 200m == 100m) result.m_value = 0m;
+                            else if (absV % 400m == 0m) result.m_value = 1m;
+                            else if (absV % 400m == 200m) result.m_value = -1m;
+                            else result.m_value = DecimalMath.Cos(v * angleFactor);
+                        }
+                        else
+                        {
+                            decimal piDiv2 = DecimalMath.PIdiv2;
+                            decimal pi = DecimalMath.PI;
+                            if (DecimalMath.Abs((DecimalMath.Abs(v) - piDiv2) % pi) <= 1e-25m) result.m_value = 0m;
+                            else result.m_value = DecimalMath.Cos(v);
+                        }
                     }
                     else
                     {
@@ -682,7 +729,30 @@ public class Function
                     {
                         decimal v = ((Symbol)args[0]).m_value;
                         result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
-                        result.m_value = DecimalMath.Sin(v * angleFactor);
+                        if (CurrentAngleUnit == AngleUnit.Degree)
+                        {
+                            decimal absV = Math.Abs(v);
+                            decimal mod360 = ((v % 360m) + 360m) % 360m;
+                            if (absV % 180m == 0m) result.m_value = 0m;
+                            else if (mod360 == 90m) result.m_value = 1m;
+                            else if (mod360 == 270m) result.m_value = -1m;
+                            else result.m_value = DecimalMath.Sin(v * angleFactor);
+                        }
+                        else if (CurrentAngleUnit == AngleUnit.Gradian)
+                        {
+                            decimal absV = Math.Abs(v);
+                            decimal mod400 = ((v % 400m) + 400m) % 400m;
+                            if (absV % 200m == 0m) result.m_value = 0m;
+                            else if (mod400 == 100m) result.m_value = 1m;
+                            else if (mod400 == 300m) result.m_value = -1m;
+                            else result.m_value = DecimalMath.Sin(v * angleFactor);
+                        }
+                        else
+                        {
+                            decimal pi = DecimalMath.PI;
+                            if (DecimalMath.Abs(v % pi) <= 1e-25m) result.m_value = 0m;
+                            else result.m_value = DecimalMath.Sin(v);
+                        }
                     }
                     else
                     {
@@ -695,7 +765,43 @@ public class Function
                     {
                         decimal v = ((Symbol)args[0]).m_value;
                         result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
-                        result.m_value = DecimalMath.Tan(v * angleFactor);
+                        if (CurrentAngleUnit == AngleUnit.Degree)
+                        {
+                            decimal absV = Math.Abs(v);
+                            if (absV % 180m == 90m)
+                            {
+                                result.m_name = "Tan(x) 90° ve tek katlarında tanımsızdır (Kutup Noktası).";
+                                result.m_type = Type.Error;
+                                return result;
+                            }
+                            if (absV % 180m == 0m) result.m_value = 0m;
+                            else result.m_value = DecimalMath.Tan(v * angleFactor);
+                        }
+                        else if (CurrentAngleUnit == AngleUnit.Gradian)
+                        {
+                            decimal absV = Math.Abs(v);
+                            if (absV % 200m == 100m)
+                            {
+                                result.m_name = "Tan(x) 100 Grad ve tek katlarında tanımsızdır (Kutup Noktası).";
+                                result.m_type = Type.Error;
+                                return result;
+                            }
+                            if (absV % 200m == 0m) result.m_value = 0m;
+                            else result.m_value = DecimalMath.Tan(v * angleFactor);
+                        }
+                        else
+                        {
+                            decimal piDiv2 = DecimalMath.PIdiv2;
+                            decimal pi = DecimalMath.PI;
+                            if (DecimalMath.Abs((DecimalMath.Abs(v) - piDiv2) % pi) <= 1e-25m)
+                            {
+                                result.m_name = "Tan(x) π/2 tek katlarında tanımsızdır (Kutup Noktası).";
+                                result.m_type = Type.Error;
+                                return result;
+                            }
+                            if (DecimalMath.Abs(v % pi) <= 1e-25m) result.m_value = 0m;
+                            else result.m_value = DecimalMath.Tan(v);
+                        }
                     }
                     else
                     {
@@ -708,15 +814,49 @@ public class Function
                     {
                         decimal v = ((Symbol)args[0]).m_value;
                         result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
-                        decimal sinVal = DecimalMath.Sin(v * angleFactor);
-                        if (DecimalMath.Abs(sinVal) <= 1e-25m)
+                        if (CurrentAngleUnit == AngleUnit.Degree)
                         {
-                            result.m_name = "Cot(x) bu noktada tanımsızdır (sin(x) = 0).";
-                            result.m_type = Type.Error;
+                            decimal absV = Math.Abs(v);
+                            if (absV % 180m == 0m)
+                            {
+                                result.m_name = "Cot(x) 0° ve 180° katlarında tanımsızdır (sin(x) = 0).";
+                                result.m_type = Type.Error;
+                                return result;
+                            }
+                            if (absV % 180m == 90m) result.m_value = 0m;
+                            else
+                            {
+                                decimal sinVal = DecimalMath.Sin(v * angleFactor);
+                                result.m_value = DecimalMath.Cos(v * angleFactor) / sinVal;
+                            }
+                        }
+                        else if (CurrentAngleUnit == AngleUnit.Gradian)
+                        {
+                            decimal absV = Math.Abs(v);
+                            if (absV % 200m == 0m)
+                            {
+                                result.m_name = "Cot(x) 0 ve 200 Grad katlarında tanımsızdır (sin(x) = 0).";
+                                result.m_type = Type.Error;
+                                return result;
+                            }
+                            if (absV % 200m == 100m) result.m_value = 0m;
+                            else
+                            {
+                                decimal sinVal = DecimalMath.Sin(v * angleFactor);
+                                result.m_value = DecimalMath.Cos(v * angleFactor) / sinVal;
+                            }
                         }
                         else
                         {
-                            result.m_value = DecimalMath.Cos(v * angleFactor) / sinVal;
+                            decimal pi = DecimalMath.PI;
+                            if (DecimalMath.Abs(v % pi) <= 1e-25m)
+                            {
+                                result.m_name = "Cot(x) π katlarında tanımsızdır (sin(x) = 0).";
+                                result.m_type = Type.Error;
+                                return result;
+                            }
+                            decimal sinVal = DecimalMath.Sin(v);
+                            result.m_value = DecimalMath.Cos(v) / sinVal;
                         }
                     }
                     else
@@ -964,6 +1104,33 @@ public class Function
                     if (args.Length == 1)
                     {
                         result.m_value = DecimalMath.Sign(((Symbol)args[0]).m_value);
+                    }
+                    break;
+                case "fact":
+                case "factorial":
+                    if (args.Length == 1)
+                    {
+                        decimal v = ((Symbol)args[0]).m_value;
+                        if (v < 0 || decimal.Floor(v) != v)
+                        {
+                            result.m_name = "Faktöriyel negatif olmayan tamsayılar için tanımlıdır.";
+                            result.m_type = Type.Error;
+                        }
+                        else if (v > 27)
+                        {
+                            result.m_name = "Faktöriyel taşması: 27'den büyük değerler 128-bit Decimal sınırını aşar.";
+                            result.m_type = Type.Error;
+                        }
+                        else
+                        {
+                            result.m_name = name + "(" + v.ToString(CultureInfo.InvariantCulture) + ")";
+                            result.m_value = NumericalMethods.Factorial((int)v);
+                        }
+                    }
+                    else
+                    {
+                        result.m_name = "Geçersiz parametre sayısı: fact(n)";
+                        result.m_type = Type.Error;
                     }
                     break;
                 default:

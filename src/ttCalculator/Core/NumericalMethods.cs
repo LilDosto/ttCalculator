@@ -747,7 +747,9 @@ public class NumericalMethods
 
     public static decimal Factorial(int num)
     {
-        if (num < 0) return 0m;
+        if (num < 0) throw new ArgumentException("Faktöriyel negatif sayılar için tanımlı değildir.");
+        if (num > 27) throw new OverflowException("Faktöriyel taşması: 27'den büyük değerler 128-bit Decimal sınırını aşar.");
+        if (num == 0 || num == 1) return 1m;
         decimal res = 1m;
         for (int i = 2; i <= num; i++) res *= i;
         return res;

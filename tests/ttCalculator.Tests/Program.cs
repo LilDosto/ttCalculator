@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using DotNetMatrix; 
+using DotNetMatrix;
+using MathApp.Core;
 
 namespace MathApp.Tests
 {
@@ -9,9 +10,9 @@ namespace MathApp.Tests
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("========================================");
-            Console.WriteLine("ttCalculator v2.5 Algorithm Verification");
-            Console.WriteLine("========================================");
+            Console.WriteLine("=================================================");
+            Console.WriteLine("ttCalculator v2.6 Numerical & Precision Audit");
+            Console.WriteLine("=================================================");
 
             int passed = 0;
             int total = 0;
@@ -199,6 +200,78 @@ namespace MathApp.Tests
             catch (Exception ex)
             {
                 AssertTrue(false, "2D Laplace: " + ex.Message);
+            }
+
+            // Test 10: Precision, Edge Cases & CalculatorEngine Audit
+            try
+            {
+                // A.1 Floating Point Precision: 0.1 + 0.2 = 0.3
+                var resAdd = CalculatorEngine.Evaluate("0.1 + 0.2");
+                AssertTrue(resAdd.IsSuccess && resAdd.Value == 0.3m && resAdd.FormattedValue == "0.3", "Precision: 0.1 + 0.2 == 0.3");
+
+                // A.2 Degree Exact Snapping
+                var sin180 = CalculatorEngine.Evaluate("sin(180)", AngleUnit.Degree);
+                AssertTrue(sin180.IsSuccess && sin180.Value == 0m, "Degree: sin(180) == 0 (Exact)");
+
+                var cos90 = CalculatorEngine.Evaluate("cos(90)", AngleUnit.Degree);
+                AssertTrue(cos90.IsSuccess && cos90.Value == 0m, "Degree: cos(90) == 0 (Exact)");
+
+                var tan90 = CalculatorEngine.Evaluate("tan(90)", AngleUnit.Degree);
+                AssertTrue(!tan90.IsSuccess && tan90.ErrorCategory == "Tanımsız Değer", "Degree: tan(90) is Undefined");
+
+                var cot0 = CalculatorEngine.Evaluate("cot(0)", AngleUnit.Degree);
+                AssertTrue(!cot0.IsSuccess && cot0.ErrorCategory == "Tanımsız Değer", "Degree: cot(0) is Undefined");
+
+                // Gradian test
+                var sin200 = CalculatorEngine.Evaluate("sin(200)", AngleUnit.Gradian);
+                AssertTrue(sin200.IsSuccess && sin200.Value == 0m, "Gradian: sin(200) == 0 (Exact)");
+
+                // A.2 Divide by Zero
+                var divZero = CalculatorEngine.Evaluate("10 / 0");
+                AssertTrue(!divZero.IsSuccess && divZero.ErrorCategory == "Sıfıra Bölünemez", "Edge Case: 10 / 0 -> Sıfıra Bölünemez");
+
+                // A.2 Sqrt of Negative
+                var sqrtNeg = CalculatorEngine.Evaluate("sqrt(-4)");
+                AssertTrue(!sqrtNeg.IsSuccess && sqrtNeg.ErrorCategory == "Tanımsız Değer", "Edge Case: sqrt(-4) -> Tanımsız Değer");
+
+                // A.2 Log of Zero and Negative
+                var lnZero = CalculatorEngine.Evaluate("ln(0)");
+                AssertTrue(!lnZero.IsSuccess && lnZero.ErrorCategory == "Tanımsız Değer", "Edge Case: ln(0) -> Tanımsız Değer");
+
+                // A.2 Factorial & Overflow
+                var fact5 = CalculatorEngine.Evaluate("fact(5)");
+                AssertTrue(fact5.IsSuccess && fact5.Value == 120m, "Factorial: fact(5) == 120");
+
+                var factSyntax = CalculatorEngine.Evaluate("5!");
+                AssertTrue(factSyntax.IsSuccess && factSyntax.Value == 120m, "Factorial Syntax: 5! == 120");
+
+                var fact28 = CalculatorEngine.Evaluate("fact(28)");
+                AssertTrue(!fact28.IsSuccess && fact28.ErrorCategory == "Taşma Hatası", "Factorial Overflow: fact(28) -> Taşma Hatası");
+
+                // A.4 Unary/Binary & Precedence
+                var negPow = CalculatorEngine.Evaluate("-5^2");
+                AssertTrue(negPow.IsSuccess && negPow.Value == -25m, "Precedence: -5^2 == -25");
+
+                var parenPow = CalculatorEngine.Evaluate("(-5)^2");
+                AssertTrue(parenPow.IsSuccess && parenPow.Value == 25m, "Precedence: (-5)^2 == 25");
+
+                var subNeg = CalculatorEngine.Evaluate("5 - - 3");
+                AssertTrue(subNeg.IsSuccess && subNeg.Value == 8m, "Unary Sequence: 5 - - 3 == 8");
+
+                // Nested Functions
+                var nested = CalculatorEngine.Evaluate("sin(cos(sqrt(4)))");
+                AssertTrue(nested.IsSuccess && nested.Value != 0m, "Nested Evaluation: sin(cos(sqrt(4)))");
+
+                // C.2 Input Sanitization State Machine
+                var sanDot = CalculatorEngine.SanitizeInput("5.2", ".");
+                AssertTrue(sanDot == "5.2", "Sanitizer: Prevent 5..2.1 duplicate dot");
+
+                var sanOp = CalculatorEngine.SanitizeInput("5+", "*");
+                AssertTrue(sanOp == "5*", "Sanitizer: Replace consecutive operator 5+* -> 5*");
+            }
+            catch (Exception ex)
+            {
+                AssertTrue(false, "CalculatorEngine Audit: " + ex.Message);
             }
 
             Console.WriteLine("========================================");

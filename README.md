@@ -1,4 +1,4 @@
-# 📐 ttCalculator v2.5.0
+# 📐 ttCalculator v2.6.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -15,8 +15,8 @@ Tüm matematiksel çekirdek, otomatik test paketinden **%100 başarıyla (0 hata
 
 Uygulamanın hazır derlenmiş Windows sürümünü (`ttCalculator.exe`) hemen çalıştırmak için:
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.5.0)** sayfasına gidin.
-2. **`ttCalculator.exe`** (veya `ttCalculator-v2.5.0-win-x64.zip`) dosyasını indirin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.6.0)** sayfasına gidin.
+2. **`ttCalculator.exe`** (veya `ttCalculator-v2.6.0-win-x64.zip`) dosyasını indirin.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
