@@ -27,6 +27,8 @@ namespace MathApp
         private Button[] allNavButtons;
         private Button activeNavButton;
 
+        public static MainForm Instance { get; private set; }
+
         protected override CreateParams CreateParams
         {
             get
@@ -41,6 +43,7 @@ namespace MathApp
 
         public MainForm()
         {
+            Instance = this;
             InitializeComponent();
             ThemeHelper.EnableDoubleBuffering(this);
             LoadApplicationIcon();
@@ -231,6 +234,20 @@ namespace MathApp
                 else if (e.Control && e.KeyCode == Keys.D8) { btnNavTaylor.PerformClick(); e.SuppressKeyPress = true; }
                 else if (e.Control && e.KeyCode == Keys.D9) { btnNavOde.PerformClick(); e.SuppressKeyPress = true; }
             };
+        }
+
+        public void NavigateToGraph(string equation, float? pointX = null, float? pointY = null)
+        {
+            if (!string.IsNullOrWhiteSpace(equation))
+            {
+                graphControl.AddFunctionCurve(equation, false, -10f, 10f);
+            }
+            if (pointX.HasValue && pointY.HasValue)
+            {
+                graphControl.AddMarkedPoint(pointX.Value, pointY.Value, "Kök", Color.FromArgb(16, 185, 129));
+            }
+            ShowControl(graphControl);
+            HighlightButton(btnNavGraph);
         }
 
         private void ShowControl(UserControl control)

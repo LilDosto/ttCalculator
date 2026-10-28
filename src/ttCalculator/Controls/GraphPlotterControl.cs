@@ -469,6 +469,21 @@ namespace MathApp.Controls
             }
         }
 
+        public void AddMarkedPoint(float x, float y, string pointType = "Serbest", Color? color = null)
+        {
+            _points.Add(new PlotPoint
+            {
+                X = x,
+                Y = y,
+                Color = color ?? Color.FromArgb(16, 185, 129),
+                Shape = PointShape.Circle,
+                Size = 10,
+                PointType = pointType
+            });
+            RefreshPointsList();
+            pnlCanvas.Invalidate();
+        }
+
         public void AddVerticalLine(float x, float minY, float maxY, Color color, DashStyle dash = DashStyle.Solid, float thickness = 2f)
         {
             var curve = new PlotCurve

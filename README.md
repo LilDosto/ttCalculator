@@ -1,4 +1,4 @@
-# 📐 ttCalculator v3.3.0
+# 📐 ttCalculator v3.4.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,11 +13,11 @@ Tüm matematiksel çekirdek, otomatik test paketinden **%100 başarıyla (0 hata
 
 ## 🚀 Hızlı Başlangıç & Kurulum
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.3.0)** sayfasına gidin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.4.0)** sayfasına gidin.
 2. İhtiyacınıza göre indirin:
-   - **`ttCalculator-v3.3.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
+   - **`ttCalculator-v3.4.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
    - **`ttCalculator.exe`**: Kurulumsuz doğrudan çalıştırılabilen tek dosya taşınabilir (portable) sürüm.
-   - **`ttCalculator-v3.3.0-win-x64.zip`**: Taşınabilir arşiv paketi.
+   - **`ttCalculator-v3.4.0-win-x64.zip`**: Taşınabilir arşiv paketi.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
@@ -109,17 +109,26 @@ Uygulama modern koyu tema (Dark Theme) arayüzü ile 13 ana modülden oluşmakta
   $$v_t = D_v \cdot v_{xx} + G(u, v)$$
 * Sıfır-akı (Neumann) sınır koşulları, Turing deseni oluşumu (Gray-Scott, Schnakenberg, FitzHugh-Nagumo modelleri).
 
-### 6. 🔍 Çoklu Kök Taramalı Kök Bulucu (Root Finder)
-* **🎯 Otomatik Çoklu Kök Taraması:** Verilen $[a, b]$ aralığındaki tüm tekil ve çoklu kökleri ardışık/paralel nümerik tarama ile bularak temiz bir kök tablosunda sunar.
-* **Klasik Nümerik Yöntemler:** Newton-Raphson, Bisection (İkiye Bölme), Secant (Kiriş), Regula Falsi (Illinois hızlandırmalı).
+### 6. 🔍 Denklem Kökü Bulucu (Root Finder v3.4)
+* **Dinamik Parametre Girişi:** Seçilen yönteme göre (Newton-Raphson, Bisection, Secant, Regula Falsi, Çoklu Kök Taraması) dinamik parametre alanları.
+* **Vurgulu KPI Kartı & Durum Rozetleri:** Büyük tipografiyle hesaplanan kök $x^*$, adım sayısı, son hata ve yakınsama durumu.
+* **İterasyon Adımları Tablosu & Yakınsama Hızı Grafiği:** DataGridView tablosu (zebra striping) ve $\log_{10}(\epsilon)$ hata düşüşünü gösteren canlı 2B yakınsama grafiği.
+* **Grafik Stüdyosu Entegrasyonu:** `[📈 Kökü Grafikte Göster]` butonu ile kök noktasını ve fonksiyonu anında Grafik Çizici sekmesine aktarma.
+* **Nümerik Koruma:** $f'(x) \approx 0$ sıfıra bölme ve ıraksama (divergence) denetimleri.
 
 ### 7. 📜 Taylor Serisi Açılımı (Kesirli & Faktöriyelli Form)
 * Tek ve çok değişkenli Taylor açılımlarında katsayılar hem ondalıklı, hem **sadeleştirilmiş kesirli formda**, hem de formülasyona tam uygun **analitik faktöriyelli formda** ($\frac{f^{(k)}(a)}{k!}$) gösterilir.
 
-### 8. 🎲 Kombinatorik, Polar Dönüşüm ve Özel Fonksiyonlar
-* Düzeltilmiş Taban ($b$) arayüz kutusu, taşmasız $C(n, k)$ ve $P(n, k)$ kombinatorik motoru, Pascal üçgeni ve polar/kartezyen dönüşümler.
+### 8. 🎲 Kombinatorik, Polar Dönüşüm ve Özel Fonksiyonlar (v3.4)
+* **4 Kartlı Modern Mimari:** Ayrık Matematik ($n!, P, C$), Asenkron Dizi Üreteci (güvenlik koruması ve sayfalamalı gösterim), Vektörel Polar Dönüşüm (canlı vektör açısı ve büyüklük diyagramı) ve İleri Analitik Fonksiyonlar ($\sinh, \cosh, \tanh, \log_b$).
+* **Zengin Sekmeli Çıktı Alanı:** Özet Kartı, Pascal Üçgeni Piramidi, Sayfalamalı Kombinasyon Listesi, `[JSON İndir]` ve `[Kopyala]` araçları.
 
-### 9. 🔢 Basit & Bilimsel Hesap Makinesi
+### 9. 📐 Nümerik Türev, Kısmi Türev & Hessian Stüdyosu (v3.4)
+* **Nümerik Ayar Çubuğu:** $h$ adım boyutu hızlı seçimleri (`1e-3`, `1e-5`, `1e-7`), Merkezi/İleri/Geri fark formülleri, $O(h^2), O(h^4), O(h^6)$ doğruluk derecesi.
+* **Tek Değişkenli Türev & Teğet Çizici:** $f^{(n)}(x_0)$ hesabı, teğet ve normal doğru denklemleri, `[📈 Teğeti Grafikte Çiz]` entegrasyonu.
+* **Çok Değişkenli Analiz, Gradyan & Hessian:** Dinamik değişken ekleme, $\nabla f$ gradyan vektörü, birim $\vec{u}$ vektörü ile yönlü türev ($D_{\vec{u}} f$) ve 2. mertebe Hessian simetrik matrisi ile yerel ekstremum (min/max/eyer) testi.
+
+### 10. 🔢 Basit & Bilimsel Hesap Makinesi
 * 128-bit `decimal` motoru, RAD/DEG modları, otomatik parantez tamamlama ve geçmiş paneli.
 
 ### 10. ⚖️ Doğrusal & Doğrusal Olmayan Denklem Sistemleri
