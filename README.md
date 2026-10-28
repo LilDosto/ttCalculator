@@ -1,4 +1,4 @@
-# 📐 ttCalculator v2.9.0
+# 📐 ttCalculator v3.0.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,11 +13,11 @@ Tüm matematiksel çekirdek, otomatik test paketinden **%100 başarıyla (0 hata
 
 ## 🚀 Hızlı Başlangıç & Kurulum
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.9.0)** sayfasına gidin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.0.0)** sayfasına gidin.
 2. İhtiyacınıza göre indirin:
-   - **`ttCalculator-v2.9.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
+   - **`ttCalculator-v3.0.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
    - **`ttCalculator.exe`**: Kurulumsuz doğrudan çalıştırılabilen tek dosya taşınabilir (portable) sürüm.
-   - **`ttCalculator-v2.9.0-win-x64.zip`**: Taşınabilir arşiv paketi.
+   - **`ttCalculator-v3.0.0-win-x64.zip`**: Taşınabilir arşiv paketi.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---

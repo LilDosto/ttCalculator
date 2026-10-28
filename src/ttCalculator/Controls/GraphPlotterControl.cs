@@ -1631,7 +1631,7 @@ namespace MathApp.Controls
         {
             var validCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar).ToList();
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("% ttCalculator v2.9 LaTeX Pgfplots / TikZ Kodu");
+            sb.AppendLine("% ttCalculator v3.0 LaTeX Pgfplots / TikZ Kodu");
             sb.AppendLine("\\begin{tikzpicture}");
             sb.AppendLine("\\begin{axis}[");
             sb.AppendLine($"    xmin={rangeMinX:F1}, xmax={rangeMaxX:F1},");

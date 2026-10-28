@@ -171,16 +171,7 @@ namespace MathApp
 
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl.SizeMode = TabSizeMode.Fixed;
-            tabControl.ItemSize = new Size(Math.Max(56, (tabControl.Width - 10) / Math.Max(1, tabControl.TabCount)), 32);
-
-            tabControl.Resize += (s, e) =>
-            {
-                if (tabControl.TabCount > 0 && tabControl.Width > 20)
-                {
-                    tabControl.ItemSize = new Size(Math.Max(56, (tabControl.Width - 10) / tabControl.TabCount), 32);
-                    tabControl.Invalidate();
-                }
-            };
+            tabControl.ItemSize = new Size(Math.Max(58, (tabControl.Width > 50 ? tabControl.Width - 14 : 306) / Math.Max(1, tabControl.TabCount)), 32);
 
             tabControl.DrawItem += (s, e) =>
             {
