@@ -32,7 +32,14 @@ public class Function
         "fact", "factorial"
     };
 
-    public static AngleUnit CurrentAngleUnit { get; set; } = AngleUnit.Radian;
+    [System.ThreadStatic]
+    private static AngleUnit? _threadAngleUnit;
+
+    public static AngleUnit CurrentAngleUnit
+    {
+        get => _threadAngleUnit ?? AngleUnit.Radian;
+        set => _threadAngleUnit = value;
+    }
 
     public static bool UseRadians
     {
