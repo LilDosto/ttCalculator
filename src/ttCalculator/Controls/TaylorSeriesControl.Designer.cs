@@ -32,7 +32,7 @@ namespace MathApp.Controls
             this.btnExGeom = ThemeHelper.CreateExampleChip("Örnek 5: 1/(1-x) (a=0, n=5)");
             this.btnExAtan = ThemeHelper.CreateExampleChip("Örnek 6: atan(x) (a=0, n=5)");
 
-            // Input Card
+            // Unified Input & Hero Card
             this.pnlInputCard = new Panel();
             this.lblFunction = new Label();
             this.txtFunction = new TextBox();
@@ -43,10 +43,9 @@ namespace MathApp.Controls
             this.btnMaclaurin = new Button();
             this.lblOrder = new Label();
             this.numOrder = new NumericUpDown();
-            this.btnCalculate = ThemeHelper.CreateActionButton("📐 Taylor Polinomunu Hesapla", 230, 36, true);
+            this.btnCalculate = ThemeHelper.CreateActionButton("📐 Taylor Polinomunu Hesapla", 200, 28, true);
 
-            // Hero Polynomial Card
-            this.pnlHeroPoly = new Panel();
+            // Hero Polynomial row inside card
             this.lblHeroPolyTitle = new Label();
             this.lblHeroPolyValue = new Label();
             this.pnlHeroButtons = new FlowLayoutPanel();
@@ -56,8 +55,10 @@ namespace MathApp.Controls
 
             // Split Container for Canvas + Tabs
             this.splitVisual = new SplitContainer();
-            this.pnlMiniCanvas = new Panel();
+            this.pnlCanvasHeader = new Panel();
             this.lblCanvasTitle = new Label();
+            this.lblCanvasLegend = new Label();
+            this.pnlMiniCanvas = new Panel();
 
             // Tabs for Table, Error Analysis, Full Text
             this.tabResults = new TabControl();
@@ -70,14 +71,15 @@ namespace MathApp.Controls
             this.txtResult = new TextBox();
 
             this.pnlContent.SuspendLayout();
+            this.pnlPresets.SuspendLayout();
             this.pnlInputCard.SuspendLayout();
-            this.pnlHeroPoly.SuspendLayout();
             this.pnlHeroButtons.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numOrder)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitVisual)).BeginInit();
             this.splitVisual.Panel1.SuspendLayout();
             this.splitVisual.Panel2.SuspendLayout();
             this.splitVisual.SuspendLayout();
+            this.pnlCanvasHeader.SuspendLayout();
             this.tabResults.SuspendLayout();
             this.tabTable.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvTerms)).BeginInit();
@@ -86,21 +88,28 @@ namespace MathApp.Controls
             this.tabReport.SuspendLayout();
             this.SuspendLayout();
 
+            // Header Panel
+            this.pnlHeader.Dock = DockStyle.Top;
+
+            // Content Panel (Hosts Presets, Card and SplitContainer)
             this.pnlContent.Dock = DockStyle.Fill;
             this.pnlContent.BackColor = ThemeHelper.DarkBackground;
-            this.pnlContent.Padding = new Padding(20, 10, 20, 16);
-            this.pnlContent.AutoScroll = true;
+            this.pnlContent.Padding = new Padding(16, 4, 16, 10);
+            this.pnlContent.AutoScroll = false;
 
-            // Presets
-            this.lblPresets.Text = "⚡ Hızlı Örnekler:";
+            // Presets Bar (Dock Top)
+            this.pnlPresets.Dock = DockStyle.Top;
+            this.pnlPresets.Height = 32;
+            this.pnlPresets.WrapContents = false;
+            this.pnlPresets.AutoScroll = false;
+            this.pnlPresets.Margin = new Padding(0, 0, 0, 4);
+
+            this.lblPresets.Text = "⚡ Hızlı:";
             this.lblPresets.AutoSize = true;
             this.lblPresets.ForeColor = ThemeHelper.MutedText;
-            this.lblPresets.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
-            this.lblPresets.Margin = new Padding(0, 5, 8, 0);
+            this.lblPresets.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+            this.lblPresets.Margin = new Padding(0, 6, 6, 0);
 
-            this.pnlPresets.Location = new Point(20, 8);
-            this.pnlPresets.Size = new Size(880, 32);
-            this.pnlPresets.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             this.pnlPresets.Controls.Add(this.lblPresets);
             this.pnlPresets.Controls.Add(this.btnExSin);
             this.pnlPresets.Controls.Add(this.btnExCos);
@@ -109,19 +118,19 @@ namespace MathApp.Controls
             this.pnlPresets.Controls.Add(this.btnExGeom);
             this.pnlPresets.Controls.Add(this.btnExAtan);
 
-            // Input Card
-            this.pnlInputCard.Location = new Point(20, 44);
-            this.pnlInputCard.Size = new Size(880, 88);
-            this.pnlInputCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            // Unified Input & Hero Card (Dock Top)
+            this.pnlInputCard.Dock = DockStyle.Top;
+            this.pnlInputCard.Height = 88;
             this.pnlInputCard.BackColor = ThemeHelper.CardBackground;
-            this.pnlInputCard.Padding = new Padding(14, 10, 14, 10);
+            this.pnlInputCard.Padding = new Padding(12, 6, 12, 6);
+            this.pnlInputCard.Margin = new Padding(0, 0, 0, 6);
 
             void StyleLabel(Label l, string text, Point loc)
             {
                 l.Text = text;
                 l.Location = loc;
                 l.AutoSize = true;
-                l.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+                l.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
                 l.ForeColor = ThemeHelper.LightText;
             }
 
@@ -132,22 +141,23 @@ namespace MathApp.Controls
                 t.BackColor = Color.FromArgb(15, 23, 42);
                 t.BorderStyle = BorderStyle.FixedSingle;
                 t.ForeColor = Color.White;
-                t.Font = new Font("Consolas", 10.5F);
+                t.Font = new Font("Consolas", 10F);
                 t.Text = def;
             }
 
-            StyleLabel(this.lblFunction, "Fonksiyon f(x):", new Point(14, 14));
-            StyleInput(this.txtFunction, "sin(x)", new Point(110, 11), new Size(290, 26));
+            // Row 1: Inputs
+            StyleLabel(this.lblFunction, "f(x):", new Point(12, 11));
+            StyleInput(this.txtFunction, "sin(x)", new Point(48, 8), new Size(220, 24));
 
-            StyleLabel(this.lblVariable, "Değişken:", new Point(410, 14));
-            StyleInput(this.txtVariable, "x", new Point(475, 11), new Size(42, 26));
+            StyleLabel(this.lblVariable, "Değişken:", new Point(276, 11));
+            StyleInput(this.txtVariable, "x", new Point(340, 8), new Size(32, 24));
 
-            StyleLabel(this.lblCenterPoint, "Merkez (a):", new Point(530, 14));
-            StyleInput(this.txtCenterPoint, "0", new Point(605, 11), new Size(50, 26));
+            StyleLabel(this.lblCenterPoint, "Merkez a:", new Point(382, 11));
+            StyleInput(this.txtCenterPoint, "0", new Point(448, 8), new Size(42, 24));
 
-            this.btnMaclaurin.Text = "a=0 (Maclaurin)";
-            this.btnMaclaurin.Location = new Point(660, 11);
-            this.btnMaclaurin.Size = new Size(110, 26);
+            this.btnMaclaurin.Text = "a=0 (Macl.)";
+            this.btnMaclaurin.Location = new Point(496, 7);
+            this.btnMaclaurin.Size = new Size(88, 26);
             this.btnMaclaurin.BackColor = Color.FromArgb(33, 44, 70);
             this.btnMaclaurin.ForeColor = Color.FromArgb(186, 230, 253);
             this.btnMaclaurin.FlatStyle = FlatStyle.Flat;
@@ -155,16 +165,57 @@ namespace MathApp.Controls
             this.btnMaclaurin.Font = new Font("Segoe UI", 8F);
             this.btnMaclaurin.Cursor = Cursors.Hand;
 
-            StyleLabel(this.lblOrder, "Derece (n):", new Point(14, 52));
-            this.numOrder.Location = new Point(110, 50);
-            this.numOrder.Size = new Size(55, 26);
+            StyleLabel(this.lblOrder, "Derece n:", new Point(594, 11));
+            this.numOrder.Location = new Point(656, 8);
+            this.numOrder.Size = new Size(44, 24);
             this.numOrder.Minimum = 1;
             this.numOrder.Maximum = 20;
             this.numOrder.Value = 5;
             this.numOrder.BackColor = Color.FromArgb(15, 23, 42);
             this.numOrder.ForeColor = Color.White;
+            this.numOrder.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
 
-            this.btnCalculate.Location = new Point(180, 46);
+            this.btnCalculate.Location = new Point(708, 6);
+            this.btnCalculate.Size = new Size(185, 28);
+            this.btnCalculate.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+
+            // Row 2: Polynomial Output & Action Buttons
+            this.lblHeroPolyTitle.Text = "Pn(x) =";
+            this.lblHeroPolyTitle.Location = new Point(12, 48);
+            this.lblHeroPolyTitle.AutoSize = true;
+            this.lblHeroPolyTitle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            this.lblHeroPolyTitle.ForeColor = Color.FromArgb(148, 163, 184);
+
+            this.lblHeroPolyValue.Text = "P_n(x) = —";
+            this.lblHeroPolyValue.Location = new Point(68, 46);
+            this.lblHeroPolyValue.AutoSize = false;
+            this.lblHeroPolyValue.Size = new Size(540, 34);
+            this.lblHeroPolyValue.Font = new Font("Consolas", 10.5F, FontStyle.Bold);
+            this.lblHeroPolyValue.ForeColor = Color.FromArgb(52, 211, 153);
+            this.lblHeroPolyValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            this.pnlHeroButtons.FlowDirection = FlowDirection.RightToLeft;
+            this.pnlHeroButtons.Location = new Point(610, 44);
+            this.pnlHeroButtons.Size = new Size(285, 34);
+            this.pnlHeroButtons.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            this.btnNavToGraph.Text = "📈 Grafikte Göster";
+            this.btnNavToGraph.Size = new Size(125, 28);
+            this.btnNavToGraph.BackColor = Color.FromArgb(16, 185, 129);
+            this.btnNavToGraph.ForeColor = Color.White;
+            this.btnNavToGraph.FlatStyle = FlatStyle.Flat;
+            this.btnNavToGraph.FlatAppearance.BorderSize = 0;
+            this.btnNavToGraph.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+            this.btnNavToGraph.Cursor = Cursors.Hand;
+
+            this.btnCopyPoly.Height = 28;
+            this.btnCopyPoly.Width = 75;
+            this.btnCopyLatex.Height = 28;
+            this.btnCopyLatex.Width = 65;
+
+            this.pnlHeroButtons.Controls.Add(this.btnNavToGraph);
+            this.pnlHeroButtons.Controls.Add(this.btnCopyLatex);
+            this.pnlHeroButtons.Controls.Add(this.btnCopyPoly);
 
             this.pnlInputCard.Controls.Add(this.lblFunction);
             this.pnlInputCard.Controls.Add(this.txtFunction);
@@ -176,78 +227,47 @@ namespace MathApp.Controls
             this.pnlInputCard.Controls.Add(this.lblOrder);
             this.pnlInputCard.Controls.Add(this.numOrder);
             this.pnlInputCard.Controls.Add(this.btnCalculate);
+            this.pnlInputCard.Controls.Add(this.lblHeroPolyTitle);
+            this.pnlInputCard.Controls.Add(this.lblHeroPolyValue);
+            this.pnlInputCard.Controls.Add(this.pnlHeroButtons);
 
-            // Hero Polynomial Card
-            this.pnlHeroPoly.Location = new Point(20, 138);
-            this.pnlHeroPoly.Size = new Size(880, 78);
-            this.pnlHeroPoly.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            this.pnlHeroPoly.BackColor = Color.FromArgb(20, 30, 48);
-            this.pnlHeroPoly.Padding = new Padding(16, 8, 16, 8);
-
-            this.lblHeroPolyTitle.Text = "HESAPLANAN TAYLOR POLİNOMU (Pn(x))";
-            this.lblHeroPolyTitle.Location = new Point(14, 8);
-            this.lblHeroPolyTitle.AutoSize = true;
-            this.lblHeroPolyTitle.Font = new Font("Segoe UI Semibold", 8F, FontStyle.Bold);
-            this.lblHeroPolyTitle.ForeColor = Color.FromArgb(148, 163, 184);
-
-            this.lblHeroPolyValue.Text = "P_n(x) = —";
-            this.lblHeroPolyValue.Location = new Point(12, 28);
-            this.lblHeroPolyValue.AutoSize = false;
-            this.lblHeroPolyValue.Size = new Size(550, 42);
-            this.lblHeroPolyValue.Font = new Font("Consolas", 11.5F, FontStyle.Bold);
-            this.lblHeroPolyValue.ForeColor = Color.FromArgb(52, 211, 153);
-
-            this.pnlHeroButtons.FlowDirection = FlowDirection.RightToLeft;
-            this.pnlHeroButtons.Location = new Point(570, 14);
-            this.pnlHeroButtons.Size = new Size(300, 52);
-            this.pnlHeroButtons.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-
-            this.btnNavToGraph.Text = "📈 Grafikte Göster";
-            this.btnNavToGraph.Size = new Size(130, 32);
-            this.btnNavToGraph.BackColor = Color.FromArgb(16, 185, 129);
-            this.btnNavToGraph.ForeColor = Color.White;
-            this.btnNavToGraph.FlatStyle = FlatStyle.Flat;
-            this.btnNavToGraph.FlatAppearance.BorderSize = 0;
-            this.btnNavToGraph.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
-            this.btnNavToGraph.Cursor = Cursors.Hand;
-
-            this.btnCopyPoly.Height = 32;
-            this.btnCopyLatex.Height = 32;
-
-            this.pnlHeroButtons.Controls.Add(this.btnNavToGraph);
-            this.pnlHeroButtons.Controls.Add(this.btnCopyLatex);
-            this.pnlHeroButtons.Controls.Add(this.btnCopyPoly);
-
-            this.pnlHeroPoly.Controls.Add(this.lblHeroPolyTitle);
-            this.pnlHeroPoly.Controls.Add(this.lblHeroPolyValue);
-            this.pnlHeroPoly.Controls.Add(this.pnlHeroButtons);
-
-            // Split Container for Mini Canvas and Tabbed Details
-            this.splitVisual.Location = new Point(20, 222);
-            this.splitVisual.Size = new Size(880, 420);
-            this.splitVisual.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            // Split Container for Mini Canvas and Tabbed Details (Dock Fill!)
+            this.splitVisual.Dock = DockStyle.Fill;
             this.splitVisual.Orientation = Orientation.Vertical;
-            this.splitVisual.SplitterDistance = 300;
-            this.splitVisual.SplitterWidth = 8;
+            this.splitVisual.SplitterDistance = 380;
+            this.splitVisual.SplitterWidth = 6;
             this.splitVisual.BackColor = ThemeHelper.DarkBackground;
 
             // Panel 1: Mini 2D Convergence Canvas
             this.splitVisual.Panel1.BackColor = Color.FromArgb(18, 26, 43);
-            this.splitVisual.Panel1.Padding = new Padding(4);
+            this.splitVisual.Panel1.Padding = new Padding(0);
+
+            this.pnlCanvasHeader.Dock = DockStyle.Top;
+            this.pnlCanvasHeader.Height = 26;
+            this.pnlCanvasHeader.BackColor = Color.FromArgb(20, 30, 48);
+            this.pnlCanvasHeader.Padding = new Padding(6, 4, 6, 4);
 
             this.lblCanvasTitle.Text = "📐 2D Yakınsama Önizleme";
-            this.lblCanvasTitle.Dock = DockStyle.Top;
-            this.lblCanvasTitle.Height = 24;
+            this.lblCanvasTitle.Dock = DockStyle.Left;
             this.lblCanvasTitle.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
             this.lblCanvasTitle.ForeColor = Color.FromArgb(148, 163, 184);
-            this.lblCanvasTitle.TextAlign = ContentAlignment.MiddleLeft;
+            this.lblCanvasTitle.AutoSize = true;
+
+            this.lblCanvasLegend.Text = "— f(x) (Cyan)   — P_n(x) (Yeşil)   ● a (Turuncu)";
+            this.lblCanvasLegend.Dock = DockStyle.Right;
+            this.lblCanvasLegend.Font = new Font("Segoe UI", 7.5F);
+            this.lblCanvasLegend.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblCanvasLegend.AutoSize = true;
+
+            this.pnlCanvasHeader.Controls.Add(this.lblCanvasTitle);
+            this.pnlCanvasHeader.Controls.Add(this.lblCanvasLegend);
 
             this.pnlMiniCanvas.Dock = DockStyle.Fill;
             this.pnlMiniCanvas.BackColor = Color.FromArgb(11, 15, 28);
             this.pnlMiniCanvas.DoubleBuffered(true);
 
             this.splitVisual.Panel1.Controls.Add(this.pnlMiniCanvas);
-            this.splitVisual.Panel1.Controls.Add(this.lblCanvasTitle);
+            this.splitVisual.Panel1.Controls.Add(this.pnlCanvasHeader);
 
             // Panel 2: Tabbed Results
             this.splitVisual.Panel2.Controls.Add(this.tabResults);
@@ -257,19 +277,19 @@ namespace MathApp.Controls
             // Tab 1: Katsayılar & Türevler Tablosu
             this.tabTable.Text = "Katsayılar & Türev Tablosu";
             this.tabTable.BackColor = Color.FromArgb(24, 33, 52);
-            this.tabTable.Padding = new Padding(6);
+            this.tabTable.Padding = new Padding(4);
             SetupGrid(this.dgvTerms);
             this.tabTable.Controls.Add(this.dgvTerms);
 
             // Tab 2: Hata Analizi
             this.tabError.Text = "Hata & Lagrange Kalanı";
             this.tabError.BackColor = Color.FromArgb(24, 33, 52);
-            this.tabError.Padding = new Padding(6);
+            this.tabError.Padding = new Padding(4);
 
-            this.lblLagrangeTheory.Text = "📜 Lagrange Kalan Terimi: R_n(x) = f^(n+1)(ξ) / (n+1)! · (x - a)^(n+1)   (Burada ξ, a ile x arasındadır)";
+            this.lblLagrangeTheory.Text = "📜 Lagrange Kalan Terimi: R_n(x) = f^(n+1)(ξ) / (n+1)! · (x - a)^(n+1)   (ξ, a ile x arasındadır)";
             this.lblLagrangeTheory.Dock = DockStyle.Top;
-            this.lblLagrangeTheory.Height = 28;
-            this.lblLagrangeTheory.Font = new Font("Consolas", 9F, FontStyle.Bold);
+            this.lblLagrangeTheory.Height = 24;
+            this.lblLagrangeTheory.Font = new Font("Consolas", 8.5F, FontStyle.Bold);
             this.lblLagrangeTheory.ForeColor = Color.FromArgb(56, 189, 248);
             this.lblLagrangeTheory.TextAlign = ContentAlignment.MiddleLeft;
 
@@ -280,7 +300,7 @@ namespace MathApp.Controls
             // Tab 3: Detaylı Analitik Rapor
             this.tabReport.Text = "Detaylı Rapor";
             this.tabReport.BackColor = Color.FromArgb(24, 33, 52);
-            this.tabReport.Padding = new Padding(6);
+            this.tabReport.Padding = new Padding(4);
 
             this.txtResult.Dock = DockStyle.Fill;
             this.txtResult.BackColor = Color.FromArgb(11, 15, 28);
@@ -296,10 +316,14 @@ namespace MathApp.Controls
             this.tabResults.TabPages.Add(this.tabError);
             this.tabResults.TabPages.Add(this.tabReport);
 
+            // Add to pnlContent with proper Z-Order (Presets & Card at Top, SplitContainer Fills remainder)
             this.pnlContent.Controls.Add(this.splitVisual);
-            this.pnlContent.Controls.Add(this.pnlPresets);
             this.pnlContent.Controls.Add(this.pnlInputCard);
-            this.pnlContent.Controls.Add(this.pnlHeroPoly);
+            this.pnlContent.Controls.Add(this.pnlPresets);
+
+            this.pnlPresets.SendToBack();
+            this.pnlInputCard.SendToBack();
+            this.splitVisual.BringToFront();
 
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
@@ -307,17 +331,17 @@ namespace MathApp.Controls
             this.Controls.Add(this.pnlContent);
             this.Controls.Add(this.pnlHeader);
             this.Name = "TaylorSeriesControl";
-            this.Size = new Size(920, 720);
+            this.Size = new Size(920, 680);
 
             this.pnlInputCard.ResumeLayout(false);
             this.pnlInputCard.PerformLayout();
             this.pnlHeroButtons.ResumeLayout(false);
-            this.pnlHeroPoly.ResumeLayout(false);
-            this.pnlHeroPoly.PerformLayout();
             this.splitVisual.Panel1.ResumeLayout(false);
             this.splitVisual.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitVisual)).EndInit();
             this.splitVisual.ResumeLayout(false);
+            this.pnlCanvasHeader.ResumeLayout(false);
+            this.pnlCanvasHeader.PerformLayout();
             this.tabTable.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvTerms)).EndInit();
             this.tabError.ResumeLayout(false);
@@ -325,6 +349,8 @@ namespace MathApp.Controls
             this.tabReport.ResumeLayout(false);
             this.tabReport.PerformLayout();
             this.tabResults.ResumeLayout(false);
+            this.pnlPresets.ResumeLayout(false);
+            this.pnlPresets.PerformLayout();
             this.pnlContent.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.numOrder)).EndInit();
             this.ResumeLayout(false);
@@ -378,7 +404,6 @@ namespace MathApp.Controls
         public NumericUpDown numOrder;
         public Button btnCalculate;
 
-        private Panel pnlHeroPoly;
         private Label lblHeroPolyTitle;
         private Label lblHeroPolyValue;
         private FlowLayoutPanel pnlHeroButtons;
@@ -387,8 +412,10 @@ namespace MathApp.Controls
         private Button btnCopyLatex;
 
         private SplitContainer splitVisual;
-        private Panel pnlMiniCanvas;
+        private Panel pnlCanvasHeader;
         private Label lblCanvasTitle;
+        private Label lblCanvasLegend;
+        private Panel pnlMiniCanvas;
 
         private TabControl tabResults;
         private TabPage tabTable;

@@ -11,7 +11,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("=================================================");
-            Console.WriteLine("ttCalculator v3.6.1 Numerical Studios Verification");
+            Console.WriteLine("ttCalculator v3.6.2 Numerical Studios Verification");
             Console.WriteLine("=================================================");
 
             int passed = 0;

@@ -97,19 +97,21 @@ namespace MathApp.Controls
 
             this.pnlContent.Dock = DockStyle.Fill;
             this.pnlContent.BackColor = ThemeHelper.DarkBackground;
-            this.pnlContent.Padding = new Padding(20, 10, 20, 16);
-            this.pnlContent.AutoScroll = true;
+            this.pnlContent.Padding = new Padding(16, 4, 16, 10);
+            this.pnlContent.AutoScroll = false;
 
             // Presets
             this.lblPresets.Text = "⚡ Hızlı Örnekler:";
             this.lblPresets.AutoSize = true;
             this.lblPresets.ForeColor = ThemeHelper.MutedText;
-            this.lblPresets.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
-            this.lblPresets.Margin = new Padding(0, 5, 8, 0);
+            this.lblPresets.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+            this.lblPresets.Margin = new Padding(0, 6, 8, 0);
 
-            this.pnlPresets.Location = new Point(20, 8);
-            this.pnlPresets.Size = new Size(880, 32);
-            this.pnlPresets.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlPresets.Dock = DockStyle.Top;
+            this.pnlPresets.Height = 32;
+            this.pnlPresets.WrapContents = false;
+            this.pnlPresets.AutoScroll = false;
+            this.pnlPresets.Margin = new Padding(0, 0, 0, 4);
             this.pnlPresets.Controls.Add(this.lblPresets);
             this.pnlPresets.Controls.Add(this.btnEx1);
             this.pnlPresets.Controls.Add(this.btnEx2);
@@ -118,11 +120,11 @@ namespace MathApp.Controls
             this.pnlPresets.Controls.Add(this.btnEx5);
 
             // Input Card
-            this.pnlInputCard.Location = new Point(20, 44);
-            this.pnlInputCard.Size = new Size(880, 48);
-            this.pnlInputCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlInputCard.Dock = DockStyle.Top;
+            this.pnlInputCard.Height = 48;
             this.pnlInputCard.BackColor = ThemeHelper.CardBackground;
             this.pnlInputCard.Padding = new Padding(12, 8, 12, 8);
+            this.pnlInputCard.Margin = new Padding(0, 0, 0, 4);
 
             this.lblEquation.AutoSize = true;
             this.lblEquation.ForeColor = ThemeHelper.LightText;
@@ -163,11 +165,11 @@ namespace MathApp.Controls
             this.pnlInputCard.Controls.Add(this.btnCalculate);
 
             // Variable Chips Card
-            this.pnlVarCard.Location = new Point(20, 98);
-            this.pnlVarCard.Size = new Size(880, 76);
-            this.pnlVarCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.pnlVarCard.Dock = DockStyle.Top;
+            this.pnlVarCard.Height = 72;
             this.pnlVarCard.BackColor = Color.FromArgb(20, 28, 48);
             this.pnlVarCard.Padding = new Padding(10, 6, 10, 6);
+            this.pnlVarCard.Margin = new Padding(0, 0, 0, 6);
 
             this.lblVarTitle.Text = "Değişkenler ve Merkez Noktaları (x₀):";
             this.lblVarTitle.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
@@ -190,7 +192,7 @@ namespace MathApp.Controls
             this.btnResetZero.Cursor = Cursors.Hand;
 
             this.pnlVariableChips.Location = new Point(10, 28);
-            this.pnlVariableChips.Size = new Size(856, 42);
+            this.pnlVariableChips.Size = new Size(856, 38);
             this.pnlVariableChips.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             this.pnlVariableChips.FlowDirection = FlowDirection.LeftToRight;
             this.pnlVariableChips.WrapContents = true;
@@ -201,10 +203,8 @@ namespace MathApp.Controls
             this.pnlVarCard.Controls.Add(this.btnResetZero);
             this.pnlVarCard.Controls.Add(this.pnlVariableChips);
 
-            // TabControl for Results
-            this.tabResults.Location = new Point(20, 182);
-            this.tabResults.Size = new Size(880, 460);
-            this.tabResults.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            // TabControl for Results (Dock Fill!)
+            this.tabResults.Dock = DockStyle.Fill;
             this.tabResults.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
 
             // TAB 1: Layered Cards
@@ -342,6 +342,11 @@ namespace MathApp.Controls
             this.pnlContent.Controls.Add(this.pnlVarCard);
             this.pnlContent.Controls.Add(this.pnlInputCard);
             this.pnlContent.Controls.Add(this.pnlPresets);
+
+            this.pnlPresets.SendToBack();
+            this.pnlInputCard.SendToBack();
+            this.pnlVarCard.SendToBack();
+            this.tabResults.BringToFront();
 
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
