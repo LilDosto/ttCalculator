@@ -11,7 +11,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("=================================================");
-            Console.WriteLine("ttCalculator v2.6 Numerical & Precision Audit");
+            Console.WriteLine("ttCalculator v2.7 Algorithm & Installer Verification");
             Console.WriteLine("=================================================");
 
             int passed = 0;
