@@ -26,10 +26,10 @@ namespace MathApp.Controls
             this.pnlControls = new Panel();
             this.pnlPresets = new FlowLayoutPanel();
             this.lblPresets = new Label();
-            this.btnEx1 = ThemeHelper.CreateExampleChip("sin(x) * x");
-            this.btnEx2 = ThemeHelper.CreateExampleChip("x³ - 3x");
-            this.btnEx3 = ThemeHelper.CreateExampleChip("e^(-x²/4)*cos(2x)");
-            this.btnEx4 = ThemeHelper.CreateExampleChip("1 / (x² - 1)");
+            this.btnEx1 = ThemeHelper.CreateCompactChip("sin(x) * x");
+            this.btnEx2 = ThemeHelper.CreateCompactChip("x³ - 3x");
+            this.btnEx3 = ThemeHelper.CreateCompactChip("e^(-x²/4)*cos(2x)");
+            this.btnEx4 = ThemeHelper.CreateCompactChip("1 / (x² - 1)");
 
             this.lblEquation = new Label();
             this.txtEquation = new TextBox();
@@ -39,16 +39,20 @@ namespace MathApp.Controls
             this.lblMaxX = new Label();
             this.txtMaxX = new TextBox();
             this.chkClampRange = new CheckBox();
-            this.btnPlot = ThemeHelper.CreateActionButton("+ Ekle / Çiz", 100, 27, true);
+            this.btnPlot = ThemeHelper.CreateActionButton("+ Ekle / Çiz", 96, 27, true);
 
-            // Scale & Analysis Toolbar buttons
-            this.btnZoomXIn = ThemeHelper.CreateActionButton("X Genişlet (+)", 100, 26, false);
-            this.btnZoomXOut = ThemeHelper.CreateActionButton("X Daralt (-)", 85, 26, false);
-            this.btnZoomX10 = ThemeHelper.CreateActionButton("X: 10×", 55, 26, false);
-            this.btnZoomYIn = ThemeHelper.CreateActionButton("Y Genişlet (+)", 100, 26, false);
-            this.btnZoomYOut = ThemeHelper.CreateActionButton("Y Daralt (-)", 85, 26, false);
-            this.btnAspect1to1 = ThemeHelper.CreateActionButton("1:1 Oran", 68, 26, false);
-            this.btnResetView = ThemeHelper.CreateActionButton("Sıfırla", 68, 26, false);
+            // Scale & Analysis Toolbar buttons (Segmented Style)
+            this.btnZoomXOut = ThemeHelper.CreateSegmentedButton("X −", 46, 26);
+            this.btnZoomXIn = ThemeHelper.CreateSegmentedButton("X +", 46, 26);
+            this.btnZoomX10 = ThemeHelper.CreateSegmentedButton("10×", 42, 26);
+            this.pnlSep1 = new Panel();
+            this.btnZoomYOut = ThemeHelper.CreateSegmentedButton("Y −", 46, 26);
+            this.btnZoomYIn = ThemeHelper.CreateSegmentedButton("Y +", 46, 26);
+            this.pnlSep2 = new Panel();
+            this.btnAspect1to1 = ThemeHelper.CreateSegmentedButton("1:1", 46, 26);
+            this.btnResetView = ThemeHelper.CreateSegmentedButton("Sıfırla", 58, 26);
+            this.pnlSepMain = new Panel();
+            this.pnlControlsBorder = new Panel();
             this.chkCriticalPoints = new CheckBox();
             this.chkInspectMode = new CheckBox();
             this.chkShowAsymptotes = new CheckBox();
@@ -148,107 +152,135 @@ namespace MathApp.Controls
             ((System.ComponentModel.ISupportInitialize)(this.tbParamK)).BeginInit();
             this.SuspendLayout();
 
-            // pnlHeader
+            // pnlHeader: Spatially balanced, unclipped
             this.pnlHeader.Dock = DockStyle.Top;
-            this.pnlHeader.Height = 50;
+            this.pnlHeader.Height = 72;
 
-            // pnlControls
+            // pnlControls: Modern Card Container (#111827 / CardBackground)
             this.pnlControls.Dock = DockStyle.Top;
-            this.pnlControls.Height = 108;
-            this.pnlControls.BackColor = ThemeHelper.SidebarBackground;
-            this.pnlControls.Padding = new Padding(12, 4, 12, 4);
+            this.pnlControls.Height = 84;
+            this.pnlControls.BackColor = Color.FromArgb(17, 24, 39);
+            this.pnlControls.Padding = new Padding(14, 8, 14, 8);
 
-            // Presets
+            // ==================== ROW 1: Function Input & Quick Presets ====================
+            int yRow1 = 10;
+            this.lblEquation.AutoSize = true;
+            this.lblEquation.ForeColor = ThemeHelper.LightText;
+            this.lblEquation.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+            this.lblEquation.Text = "f(x) =";
+            this.lblEquation.Location = new Point(14, yRow1 + 3);
+
+            this.txtEquation.Location = new Point(56, yRow1);
+            this.txtEquation.Size = new Size(180, 25);
+            this.txtEquation.Text = "sin(x)";
+            this.txtEquation.Font = new Font("Consolas", 10.5F, FontStyle.Bold);
+            this.txtEquation.BackColor = Color.FromArgb(10, 17, 30);
+            this.txtEquation.ForeColor = Color.White;
+            this.txtEquation.BorderStyle = BorderStyle.FixedSingle;
+
+            this.chkPolar.Text = "Polar r(θ)";
+            this.chkPolar.ForeColor = Color.FromArgb(56, 189, 248);
+            this.chkPolar.Font = new Font("Segoe UI", 9F);
+            this.chkPolar.Location = new Point(242, yRow1 + 2);
+            this.chkPolar.Size = new Size(78, 22);
+
+            this.lblMinX.AutoSize = true;
+            this.lblMinX.ForeColor = ThemeHelper.MutedText;
+            this.lblMinX.Font = new Font("Segoe UI", 9F);
+            this.lblMinX.Text = "Min:";
+            this.lblMinX.Location = new Point(326, yRow1 + 3);
+
+            this.txtMinX.Location = new Point(358, yRow1);
+            this.txtMinX.Size = new Size(42, 25);
+            this.txtMinX.Text = "-10";
+            this.txtMinX.Font = new Font("Consolas", 9.5F);
+            this.txtMinX.BackColor = Color.FromArgb(10, 17, 30);
+            this.txtMinX.ForeColor = Color.White;
+            this.txtMinX.BorderStyle = BorderStyle.FixedSingle;
+
+            this.lblMaxX.AutoSize = true;
+            this.lblMaxX.ForeColor = ThemeHelper.MutedText;
+            this.lblMaxX.Font = new Font("Segoe UI", 9F);
+            this.lblMaxX.Text = "Max:";
+            this.lblMaxX.Location = new Point(406, yRow1 + 3);
+
+            this.txtMaxX.Location = new Point(440, yRow1);
+            this.txtMaxX.Size = new Size(42, 25);
+            this.txtMaxX.Text = "10";
+            this.txtMaxX.Font = new Font("Consolas", 9.5F);
+            this.txtMaxX.BackColor = Color.FromArgb(10, 17, 30);
+            this.txtMaxX.ForeColor = Color.White;
+            this.txtMaxX.BorderStyle = BorderStyle.FixedSingle;
+
+            this.chkClampRange.Text = "Kısıtla";
+            this.chkClampRange.ForeColor = ThemeHelper.LightText;
+            this.chkClampRange.Font = new Font("Segoe UI", 9F);
+            this.chkClampRange.Location = new Point(488, yRow1 + 2);
+            this.chkClampRange.Size = new Size(64, 22);
+
+            this.btnPlot.Location = new Point(558, yRow1 - 1);
+
+            // Presets (Quick Chips)
             this.lblPresets.Text = "Hızlı:";
             this.lblPresets.AutoSize = true;
             this.lblPresets.ForeColor = ThemeHelper.MutedText;
             this.lblPresets.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
             this.lblPresets.Margin = new Padding(0, 4, 6, 0);
 
-            this.pnlPresets.Location = new Point(14, 4);
-            this.pnlPresets.Size = new Size(950, 28);
+            this.pnlPresets.Location = new Point(668, yRow1);
+            this.pnlPresets.Size = new Size(460, 26);
+            this.pnlPresets.BackColor = Color.Transparent;
             this.pnlPresets.Controls.Add(this.lblPresets);
             this.pnlPresets.Controls.Add(this.btnEx1);
             this.pnlPresets.Controls.Add(this.btnEx2);
             this.pnlPresets.Controls.Add(this.btnEx3);
             this.pnlPresets.Controls.Add(this.btnEx4);
 
-            int yRow1 = 36;
-            this.lblEquation.AutoSize = true;
-            this.lblEquation.ForeColor = ThemeHelper.LightText;
-            this.lblEquation.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
-            this.lblEquation.Text = "f(x) =";
-            this.lblEquation.Location = new Point(14, yRow1 + 4);
+            // ==================== ROW 2: Axis Navigation & Live Analysis ====================
+            int yRow2 = 46;
+            this.btnZoomXOut.Location = new Point(14, yRow2);
+            this.btnZoomXIn.Location = new Point(62, yRow2);
+            this.btnZoomX10.Location = new Point(110, yRow2);
 
-            this.txtEquation.Location = new Point(56, yRow1);
-            this.txtEquation.Size = new Size(210, 25);
-            this.txtEquation.Text = "sin(x)";
-            this.txtEquation.Font = new Font("Consolas", 10.5F, FontStyle.Bold);
-            this.txtEquation.BackColor = ThemeHelper.CardBackground;
-            this.txtEquation.ForeColor = Color.White;
-            this.txtEquation.BorderStyle = BorderStyle.FixedSingle;
+            this.pnlSep1.Location = new Point(158, yRow2 + 2);
+            this.pnlSep1.Size = new Size(1, 22);
+            this.pnlSep1.BackColor = ThemeHelper.BorderColor;
 
-            this.chkPolar.Text = "Polar r(θ)";
-            this.chkPolar.ForeColor = Color.FromArgb(56, 189, 248);
-            this.chkPolar.Location = new Point(272, yRow1 + 3);
-            this.chkPolar.Size = new Size(82, 22);
+            this.btnZoomYOut.Location = new Point(165, yRow2);
+            this.btnZoomYIn.Location = new Point(213, yRow2);
 
-            this.lblMinX.AutoSize = true;
-            this.lblMinX.ForeColor = ThemeHelper.LightText;
-            this.lblMinX.Text = "Min X:";
-            this.lblMinX.Location = new Point(360, yRow1 + 4);
+            this.pnlSep2.Location = new Point(265, yRow2 + 2);
+            this.pnlSep2.Size = new Size(1, 22);
+            this.pnlSep2.BackColor = ThemeHelper.BorderColor;
 
-            this.txtMinX.Location = new Point(402, yRow1);
-            this.txtMinX.Size = new Size(45, 25);
-            this.txtMinX.Text = "-10";
-            this.txtMinX.Font = new Font("Consolas", 9.5F);
-            this.txtMinX.BackColor = ThemeHelper.CardBackground;
-            this.txtMinX.ForeColor = Color.White;
-            this.txtMinX.BorderStyle = BorderStyle.FixedSingle;
+            this.btnAspect1to1.Location = new Point(272, yRow2);
+            this.btnResetView.Location = new Point(320, yRow2);
 
-            this.lblMaxX.AutoSize = true;
-            this.lblMaxX.ForeColor = ThemeHelper.LightText;
-            this.lblMaxX.Text = "Max X:";
-            this.lblMaxX.Location = new Point(452, yRow1 + 4);
+            this.pnlSepMain.Location = new Point(384, yRow2 + 2);
+            this.pnlSepMain.Size = new Size(1, 22);
+            this.pnlSepMain.BackColor = ThemeHelper.BorderLight;
 
-            this.txtMaxX.Location = new Point(496, yRow1);
-            this.txtMaxX.Size = new Size(45, 25);
-            this.txtMaxX.Text = "10";
-            this.txtMaxX.Font = new Font("Consolas", 9.5F);
-            this.txtMaxX.BackColor = ThemeHelper.CardBackground;
-            this.txtMaxX.ForeColor = Color.White;
-            this.txtMaxX.BorderStyle = BorderStyle.FixedSingle;
-
-            this.chkClampRange.Text = "Kısıtla";
-            this.chkClampRange.ForeColor = ThemeHelper.LightText;
-            this.chkClampRange.Location = new Point(548, yRow1 + 3);
-            this.chkClampRange.Size = new Size(68, 22);
-
-            this.btnPlot.Location = new Point(622, yRow1 - 1);
-
-            int yRow2 = 70;
-            this.btnZoomXIn.Location = new Point(14, yRow2);
-            this.btnZoomXOut.Location = new Point(118, yRow2);
-            this.btnZoomX10.Location = new Point(207, yRow2);
-            this.btnZoomYIn.Location = new Point(266, yRow2);
-            this.btnZoomYOut.Location = new Point(370, yRow2);
-            this.btnAspect1to1.Location = new Point(459, yRow2);
-            this.btnResetView.Location = new Point(531, yRow2);
-
-            this.chkCriticalPoints.Text = "Kritik Noktalar";
+            this.chkCriticalPoints.Text = "● Kritik Noktalar";
             this.chkCriticalPoints.ForeColor = Color.FromArgb(52, 211, 153);
-            this.chkCriticalPoints.Location = new Point(603, yRow2 + 2);
-            this.chkCriticalPoints.Size = new Size(110, 24);
+            this.chkCriticalPoints.Font = new Font("Segoe UI Semibold", 8.8F, FontStyle.Bold);
+            this.chkCriticalPoints.Location = new Point(396, yRow2 + 2);
+            this.chkCriticalPoints.Size = new Size(140, 22);
 
-            this.chkInspectMode.Text = "Teğet İncele";
+            this.chkInspectMode.Text = "● Teğet İncele";
             this.chkInspectMode.ForeColor = Color.FromArgb(56, 189, 248);
-            this.chkInspectMode.Location = new Point(717, yRow2 + 2);
-            this.chkInspectMode.Size = new Size(100, 24);
+            this.chkInspectMode.Font = new Font("Segoe UI Semibold", 8.8F, FontStyle.Bold);
+            this.chkInspectMode.Location = new Point(542, yRow2 + 2);
+            this.chkInspectMode.Size = new Size(115, 22);
 
-            this.chkShowAsymptotes.Text = "Asimptotlar";
+            this.chkShowAsymptotes.Text = "● Asimptotlar";
             this.chkShowAsymptotes.ForeColor = Color.FromArgb(244, 63, 94);
-            this.chkShowAsymptotes.Location = new Point(821, yRow2 + 2);
-            this.chkShowAsymptotes.Size = new Size(95, 24);
+            this.chkShowAsymptotes.Font = new Font("Segoe UI Semibold", 8.8F, FontStyle.Bold);
+            this.chkShowAsymptotes.Location = new Point(664, yRow2 + 2);
+            this.chkShowAsymptotes.Size = new Size(110, 22);
+
+            this.pnlControlsBorder.Dock = DockStyle.Bottom;
+            this.pnlControlsBorder.Height = 1;
+            this.pnlControlsBorder.BackColor = ThemeHelper.BorderColor;
 
             this.pnlControls.Controls.Add(this.pnlPresets);
             this.pnlControls.Controls.Add(this.lblEquation);
@@ -260,16 +292,21 @@ namespace MathApp.Controls
             this.pnlControls.Controls.Add(this.txtMaxX);
             this.pnlControls.Controls.Add(this.chkClampRange);
             this.pnlControls.Controls.Add(this.btnPlot);
-            this.pnlControls.Controls.Add(this.btnZoomXIn);
+
             this.pnlControls.Controls.Add(this.btnZoomXOut);
+            this.pnlControls.Controls.Add(this.btnZoomXIn);
             this.pnlControls.Controls.Add(this.btnZoomX10);
-            this.pnlControls.Controls.Add(this.btnZoomYIn);
+            this.pnlControls.Controls.Add(this.pnlSep1);
             this.pnlControls.Controls.Add(this.btnZoomYOut);
+            this.pnlControls.Controls.Add(this.btnZoomYIn);
+            this.pnlControls.Controls.Add(this.pnlSep2);
             this.pnlControls.Controls.Add(this.btnAspect1to1);
             this.pnlControls.Controls.Add(this.btnResetView);
+            this.pnlControls.Controls.Add(this.pnlSepMain);
             this.pnlControls.Controls.Add(this.chkCriticalPoints);
             this.pnlControls.Controls.Add(this.chkInspectMode);
             this.pnlControls.Controls.Add(this.chkShowAsymptotes);
+            this.pnlControls.Controls.Add(this.pnlControlsBorder);
 
             // pnlRightSide (Tabbed Manager)
             this.pnlRightSide.Dock = DockStyle.Right;
@@ -765,6 +802,10 @@ namespace MathApp.Controls
         private CheckBox chkCriticalPoints;
         private CheckBox chkInspectMode;
         private CheckBox chkShowAsymptotes;
+        private Panel pnlSep1;
+        private Panel pnlSep2;
+        private Panel pnlSepMain;
+        private Panel pnlControlsBorder;
 
         private Panel pnlRightSide;
         private TabControl tabManager;

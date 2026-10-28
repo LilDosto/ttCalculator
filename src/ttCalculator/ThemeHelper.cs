@@ -75,21 +75,64 @@ namespace MathApp
             return btn;
         }
 
+        public static Button CreateCompactChip(string text)
+        {
+            Button btn = new Button
+            {
+                Text = text,
+                AutoSize = true,
+                MinimumSize = new Size(54, 24),
+                Height = 24,
+                Padding = new Padding(6, 1, 6, 1),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(24, 33, 52),
+                ForeColor = Color.FromArgb(186, 230, 253),
+                Font = new Font("Segoe UI", 8.2F, FontStyle.Regular),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 0, 6, 0),
+                UseVisualStyleBackColor = false
+            };
+            btn.FlatAppearance.BorderSize = 1;
+            btn.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 58, 138);
+            return btn;
+        }
+
+        public static Button CreateSegmentedButton(string text, int width = 48, int height = 26)
+        {
+            Button btn = new Button
+            {
+                Text = text,
+                Size = new Size(width, height),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(24, 33, 52),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btn.FlatAppearance.BorderSize = 1;
+            btn.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(47, 65, 96);
+            btn.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 165, 233);
+            return btn;
+        }
+
         public static Panel CreateHeaderPanel(string title, string subtitle)
         {
             Panel pnlHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 74,
+                Height = 72,
                 BackColor = Color.FromArgb(13, 20, 36),
-                Padding = new Padding(24, 12, 24, 8)
+                Padding = new Padding(24, 10, 24, 8)
             };
 
             // Vibrant left accent indicator pill
             Panel accentPill = new Panel
             {
-                Location = new Point(12, 16),
-                Size = new Size(4, 38),
+                Location = new Point(14, 14),
+                Size = new Size(4, 44),
                 BackColor = AccentBlue
             };
 
@@ -97,10 +140,10 @@ namespace MathApp
             {
                 Text = title,
                 UseMnemonic = false,
-                Location = new Point(24, 12),
+                Location = new Point(26, 11),
                 AutoSize = false,
-                Size = new Size(900, 28),
-                Font = new Font("Segoe UI Semibold", 15F, FontStyle.Bold),
+                Size = new Size(950, 26),
+                Font = new Font("Segoe UI Semibold", 14.5F, FontStyle.Bold),
                 ForeColor = LightText,
                 TextAlign = ContentAlignment.MiddleLeft
             };
@@ -109,10 +152,10 @@ namespace MathApp
             {
                 Text = subtitle,
                 UseMnemonic = false,
-                Location = new Point(24, 40),
+                Location = new Point(26, 39),
                 AutoSize = false,
-                Size = new Size(900, 22),
-                Font = new Font("Segoe UI", 8.8F, FontStyle.Regular),
+                Size = new Size(950, 22),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                 ForeColor = MutedText,
                 TextAlign = ContentAlignment.MiddleLeft
             };
