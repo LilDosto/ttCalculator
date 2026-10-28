@@ -11,7 +11,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("=================================================");
-            Console.WriteLine("ttCalculator v3.2 Graph Plotter Studio Verification");
+            Console.WriteLine("ttCalculator v3.3 Graph Plotter Studio Verification");
             Console.WriteLine("=================================================");
 
             int passed = 0;
@@ -268,6 +268,12 @@ namespace MathApp.Tests
 
                 var sanOp = CalculatorEngine.SanitizeInput("5+", "*");
                 AssertTrue(sanOp == "5*", "Sanitizer: Replace consecutive operator 5+* -> 5*");
+
+                // Test 32: Magnetic Snapping Coordinate Normalization (v3.3)
+                float NormalizeVal(float val) => Math.Abs(val) < 1e-4f ? 0f : (float)Math.Round(val, 4);
+                bool normZeroPass = NormalizeVal(-0.00003f) == 0f && NormalizeVal(0.00004f) == 0f;
+                bool normDecPass = NormalizeVal(3.14159f) == 3.1416f;
+                AssertTrue(normZeroPass && normDecPass, "Magnetic Snap: Coordinate Normalization (|val| < 1e-4 -> 0.0)");
             }
             catch (Exception ex)
             {

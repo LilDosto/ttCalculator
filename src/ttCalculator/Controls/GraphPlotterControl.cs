@@ -30,8 +30,24 @@ namespace MathApp.Controls
             public int Size { get; set; } = 8;
             public PointShape Shape { get; set; } = PointShape.Circle;
             public string Label { get; set; } = "";
+            public string PointType { get; set; } = "Serbest";
+            public bool IsGlider { get; set; } = false;
+            public string BoundEquation { get; set; } = null;
 
-            public override string ToString() => $"({X:F2}, {Y:F2}) [{Shape}]";
+            public override string ToString() => $"({X:F2}, {Y:F2}) [{PointType}] [{Shape}]";
+        }
+
+        public class SnapResult
+        {
+            public float ScreenX { get; set; }
+            public float ScreenY { get; set; }
+            public float WorldX { get; set; }
+            public float WorldY { get; set; }
+            public string SnapType { get; set; } = "Serbest";
+            public Color SnapColor { get; set; } = Color.FromArgb(250, 204, 21);
+            public string Description { get; set; } = "";
+            public bool IsSnapped { get; set; } = false;
+            public string BoundEquation { get; set; } = null;
         }
 
         public class PlotCurve
@@ -98,6 +114,7 @@ namespace MathApp.Controls
 
         private bool isDragging = false;
         private bool didMoveMouse = false;
+        private Point mouseDownPos;
         private Point lastMousePos;
         private Point? hoverMousePos = null;
         private Point lastHoverRecorded = new Point(-999, -999);
@@ -1135,12 +1152,259 @@ namespace MathApp.Controls
 
         #region Canvas Mouse Interaction
 
+        public SnapResult GetSnapCoordinate(Point mousePos, float w, float h)
+        {
+            float MapX(float x) => (x - rangeMinX) / (rangeMaxX - rangeMinX) * w;
+            float MapY(float y) => h - ((y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
+            float InvMapX(float sx) => rangeMinX + (sx / w) * (rangeMaxX - rangeMinX);
+            float InvMapY(float sy) => rangeMinY + ((h - sy) / h) * (rangeMaxY - rangeMinY);
+
+            float NormalizeVal(float val)
+            {
+                if (Math.Abs(val) < 1e-4f) return 0f;
+                return (float)Math.Round(val, 4);
+            }
+
+            float mouseWorldX = InvMapX(mousePos.X);
+            float mouseWorldY = InvMapY(mousePos.Y);
+
+            // ==========================================
+            // Tier 1: Critical Points (Roots, Max, Min, Inflection, Intersection) <= 14px
+            // ==========================================
+            if (chkCriticalPoints.Checked && _criticalPoints.Count > 0)
+            {
+                CriticalPoint closestCp = null;
+                float minDistSq = 14f * 14f;
+
+                foreach (var cp in _criticalPoints)
+                {
+                    float csx = MapX(cp.X);
+                    float csy = MapY(cp.Y);
+                    float dSq = (mousePos.X - csx) * (mousePos.X - csx) + (mousePos.Y - csy) * (mousePos.Y - csy);
+                    if (dSq <= minDistSq)
+                    {
+                        minDistSq = dSq;
+                        closestCp = cp;
+                    }
+                }
+
+                if (closestCp != null)
+                {
+                    float wx = NormalizeVal(closestCp.X);
+                    float wy = NormalizeVal(closestCp.Y);
+                    return new SnapResult
+                    {
+                        ScreenX = MapX(wx),
+                        ScreenY = MapY(wy),
+                        WorldX = wx,
+                        WorldY = wy,
+                        SnapType = closestCp.TypeName,
+                        SnapColor = closestCp.Color,
+                        Description = closestCp.Details,
+                        IsSnapped = true
+                    };
+                }
+            }
+
+            // ==========================================
+            // Tier 2: Snap-to-Curve (f(x) or vertical line) <= 12px
+            // ==========================================
+            var activeCurves = _curves.Where(c => c.Visible && (c.Compiled != null || c.IsVerticalLine) && !c.IsPolar).ToList();
+            PlotCurve bestCurve = null;
+            float bestCurveDist = 12f;
+            float bestCurveWorldX = 0f;
+            float bestCurveWorldY = 0f;
+            float bestCurveScreenX = 0f;
+            float bestCurveScreenY = 0f;
+
+            bool prevRad = Function.UseRadians;
+            Function.UseRadians = true;
+            try
+            {
+                foreach (var curve in activeCurves)
+                {
+                    if (curve.IsVerticalLine)
+                    {
+                        float vxScreen = MapX(curve.VerticalX);
+                        float hDist = Math.Abs(mousePos.X - vxScreen);
+                        if (hDist <= bestCurveDist)
+                        {
+                            float wy = mouseWorldY;
+                            if (wy >= curve.VerticalMinY && wy <= curve.VerticalMaxY)
+                            {
+                                bestCurveDist = hDist;
+                                bestCurve = curve;
+                                bestCurveWorldX = NormalizeVal(curve.VerticalX);
+                                bestCurveWorldY = NormalizeVal(wy);
+                                bestCurveScreenX = vxScreen;
+                                bestCurveScreenY = mousePos.Y;
+                            }
+                        }
+                        continue;
+                    }
+
+                    if (curve.ClampDomain && (mouseWorldX < curve.DomainMinX || mouseWorldX > curve.DomainMaxX))
+                        continue;
+
+                    try
+                    {
+                        SetCurveParameters(curve);
+                        decimal valDec = NumericalMethods.EvaluateCompiled(curve.Compiled, "x", (decimal)mouseWorldX);
+                        float valY = (float)valDec;
+                        if (!float.IsNaN(valY) && !float.IsInfinity(valY) && Math.Abs(valY) < 1e5f)
+                        {
+                            float csy = MapY(valY);
+                            float vDist = Math.Abs(mousePos.Y - csy);
+                            if (vDist <= bestCurveDist)
+                            {
+                                bestCurveDist = vDist;
+                                bestCurve = curve;
+                                bestCurveWorldX = NormalizeVal(mouseWorldX);
+                                bestCurveWorldY = NormalizeVal(valY);
+                                bestCurveScreenX = mousePos.X;
+                                bestCurveScreenY = csy;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            finally
+            {
+                Function.UseRadians = prevRad;
+            }
+
+            if (bestCurve != null)
+            {
+                return new SnapResult
+                {
+                    ScreenX = bestCurveScreenX,
+                    ScreenY = bestCurveScreenY,
+                    WorldX = bestCurveWorldX,
+                    WorldY = bestCurveWorldY,
+                    SnapType = "Eğri",
+                    SnapColor = bestCurve.Color,
+                    Description = $"Eğri [{bestCurve.Equation}]: ({bestCurveWorldX:F2}, {bestCurveWorldY:F2})",
+                    IsSnapped = true,
+                    BoundEquation = bestCurve.Equation
+                };
+            }
+
+            // ==========================================
+            // Tier 3: Snap-to-Axes & Origin <= 8px
+            // ==========================================
+            float ox = MapX(0f);
+            float oy = MapY(0f);
+
+            // Origin (0, 0) <= 10px
+            float distOriginSq = (mousePos.X - ox) * (mousePos.X - ox) + (mousePos.Y - oy) * (mousePos.Y - oy);
+            if (distOriginSq <= 10f * 10f)
+            {
+                return new SnapResult
+                {
+                    ScreenX = ox,
+                    ScreenY = oy,
+                    WorldX = 0f,
+                    WorldY = 0f,
+                    SnapType = "Orijin",
+                    SnapColor = Color.FromArgb(250, 204, 21),
+                    Description = "Orijin (0.00, 0.00)",
+                    IsSnapped = true
+                };
+            }
+
+            // X-Axis (y = 0) <= 8px
+            if (Math.Abs(mousePos.Y - oy) <= 8f)
+            {
+                float wx = NormalizeVal(mouseWorldX);
+                return new SnapResult
+                {
+                    ScreenX = MapX(wx),
+                    ScreenY = oy,
+                    WorldX = wx,
+                    WorldY = 0f,
+                    SnapType = "X-Ekseni",
+                    SnapColor = Color.FromArgb(148, 163, 184),
+                    Description = $"X Ekseni: ({wx:F2}, 0.00)",
+                    IsSnapped = true
+                };
+            }
+
+            // Y-Axis (x = 0) <= 8px
+            if (Math.Abs(mousePos.X - ox) <= 8f)
+            {
+                float wy = NormalizeVal(mouseWorldY);
+                return new SnapResult
+                {
+                    ScreenX = ox,
+                    ScreenY = MapY(wy),
+                    WorldX = 0f,
+                    WorldY = wy,
+                    SnapType = "Y-Ekseni",
+                    SnapColor = Color.FromArgb(148, 163, 184),
+                    Description = $"Y Ekseni: (0.00, {wy:F2})",
+                    IsSnapped = true
+                };
+            }
+
+            // ==========================================
+            // Tier 4: Snap-to-Grid <= 8px (bypassed if Ctrl is pressed)
+            // ==========================================
+            if ((ModifierKeys & Keys.Control) != Keys.Control)
+            {
+                float stepW = CalculateStep(rangeMaxX - rangeMinX, 10);
+                float stepH = CalculateStep(rangeMaxY - rangeMinY, 8);
+                if (stepW > 0 && stepH > 0)
+                {
+                    float gridX = (float)Math.Round(mouseWorldX / stepW) * stepW;
+                    float gridY = (float)Math.Round(mouseWorldY / stepH) * stepH;
+                    float gsx = MapX(gridX);
+                    float gsy = MapY(gridY);
+                    float gDistSq = (mousePos.X - gsx) * (mousePos.X - gsx) + (mousePos.Y - gsy) * (mousePos.Y - gsy);
+                    if (gDistSq <= 8f * 8f)
+                    {
+                        gridX = NormalizeVal(gridX);
+                        gridY = NormalizeVal(gridY);
+                        return new SnapResult
+                        {
+                            ScreenX = gsx,
+                            ScreenY = gsy,
+                            WorldX = gridX,
+                            WorldY = gridY,
+                            SnapType = "Izgara",
+                            SnapColor = Color.FromArgb(100, 116, 139),
+                            Description = $"Izgara: ({gridX:F2}, {gridY:F2})",
+                            IsSnapped = true
+                        };
+                    }
+                }
+            }
+
+            // ==========================================
+            // Tier 5: Free Point (Normalized)
+            // ==========================================
+            float freeX = NormalizeVal(mouseWorldX);
+            float freeY = NormalizeVal(mouseWorldY);
+            return new SnapResult
+            {
+                ScreenX = mousePos.X,
+                ScreenY = mousePos.Y,
+                WorldX = freeX,
+                WorldY = freeY,
+                SnapType = "Serbest",
+                SnapColor = btnPtColor.BackColor,
+                Description = $"({freeX:F2}, {freeY:F2})",
+                IsSnapped = false
+            };
+        }
+
         private void PnlCanvas_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
                 isDragging = true;
                 didMoveMouse = false;
+                mouseDownPos = e.Location;
                 lastMousePos = e.Location;
                 Cursor = Cursors.SizeAll;
             }
@@ -1157,7 +1421,7 @@ namespace MathApp.Controls
                     float sy = h - ((p.Y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
 
                     float distSq = (e.X - sx) * (e.X - sx) + (e.Y - sy) * (e.Y - sy);
-                    if (distSq <= 120f)
+                    if (distSq <= 144f) // 12px radius tolerance
                     {
                         toRemove = p;
                         break;
@@ -1168,7 +1432,7 @@ namespace MathApp.Controls
                 {
                     _points.Remove(toRemove);
                     RefreshPointsList();
-                    lblStatus.Text = $"Nokta silindi: ({toRemove.X:F2}, {toRemove.Y:F2})";
+                    lblStatus.Text = $"Nokta silindi [{toRemove.PointType}]: ({toRemove.X:F2}, {toRemove.Y:F2})";
                     lblStatus.ForeColor = Color.FromArgb(244, 63, 94);
                     pnlCanvas.Invalidate();
                 }
@@ -1181,25 +1445,33 @@ namespace MathApp.Controls
 
             if (isDragging)
             {
-                int dx = e.X - lastMousePos.X;
-                int dy = e.Y - lastMousePos.Y;
+                int dragDx = e.X - mouseDownPos.X;
+                int dragDy = e.Y - mouseDownPos.Y;
+                if (Math.Abs(dragDx) > 5 || Math.Abs(dragDy) > 5)
+                {
+                    didMoveMouse = true;
+                }
 
-                if (Math.Abs(dx) > 2 || Math.Abs(dy) > 2) didMoveMouse = true;
+                if (didMoveMouse)
+                {
+                    int dx = e.X - lastMousePos.X;
+                    int dy = e.Y - lastMousePos.Y;
 
-                float rangeW = rangeMaxX - rangeMinX;
-                float rangeH = rangeMaxY - rangeMinY;
+                    float rangeW = rangeMaxX - rangeMinX;
+                    float rangeH = rangeMaxY - rangeMinY;
 
-                float shiftX = (dx / (float)pnlCanvas.Width) * rangeW;
-                float shiftY = (dy / (float)pnlCanvas.Height) * rangeH;
+                    float shiftX = (dx / (float)pnlCanvas.Width) * rangeW;
+                    float shiftY = (dy / (float)pnlCanvas.Height) * rangeH;
 
-                rangeMinX -= shiftX;
-                rangeMaxX -= shiftX;
-                rangeMinY += shiftY;
-                rangeMaxY += shiftY;
+                    rangeMinX -= shiftX;
+                    rangeMaxX -= shiftX;
+                    rangeMinY += shiftY;
+                    rangeMaxY += shiftY;
 
-                lastMousePos = e.Location;
+                    lastMousePos = e.Location;
 
-                GenerateAllPoints(false, isDraft: true);
+                    GenerateAllPoints(false, isDraft: true);
+                }
                 pnlCanvas.Invalidate();
             }
             else
@@ -1214,50 +1486,28 @@ namespace MathApp.Controls
             {
                 if (!didMoveMouse)
                 {
-                    // Check if clicked near critical point
                     float w = Math.Max(1, pnlCanvas.Width);
                     float h = Math.Max(1, pnlCanvas.Height);
 
-                    CriticalPoint clickedCp = null;
-                    foreach (var cp in _criticalPoints)
-                    {
-                        float sx = (cp.X - rangeMinX) / (rangeMaxX - rangeMinX) * w;
-                        float sy = h - ((cp.Y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
-                        if ((e.X - sx) * (e.X - sx) + (e.Y - sy) * (e.Y - sy) <= 120f)
-                        {
-                            clickedCp = cp;
-                            break;
-                        }
-                    }
-
-                    float logX, logY;
-                    Color ptColor = btnPtColor.BackColor;
+                    var snap = GetSnapCoordinate(e.Location, w, h);
+                    Color ptColor = snap.IsSnapped ? snap.SnapColor : btnPtColor.BackColor;
                     PointShape ptShape = (PointShape)Math.Max(0, cmbPtShape.SelectedIndex);
-
-                    if (clickedCp != null)
-                    {
-                        logX = clickedCp.X;
-                        logY = clickedCp.Y;
-                        ptColor = clickedCp.Color;
-                    }
-                    else
-                    {
-                        logX = rangeMinX + (e.X / w) * (rangeMaxX - rangeMinX);
-                        float yPct = (h - e.Y) / h;
-                        logY = rangeMinY + yPct * (rangeMaxY - rangeMinY);
-                    }
 
                     _points.Add(new PlotPoint
                     {
-                        X = logX,
-                        Y = logY,
+                        X = snap.WorldX,
+                        Y = snap.WorldY,
                         Color = ptColor,
                         Shape = ptShape,
-                        Size = 8
+                        Size = 8,
+                        PointType = snap.SnapType,
+                        IsGlider = (snap.SnapType == "Eğri"),
+                        BoundEquation = snap.BoundEquation
                     });
 
                     RefreshPointsList();
-                    lblStatus.Text = $"Nokta eklendi: ({logX:F2}, {logY:F2}) - Silmek için sağ tıklayın.";
+                    lblStatus.Text = $"Nokta eklendi [{snap.SnapType}]: ({snap.WorldX:F2}, {snap.WorldY:F2}) - Silmek için sağ tıklayın.";
+                    lblStatus.ForeColor = Color.FromArgb(52, 211, 153);
                 }
 
                 isDragging = false;
@@ -1449,109 +1699,151 @@ namespace MathApp.Controls
                 }
             }
 
-            // 7. Dynamic Inspect Mode & Live Hover Coordinate HUD
+            // 7. Dynamic Magnetic Snap Indicator ("Hayalet Halka") & Inspect Mode HUD
             if (hoverMousePos.HasValue && !isDragging)
             {
-                float mx = hoverMousePos.Value.X;
-                float logX = rangeMinX + (mx / w) * (rangeMaxX - rangeMinX);
+                var snap = GetSnapCoordinate(hoverMousePos.Value, w, h);
 
-                // Check critical point snap
-                CriticalPoint snappedCp = null;
-                if (chkCriticalPoints.Checked)
+                // Draw Snap Ghost Ring ("Hayalet Halka") if snapped or on hover
+                if (snap.IsSnapped)
                 {
-                    snappedCp = _criticalPoints.FirstOrDefault(cp =>
+                    float sx = snap.ScreenX;
+                    float sy = snap.ScreenY;
+
+                    if (sx >= 0 && sx <= w && sy >= 0 && sy <= h)
                     {
-                        float csx = MapX(cp.X);
-                        float csy = MapY(cp.Y);
-                        return (hoverMousePos.Value.X - csx) * (hoverMousePos.Value.X - csx) +
-                               (hoverMousePos.Value.Y - csy) * (hoverMousePos.Value.Y - csy) <= 120f;
-                    });
-                }
-
-                var activeCurve = _curves.FirstOrDefault(c => c.Visible && !c.IsVerticalLine && !c.IsPolar && c.Compiled != null);
-                if (activeCurve != null)
-                {
-                    bool prevRad = Function.UseRadians;
-                    Function.UseRadians = true;
-                    try
-                    {
-                        SetCurveParameters(activeCurve);
-                        float targetX = snappedCp != null ? snappedCp.X : logX;
-                        decimal fxDec = NumericalMethods.EvaluateCompiled(activeCurve.Compiled, "x", (decimal)targetX);
-                        float logY = (float)fxDec;
-                        float sy = MapY(logY);
-                        float sx = MapX(targetX);
-
-                        decimal dfxDec = EvalDeriv(activeCurve.Compiled, (decimal)targetX);
-                        float slope = (float)dfxDec;
-
-                        // Inspect Tangent Line
-                        if (chkInspectMode.Checked && !float.IsNaN(slope) && Math.Abs(slope) < 1e4f)
+                        // Semi-transparent halo (outer glow)
+                        using (Brush haloBrush = new SolidBrush(Color.FromArgb(50, snap.SnapColor)))
                         {
-                            using (Pen tanLinePen = new Pen(Color.FromArgb(0, 210, 255), 2f))
-                            using (Pen normPen = new Pen(Color.FromArgb(168, 85, 247), 1.2f) { DashStyle = DashStyle.Dash })
-                            {
-                                float x1 = rangeMinX;
-                                float y1 = logY + slope * (x1 - targetX);
-                                float x2 = rangeMaxX;
-                                float y2 = logY + slope * (x2 - targetX);
-
-                                g.DrawLine(tanLinePen, MapX(x1), MapY(y1), MapX(x2), MapY(y2));
-
-                                // Normal line: slope = -1 / slope
-                                if (Math.Abs(slope) > 0.001f)
-                                {
-                                    float nSlope = -1f / slope;
-                                    float ny1 = logY + nSlope * (x1 - targetX);
-                                    float ny2 = logY + nSlope * (x2 - targetX);
-                                    g.DrawLine(normPen, MapX(x1), MapY(ny1), MapX(x2), MapY(ny2));
-                                }
-                            }
+                            g.FillEllipse(haloBrush, sx - 10, sy - 10, 20, 20);
+                        }
+                        // Crisply rendered magnetic target ring
+                        using (Pen ringPen = new Pen(snap.SnapColor, 1.8f))
+                        {
+                            g.DrawEllipse(ringPen, sx - 6, sy - 6, 12, 12);
+                        }
+                        // Center dot
+                        using (Brush dotBrush = new SolidBrush(Color.White))
+                        {
+                            g.FillEllipse(dotBrush, sx - 2, sy - 2, 4, 4);
                         }
 
-                        using (Pen dashPen = new Pen(Color.FromArgb(90, 248, 250, 252), 1f) { DashStyle = DashStyle.Dash })
+                        // Compact badge preview when inspect mode is not actively displaying the large HUD box
+                        if (!chkInspectMode.Checked)
                         {
-                            g.DrawLine(dashPen, sx, 0, sx, h);
-                            if (sy >= 0 && sy <= h)
+                            using (Font badgeFont = new Font("Segoe UI Semibold", 8F, FontStyle.Bold))
+                            using (Brush badgeBg = new SolidBrush(Color.FromArgb(220, 15, 23, 42)))
+                            using (Pen badgeBorder = new Pen(snap.SnapColor, 1f))
+                            using (Brush badgeTextBrush = new SolidBrush(Color.White))
+                            using (Brush typeTextBrush = new SolidBrush(snap.SnapColor))
                             {
-                                g.DrawLine(dashPen, 0, sy, w, sy);
-                                using (Brush dotBrush = new SolidBrush(snappedCp != null ? snappedCp.Color : activeCurve.Color))
-                                {
-                                    g.FillEllipse(dotBrush, sx - 5, sy - 5, 10, 10);
-                                    g.DrawEllipse(Pens.White, sx - 5, sy - 5, 10, 10);
-                                }
+                                string typeTag = $"[{snap.SnapType}] ";
+                                string coordTag = $"({snap.WorldX:F2}, {snap.WorldY:F2})";
+
+                                SizeF szType = g.MeasureString(typeTag, badgeFont);
+                                SizeF szCoord = g.MeasureString(coordTag, badgeFont);
+                                float totalW = szType.Width + szCoord.Width + 14;
+                                float totalH = 22;
+
+                                float bx = Math.Min(w - totalW - 10, Math.Max(10, sx + 12));
+                                float by = Math.Min(h - totalH - 10, Math.Max(10, sy - totalH - 6));
+
+                                g.FillRectangle(badgeBg, bx, by, totalW, totalH);
+                                g.DrawRectangle(badgeBorder, bx, by, totalW, totalH);
+
+                                g.DrawString(typeTag, badgeFont, typeTextBrush, bx + 6, by + 4);
+                                g.DrawString(coordTag, badgeFont, badgeTextBrush, bx + 6 + szType.Width - 4, by + 4);
                             }
-                        }
-
-                        // Modern Acrylic HUD Card
-                        using (Font hudFont = new Font("Segoe UI", 9F, FontStyle.Bold))
-                        using (Brush hudBg = new SolidBrush(Color.FromArgb(230, 11, 15, 28)))
-                        using (Pen hudBorder = new Pen(Color.FromArgb(0, 210, 255), 1.5f))
-                        using (Brush textCyan = new SolidBrush(Color.FromArgb(0, 210, 255)))
-                        using (Brush textWhite = new SolidBrush(Color.White))
-                        using (Brush textYellow = new SolidBrush(Color.FromArgb(250, 204, 21)))
-                        {
-                            string tLine1 = snappedCp != null ? snappedCp.Details : $"x = {targetX:F3}  |  f(x) = {logY:F3}";
-                            string tLine2 = chkInspectMode.Checked
-                                ? $"Teğet: y = {slope:F2}x + {(logY - slope * targetX):F2}  |  dy/dx = {slope:F3}"
-                                : $"Eğim f'(x) = {dfxDec:F3}";
-
-                            float boxW = Math.Max(260, Math.Max(g.MeasureString(tLine1, hudFont).Width, g.MeasureString(tLine2, hudFont).Width) + 24);
-                            float boxH = 48;
-                            float bx = Math.Min(w - boxW - 12, Math.Max(12, sx + 12));
-                            float by = Math.Min(h - boxH - 12, Math.Max(12, sy - boxH - 12));
-
-                            g.FillRectangle(hudBg, bx, by, boxW, boxH);
-                            g.DrawRectangle(hudBorder, bx, by, boxW, boxH);
-
-                            g.DrawString(tLine1, hudFont, snappedCp != null ? textYellow : textCyan, bx + 10, by + 6);
-                            g.DrawString(tLine2, hudFont, textWhite, bx + 10, by + 25);
                         }
                     }
-                    catch { }
-                    finally
+                }
+
+                // If Inspect Mode is explicitly checked, draw tangent line and acrylic HUD
+                if (chkInspectMode.Checked)
+                {
+                    var activeCurve = _curves.FirstOrDefault(c => c.Visible && !c.IsVerticalLine && !c.IsPolar && c.Compiled != null);
+                    if (activeCurve != null)
                     {
-                        Function.UseRadians = prevRad;
+                        bool prevRad = Function.UseRadians;
+                        Function.UseRadians = true;
+                        try
+                        {
+                            SetCurveParameters(activeCurve);
+                            float targetX = snap.WorldX;
+                            decimal fxDec = NumericalMethods.EvaluateCompiled(activeCurve.Compiled, "x", (decimal)targetX);
+                            float logY = (float)fxDec;
+                            float sy = MapY(logY);
+                            float sx = MapX(targetX);
+
+                            decimal dfxDec = EvalDeriv(activeCurve.Compiled, (decimal)targetX);
+                            float slope = (float)dfxDec;
+
+                            // Inspect Tangent Line
+                            if (!float.IsNaN(slope) && Math.Abs(slope) < 1e4f)
+                            {
+                                using (Pen tanLinePen = new Pen(Color.FromArgb(0, 210, 255), 2f))
+                                using (Pen normPen = new Pen(Color.FromArgb(168, 85, 247), 1.2f) { DashStyle = DashStyle.Dash })
+                                {
+                                    float x1 = rangeMinX;
+                                    float y1 = logY + slope * (x1 - targetX);
+                                    float x2 = rangeMaxX;
+                                    float y2 = logY + slope * (x2 - targetX);
+
+                                    g.DrawLine(tanLinePen, MapX(x1), MapY(y1), MapX(x2), MapY(y2));
+
+                                    // Normal line: slope = -1 / slope
+                                    if (Math.Abs(slope) > 0.001f)
+                                    {
+                                        float nSlope = -1f / slope;
+                                        float ny1 = logY + nSlope * (x1 - targetX);
+                                        float ny2 = logY + nSlope * (x2 - targetX);
+                                        g.DrawLine(normPen, MapX(x1), MapY(ny1), MapX(x2), MapY(ny2));
+                                    }
+                                }
+                            }
+
+                            using (Pen dashPen = new Pen(Color.FromArgb(90, 248, 250, 252), 1f) { DashStyle = DashStyle.Dash })
+                            {
+                                g.DrawLine(dashPen, sx, 0, sx, h);
+                                if (sy >= 0 && sy <= h)
+                                {
+                                    g.DrawLine(dashPen, 0, sy, w, sy);
+                                    using (Brush dotBrush = new SolidBrush(snap.IsSnapped ? snap.SnapColor : activeCurve.Color))
+                                    {
+                                        g.FillEllipse(dotBrush, sx - 5, sy - 5, 10, 10);
+                                        g.DrawEllipse(Pens.White, sx - 5, sy - 5, 10, 10);
+                                    }
+                                }
+                            }
+
+                            // Modern Acrylic HUD Card
+                            using (Font hudFont = new Font("Segoe UI", 9F, FontStyle.Bold))
+                            using (Brush hudBg = new SolidBrush(Color.FromArgb(230, 11, 15, 28)))
+                            using (Pen hudBorder = new Pen(Color.FromArgb(0, 210, 255), 1.5f))
+                            using (Brush textCyan = new SolidBrush(Color.FromArgb(0, 210, 255)))
+                            using (Brush textWhite = new SolidBrush(Color.White))
+                            using (Brush textYellow = new SolidBrush(Color.FromArgb(250, 204, 21)))
+                            {
+                                string tLine1 = snap.IsSnapped ? snap.Description : $"x = {targetX:F3}  |  f(x) = {logY:F3}";
+                                string tLine2 = $"Teğet: y = {slope:F2}x + {(logY - slope * targetX):F2}  |  dy/dx = {slope:F3}";
+
+                                float boxW = Math.Max(260, Math.Max(g.MeasureString(tLine1, hudFont).Width, g.MeasureString(tLine2, hudFont).Width) + 24);
+                                float boxH = 48;
+                                float bx = Math.Min(w - boxW - 12, Math.Max(12, sx + 12));
+                                float by = Math.Min(h - boxH - 12, Math.Max(12, sy - boxH - 12));
+
+                                g.FillRectangle(hudBg, bx, by, boxW, boxH);
+                                g.DrawRectangle(hudBorder, bx, by, boxW, boxH);
+
+                                g.DrawString(tLine1, hudFont, snap.IsSnapped ? textYellow : textCyan, bx + 10, by + 6);
+                                g.DrawString(tLine2, hudFont, textWhite, bx + 10, by + 25);
+                            }
+                        }
+                        catch { }
+                        finally
+                        {
+                            Function.UseRadians = prevRad;
+                        }
                     }
                 }
             }
@@ -1744,7 +2036,7 @@ namespace MathApp.Controls
             Panel card = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 38,
+                Height = 44,
                 BackColor = Color.FromArgb(22, 32, 50),
                 Padding = new Padding(4)
             };
@@ -1768,8 +2060,8 @@ namespace MathApp.Controls
 
             Label lblIcon = new Label
             {
-                Location = new Point(8, 8),
-                Size = new Size(20, 20),
+                Location = new Point(6, 12),
+                Size = new Size(18, 20),
                 ForeColor = pt.Color,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Text = shapeIcon,
@@ -1780,29 +2072,52 @@ namespace MathApp.Controls
             // Coordinate label
             Label lblCoord = new Label
             {
-                Location = new Point(34, 9),
-                Size = new Size(180, 20),
-                Font = new Font("Consolas", 9.5F, FontStyle.Bold),
+                Location = new Point(28, 5),
+                Size = new Size(180, 18),
+                Font = new Font("Consolas", 9F, FontStyle.Bold),
                 ForeColor = Color.White,
-                Text = $"(X: {pt.X:F2},  Y: {pt.Y:F2})"
+                Text = $"({pt.X:F2}, {pt.Y:F2})"
             };
             card.Controls.Add(lblCoord);
 
-            Label lblShapeName = new Label
+            // Badge for PointType
+            Color badgeBg = pt.PointType switch
             {
-                Location = new Point(216, 10),
-                Size = new Size(80, 18),
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.FromArgb(148, 163, 184),
-                Text = $"{pt.Shape}"
+                "Kök" => Color.FromArgb(16, 185, 129),
+                "Yerel Maks" => Color.FromArgb(244, 63, 94),
+                "Yerel Min" => Color.FromArgb(56, 189, 248),
+                "Büküm" => Color.FromArgb(245, 158, 11),
+                "Kesişim" => Color.FromArgb(168, 85, 247),
+                "Eğri" => Color.FromArgb(14, 165, 233),
+                "Orijin" => Color.FromArgb(250, 204, 21),
+                "X-Ekseni" => Color.FromArgb(148, 163, 184),
+                "Y-Ekseni" => Color.FromArgb(148, 163, 184),
+                "Izgara" => Color.FromArgb(100, 116, 139),
+                _ => Color.FromArgb(71, 85, 105)
             };
-            card.Controls.Add(lblShapeName);
+
+            string typeLabelText = string.IsNullOrEmpty(pt.PointType) ? "Serbest" : pt.PointType;
+            if (pt.IsGlider && !string.IsNullOrEmpty(pt.BoundEquation))
+            {
+                typeLabelText = $"Eğri: {pt.BoundEquation}";
+            }
+
+            Label lblBadge = new Label
+            {
+                Location = new Point(28, 24),
+                Size = new Size(200, 16),
+                Font = new Font("Segoe UI Semibold", 7.5F, FontStyle.Bold),
+                ForeColor = badgeBg,
+                Text = $"[{typeLabelText}] • {pt.Shape}"
+            };
+            card.Controls.Add(lblBadge);
 
             // Delete button
             Button btnDel = new Button
             {
-                Location = new Point(308, 7),
-                Size = new Size(26, 24),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(card.Width - 34, 9),
+                Size = new Size(26, 26),
                 FlatStyle = FlatStyle.Flat,
                 Text = "✕",
                 Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold),
@@ -1829,13 +2144,16 @@ namespace MathApp.Controls
             float px = ParseFloat(txtPtX.Text, 0f);
             float py = ParseFloat(txtPtY.Text, 0f);
 
+            string ptType = (px == 0f && py == 0f) ? "Orijin" : (px == 0f ? "Y-Ekseni" : (py == 0f ? "X-Ekseni" : "Serbest"));
+
             _points.Add(new PlotPoint
             {
                 X = px,
                 Y = py,
                 Color = btnPtColor.BackColor,
                 Shape = (PointShape)Math.Max(0, cmbPtShape.SelectedIndex),
-                Size = 8
+                Size = 8,
+                PointType = ptType
             });
 
             RefreshPointsList();
@@ -1947,7 +2265,7 @@ namespace MathApp.Controls
         {
             var validCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar).ToList();
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("% ttCalculator v3.2 LaTeX Pgfplots / TikZ Kodu");
+            sb.AppendLine("% ttCalculator v3.3 LaTeX Pgfplots / TikZ Kodu");
             sb.AppendLine("\\begin{tikzpicture}");
             sb.AppendLine("\\begin{axis}[");
             sb.AppendLine($"    xmin={rangeMinX:F1}, xmax={rangeMaxX:F1},");
@@ -2148,8 +2466,8 @@ namespace MathApp.Controls
                 txtToolLog.AppendText($"P₁ (f₁ üzerinde): ({bestX1:F3}, {minY1:F3})\n");
                 txtToolLog.AppendText($"P₂ (f₂ üzerinde): ({bestX2:F3}, {minY2:F3})\n");
 
-                _points.Add(new PlotPoint { X = bestX1, Y = minY1, Color = Color.Cyan, Shape = PointShape.Diamond });
-                _points.Add(new PlotPoint { X = bestX2, Y = minY2, Color = Color.Magenta, Shape = PointShape.Diamond });
+                _points.Add(new PlotPoint { X = bestX1, Y = minY1, Color = Color.Cyan, Shape = PointShape.Diamond, PointType = "En Yakın" });
+                _points.Add(new PlotPoint { X = bestX2, Y = minY2, Color = Color.Magenta, Shape = PointShape.Diamond, PointType = "En Yakın" });
                 RefreshPointsList();
 
                 if (Math.Abs(bestX2 - bestX1) > 0.001f)
@@ -2220,7 +2538,7 @@ namespace MathApp.Controls
                     txtToolLog.AppendText($"✓ Teğet Değme Noktası: x_t = {xt:F4}\n");
                     txtToolLog.AppendText($"Teğet Doğrusu: y = {tanEq}\n");
 
-                    _points.Add(new PlotPoint { X = x0, Y = y0, Color = Color.Lime, Shape = PointShape.Cross });
+                    _points.Add(new PlotPoint { X = x0, Y = y0, Color = Color.Lime, Shape = PointShape.Cross, PointType = "Teğet Değme" });
                     RefreshPointsList();
 
                     AddFunctionCurve(tanEq, false, -20f, 20f, Color.Lime, DashStyle.Dash, 2.2f);

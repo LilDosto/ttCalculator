@@ -1,4 +1,4 @@
-# 📐 ttCalculator v3.2.0
+# 📐 ttCalculator v3.3.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,11 +13,11 @@ Tüm matematiksel çekirdek, otomatik test paketinden **%100 başarıyla (0 hata
 
 ## 🚀 Hızlı Başlangıç & Kurulum
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.2.0)** sayfasına gidin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.3.0)** sayfasına gidin.
 2. İhtiyacınıza göre indirin:
-   - **`ttCalculator-v3.2.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
+   - **`ttCalculator-v3.3.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
    - **`ttCalculator.exe`**: Kurulumsuz doğrudan çalıştırılabilen tek dosya taşınabilir (portable) sürüm.
-   - **`ttCalculator-v3.2.0-win-x64.zip`**: Taşınabilir arşiv paketi.
+   - **`ttCalculator-v3.3.0-win-x64.zip`**: Taşınabilir arşiv paketi.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
@@ -69,7 +69,15 @@ ttCalculator/
 
 Uygulama modern koyu tema (Dark Theme) arayüzü ile 13 ana modülden oluşmaktadır:
 
-### 1. 📈 Gelişmiş Çoklu Fonksiyon & Geometri Grafiği Çizici (v2.3)
+### 1. 📈 Gelişmiş Çoklu Fonksiyon & Geometri Grafiği Çizici (v3.3)
+* **GeoGebra / Desmos Kalitesinde Manyetik Mıknatıslanma (Multi-tier Magnetic Snapping):** Tuval üzerinde nokta eklerken veya imleç gezdirirken 4 kademeli akıllı yakalama motoru:
+  - **1. Kademe:** Kritik Noktalar (Kökler, Yerel Maks/Min, Büküm, Fonksiyon Kesişimleri - $\le 14$ px tolerans).
+  - **2. Kademe:** Eğriye Yapışma (Snap-to-Curve $f(x)$ veya düşey doğrular - $\le 12$ px tolerans, Glider/Bağlı nokta entegrasyonu).
+  - **3. Kademe:** Eksen ve Orijin Mıknatısı (Orijin $(0, 0)$ ve $x=0$, $y=0$ eksen çizgileri - $\le 8$ px tolerans).
+  - **4. Kademe:** Dinamik Izgara Kesişimi (Grid Snap - `Ctrl` tuşu ile devre dışı bırakılabilir serbest mod).
+* **Hayalet Halka & Koordinat Rozeti (Ghost Ring Indicator):** İmleç tuvalde gezinirken hedef noktayı canlı olarak yarı-saydam konsantrik halka ve renkli tip etiketi (`[Kök]`, `[Eğri]`, `[Orijin]`, `[Izgara]`) ile anlık gösterir.
+* **Tıklama Düşmelerine Karşı Kararlı Olay Yönetimi (Zero Dropped Clicks):** Fare tıklamalarındaki mikroskobik titremeleri filtreleyen eşik denetimi ile tıklamalar asla sürükleme olarak algılanıp yutulmaz.
+* **Katman & Nokta Yönetim Kartları:** Eklenen tüm serbest ve bağlı noktalar sağ panelde renk, şekil ve tip rozetleri (`[Kök]`, `[Eğri]`, `[Orijin]`) ile listelenir, tek tıkla veya sağ tıkla silinebilir.
 * **Çoklu Fonksiyon Desteği:** Aynı tuval üzerinde sınırsız sayıda fonksiyon çizimi; sağ panelden renk, çizgi tipi (Düz, Kesikli, Noktalı) ve kalınlık (1-4 px) değiştirme, açma/kapama ve silme.
 * **Aralık Kısıtlama vs Tüm Ekran:** `Min X` ve `Max X` aralığına kısıtlı çizim veya $-\infty$ ile $+\infty$ arasında tam ekran çizim seçeneği.
 * **Bağımsız Eksen Ölçekleme:** X eksenini Y'ye dokunmadan 10 kat veya serbestçe sündürme/daraltma (`Shift + Tekerlek` ile X sündürme, `Ctrl + Tekerlek` ile Y sündürme).
