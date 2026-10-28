@@ -1,4 +1,4 @@
-# 📐 ttCalculator v3.5.0
+# 📐 ttCalculator v3.6.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,11 +13,11 @@ Tüm matematiksel çekirdek, otomatik test paketinden **%100 başarıyla (0 hata
 
 ## 🚀 Hızlı Başlangıç & Kurulum
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.5.0)** sayfasına gidin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.6.0)** sayfasına gidin.
 2. İhtiyacınıza göre indirin:
-   - **`ttCalculator-v3.5.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
+   - **`ttCalculator-v3.6.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
    - **`ttCalculator.exe`**: Kurulumsuz doğrudan çalıştırılabilen tek dosya taşınabilir (portable) sürüm.
-   - **`ttCalculator-v3.5.0-win-x64.zip`**: Taşınabilir arşiv paketi.
+   - **`ttCalculator-v3.6.0-win-x64.zip`**: Taşınabilir arşiv paketi.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
@@ -87,27 +87,33 @@ Uygulama modern koyu tema (Dark Theme) arayüzü ile 13 ana modülden oluşmakta
 * **Noktadan Teğet Çizici:** Dışarıdaki bir noktadan seçilen fonksiyona çizilen teğet doğru denklemi ve grafiği.
 * **Hazır Parametrik Şekiller:** Daire, Kare, Dikdörtgen, Eşkenar Üçgen, Elips ve Düzgün Altıgen şekillerini parametrik olarak fonksiyon listesine ekleyip çizdirme.
 
-### 2. ∫ Diferansiyel Denklem Çözücü (1 Değişkenli ODE)
+### 2. ∫ Diferansiyel Denklem Çözücü (1 Değişkenli ODE - v3.6)
 * **Desteklenen Algoritmalar:** Euler (1. Derece), Heun (RK2 Predictor-Corrector), Runge-Kutta 4 (RK4) ve 8. Derece Yüksek Hassasiyetli Runge-Kutta (RK8).
-* Başlangıç değer problemi ($y' = f(x, y)$, $y(x_0) = y_0$) için adım büyüklüğü, eğimler ve adım adım çözüm tablosu.
+* **İnteraktif Çözüm Eğrisi Tuvali:** $y(x)$ çözüm eğrisini çizdiren, farenin üzerinde gezdiği koordinatları (X, Y) takip eden artı imleci (crosshair) ve koordinat ipucu (tooltip).
+* **Görsel Durum & KPI Kartı:** $y(x_{son})$ nihai değer kartı, adım sayısı ($N$), adım büyüklüğü ($h$), yürütme süresi (ms) ve kullanılan yöntem bilgisi.
+* **Adım Adım Çözüm Tablosu:** Zebra desenli `DataGridView` tablosu ($i, x_i, y_i, \Delta y$), TSV formatında panoya kopyalama ve yüksek çözünürlüklü PNG grafik dışa aktarma.
 
-### 3. ∭ Diferansiyel Denklem Sistemi Çözücü (System of ODEs)
-* Vektörel diferansiyel denklem sistemleri: $\frac{d\vec{Y}}{dt} = \vec{F}(t, \vec{Y})$.
-* **Yüksek Dereceli ODE Dönüşümü:** $n$. derece diferansiyel denklemleri durum-uzayı (state-space) vektör sistemine dönüştürerek çözebilme.
+### 3. ∭ Diferansiyel Denklem Sistemi Çözücü (System of ODEs - v3.6)
+* **Vektörel Diferansiyel Sistemler:** $\frac{d\vec{Y}}{dt} = \vec{F}(t, \vec{Y})$ ($n \in [1, 6]$ dinamik değişken desteği).
 * **Hazır Modeller:** Harmonik Osilatör, Av-Avcı (Lotka-Volterra), Sönümlü Sarkaç, Lorenz Kaotik Çekicisi.
-* Vektörel Euler, RK4 ve RK8 çözücüleri ile zaman adımları tablosu.
+* **Faz Portresi Tuvali (Phase Portrait):** Seçilen iki eksen ($y_1$ vs $y_2$) arasında yörünge eğrisi, hareket yönünü gösteren vektör okları, renk geçişli degrade çizgi ve fareyle koordinat inceleme.
+* **Zaman Serisi Tuvali (Time Series):** $t$ parametresine bağlı $y_1(t), y_2(t), \dots$ eğrilerinin renk kodlu çizimi ve grafik lejantı.
+* **Sistem Veri Tablosu:** Tüm adımları listeleyen DataGridView tablosu ve CSV/PNG dışa aktarım desteği.
 
-### 4. 🌊 Kısmi Diferansiyel Denklem Çözücü (1D PDE)
-* **1 Boyutlu Isı Denklemi:** $u_t = \alpha \cdot u_{xx}$ (FTCS sonlu farklar yöntemi, kararlılık koşulu $r \le 0.5$ denetimi).
-* **1 Boyutlu Dalga Denklemi:** $u_{tt} = c^2 \cdot u_{xx}$ (Leapfrog merkezi farklar, Courant-Friedrichs-Lewy / CFL denetimi).
-* **1 Boyutlu Taşınım (Advection) Denklemi:** $u_t + v \cdot u_x = 0$ (Upwind stabil şeması).
-* Farklı zaman dilimlerinde ($t=0, T/4, T/2, 3T/4, T$) mekan profili tablosu.
+### 4. 🌊 Kısmi Diferansiyel Denklem Çözücü (1D PDE Solver - v3.6)
+* **Desteklenen Modeller:** 1B Isı Denklemi (FTCS ve Crank-Nicolson), 1B Dalga Denklemi (Leapfrog), 1B Taşınım / Advection (Upwind).
+* **Dinamik CFL Kararlılık Analiz Rozeti:** $r = \alpha \frac{\Delta t}{\Delta x^2}$ veya $CFL = c \frac{\Delta t}{\Delta x}$ değerlerini canlı hesaplayan, kararlı/kararsız durumu bildiren renkli rozet.
+* **2B Uzay-Zaman Isı Haritası (Heatmap):** $x \in [0, L]$ (X ekseni) ve $t \in [0, T]$ (Y ekseni) üzerinde renk gradyanı (Turbo/Thermal colormap) ile sıcaklık/dalga yoğunluğu dağılımı.
+* **Canlı Zaman Animasyonu:** 30 FPS hızında dalga/ısı profilinin zamana bağlı salınımını canlandıran oynat/durdur denetleyicisi, hız çarpanı ($1\times, 2\times, 5\times$) ve interaktif zaman kaydırıcısı (time scrubber).
+* **Zaman Dilimleri Tablosu:** $t = 0, T/4, T/2, 3T/4, T$ anlarındaki uzaysal profili özetleyen tablo.
 
-### 5. 🌀 Kısmi Diferansiyel Denklem Sistemi Çözücü (Coupled PDE System)
-* 1 Boyutlu Bağlaşımlı Reaksiyon-Difüzyon Sistemleri:
+### 5. 🌀 Kısmi Diferansiyel Denklem Sistemi Çözücü (Coupled PDE System - v3.6)
+* **1B Bağlaşımlı Reaksiyon-Difüzyon Sistemleri:**
   $$u_t = D_u \cdot u_{xx} + F(u, v)$$
   $$v_t = D_v \cdot v_{xx} + G(u, v)$$
-* Sıfır-akı (Neumann) sınır koşulları, Turing deseni oluşumu (Gray-Scott, Schnakenberg, FitzHugh-Nagumo modelleri).
+* **Hazır Biyokimyasal & Fiziksel Modeller:** Turing Desenleri (Gray-Scott), Schnakenberg Sistemi, FitzHugh-Nagumo Sinir Modeli, Çift Difüzyon.
+* **Çift Konsantrasyon Canlı Dalga Çizimi:** $u(x)$ (gök mavisi) ve $v(x)$ (mercan kırmızısı) yarı saydam alan dolgulu konsantrasyon eğrileri ve canlı animasyon.
+* **2B Turing Deseni Haritası & Faz Uzayı Trajektorisi:** Uzay-zaman morfolojik desen haritası ve $(u, v)$ durum faz portresi.
 
 ### 6. 🔍 Denklem Kökü Bulucu (Root Finder v3.4)
 * **Dinamik Parametre Girişi:** Seçilen yönteme göre (Newton-Raphson, Bisection, Secant, Regula Falsi, Çoklu Kök Taraması) dinamik parametre alanları.

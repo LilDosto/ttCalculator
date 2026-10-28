@@ -17,8 +17,8 @@ namespace MathApp.Controls
         private void InitializeComponent()
         {
             this.pnlHeader = ThemeHelper.CreateHeaderPanel(
-                "Kısmi Diferansiyel Denklem Çözücü (1D PDE Solver)",
-                "1 Boyutlu Isı (FTCS), Dalga (Leapfrog) ve Taşınım (Upwind) denklemlerini sonlu farklar yöntemi ile çözer.");
+                "Kısmi Diferansiyel Denklem Çözücü (1D PDE Solver / Isı Haritası & Animasyon)",
+                "1 Boyutlu Isı (FTCS / Crank-Nicolson), Dalga (Leapfrog) ve Taşınım (Upwind) denklemlerini sonlu farklar ile çözer; 2B Mekan-Zaman Isı Haritası ve canlı dalga animasyonu sunar.");
 
             this.pnlControls = new Panel();
             this.pnlPresets = new FlowLayoutPanel();
@@ -56,178 +56,231 @@ namespace MathApp.Controls
             this.txtBcLeft = new TextBox();
             this.txtBcRight = new TextBox();
 
-            this.btnSolve = ThemeHelper.CreateActionButton("🚀 PDE'yi Çöz", 140, 32, true);
-            this.btnCopy = ThemeHelper.CreateCopyButton("📋 Tabloyu Kopyala");
+            this.btnSolve = ThemeHelper.CreateActionButton("🚀 PDE'yi Çöz & Simüle Et", 200, 32, true);
 
-            this.pnlCardResult = new Panel();
-            this.lblStability = new Label();
-            this.lblDetails = new Label();
+            // Live CFL Stability Indicator Bar
+            this.pnlCflBar = new Panel();
+            this.lblCflIcon = new Label();
+            this.lblCflText = new Label();
 
+            // TabControl for Visualizations
+            this.tabPdeVisual = new TabControl();
+            this.tabHeatmap = new TabPage();
+            this.pnlHeatmapHeader = new Panel();
+            this.lblHeatmapTitle = new Label();
+            this.lblColorbarLegend = new Label();
+            this.btnExportHeatmapPng = new Button();
+            this.pnlHeatmapCanvas = new Panel();
+
+            this.tabAnimation = new TabPage();
+            this.pnlAnimToolbar = new Panel();
+            this.btnPlayPause = new Button();
+            this.lblCurrentTime = new Label();
+            this.trkTimeStep = new TrackBar();
+            this.lblAnimSpeed = new Label();
+            this.cmbAnimSpeed = new ComboBox();
+            this.pnlAnimCanvas = new Panel();
+
+            this.tabSnapshots = new TabPage();
+            this.pnlSnapToolbar = new Panel();
+            this.btnCopyPdeTsv = ThemeHelper.CreateCopyButton("📋 Tabloyu Kopyala (TSV)");
+            this.dgvSnapshots = new DataGridView();
+
+            this.tabTextReport = new TabPage();
             this.txtOutput = new RichTextBox();
 
             this.pnlControls.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numNx)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numNt)).BeginInit();
-            this.pnlCardResult.SuspendLayout();
+            this.pnlCflBar.SuspendLayout();
+            this.tabPdeVisual.SuspendLayout();
+            this.tabHeatmap.SuspendLayout();
+            this.pnlHeatmapHeader.SuspendLayout();
+            this.tabAnimation.SuspendLayout();
+            this.pnlAnimToolbar.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.trkTimeStep)).BeginInit();
+            this.tabSnapshots.SuspendLayout();
+            this.pnlSnapToolbar.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvSnapshots)).BeginInit();
+            this.tabTextReport.SuspendLayout();
             this.SuspendLayout();
 
             // pnlControls
             this.pnlControls.Dock = DockStyle.Top;
-            this.pnlControls.Height = 168;
-            this.pnlControls.BackColor = ThemeHelper.DarkBackground;
-            this.pnlControls.Padding = new Padding(24, 8, 24, 8);
+            this.pnlControls.Height = 158;
+            this.pnlControls.BackColor = Color.FromArgb(20, 28, 48);
+            this.pnlControls.Padding = new Padding(20, 6, 20, 6);
 
-            this.lblPresets.Text = "Örnek Senaryolar:";
+            this.lblPresets.Text = "⚡ Senaryolar:";
             this.lblPresets.AutoSize = true;
             this.lblPresets.ForeColor = ThemeHelper.MutedText;
             this.lblPresets.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
             this.lblPresets.Margin = new Padding(0, 5, 8, 0);
 
-            this.pnlPresets.Location = new Point(24, 8);
-            this.pnlPresets.Size = new Size(880, 32);
+            this.pnlPresets.Location = new Point(20, 6);
+            this.pnlPresets.Size = new Size(900, 32);
             this.pnlPresets.Controls.Add(this.lblPresets);
             this.pnlPresets.Controls.Add(this.btnExHeat);
             this.pnlPresets.Controls.Add(this.btnExWave);
             this.pnlPresets.Controls.Add(this.btnExAdvect);
             this.pnlPresets.Controls.Add(this.btnExGauss);
 
-            int y1 = 46;
-            this.lblPdeType.Text = "PDE Türü:";
-            this.lblPdeType.Location = new Point(24, y1 + 4);
+            int yRow1 = 42;
+            this.lblPdeType.Text = "PDE Tipi:";
+            this.lblPdeType.Location = new Point(20, yRow1 + 3);
             this.lblPdeType.AutoSize = true;
-            this.lblPdeType.ForeColor = ThemeHelper.LightText;
+            this.lblPdeType.ForeColor = Color.FromArgb(56, 189, 248);
+            this.lblPdeType.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
 
-            this.cmbPdeType.Location = new Point(90, y1);
-            this.cmbPdeType.Size = new Size(240, 25);
+            this.cmbPdeType.Location = new Point(85, yRow1);
+            this.cmbPdeType.Size = new Size(230, 24);
             this.cmbPdeType.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.cmbPdeType.BackColor = ThemeHelper.CardBackground;
+            this.cmbPdeType.BackColor = Color.FromArgb(15, 23, 42);
             this.cmbPdeType.ForeColor = Color.White;
-            this.cmbPdeType.Font = new Font("Segoe UI", 9.5F);
+            this.cmbPdeType.Font = new Font("Segoe UI", 9F);
             this.cmbPdeType.Items.AddRange(new object[] {
-                "Isı Denklemi [FTCS Açık - u_t = α·u_xx]",
-                "Isı Denklemi [Crank-Nicolson Koşulsuz Kararlı]",
-                "Dalga Denklemi [Leapfrog - u_tt = c²·u_xx]",
-                "Taşınım Denklemi [Upwind - u_t + v·u_x = 0]",
-                "2B Laplace Denklemi [SOR - ∇²u = 0]"
+                "Isı Denklemi (FTCS Açık Şema)",
+                "Isı Denklemi (Crank-Nicolson)",
+                "Dalga Denklemi (Leapfrog)",
+                "Taşınım Denklemi (Upwind)"
             });
             this.cmbPdeType.SelectedIndex = 0;
 
-            this.lblInitU.Text = "u(x, 0) =";
-            this.lblInitU.Location = new Point(345, y1 + 4);
+            this.lblInitU.Text = "u(x, 0):";
+            this.lblInitU.Location = new Point(325, yRow1 + 3);
             this.lblInitU.AutoSize = true;
             this.lblInitU.ForeColor = ThemeHelper.LightText;
 
-            this.txtInitU.Location = new Point(410, y1);
-            this.txtInitU.Size = new Size(220, 25);
-            this.txtInitU.Text = "sin(pi * x)";
-            this.txtInitU.Font = new Font("Consolas", 10F);
-            this.txtInitU.BackColor = ThemeHelper.CardBackground;
+            this.txtInitU.Location = new Point(375, yRow1);
+            this.txtInitU.Size = new Size(130, 24);
+            this.txtInitU.Text = "sin(pi*x)";
+            this.txtInitU.Font = new Font("Consolas", 9.5F);
+            this.txtInitU.BackColor = Color.FromArgb(15, 23, 42);
             this.txtInitU.ForeColor = Color.White;
             this.txtInitU.BorderStyle = BorderStyle.FixedSingle;
 
-            this.lblInitVel.Text = "u_t(x, 0) =";
-            this.lblInitVel.Location = new Point(640, y1 + 4);
+            this.lblInitVel.Text = "u_t(x, 0):";
+            this.lblInitVel.Location = new Point(515, yRow1 + 3);
             this.lblInitVel.AutoSize = true;
             this.lblInitVel.ForeColor = ThemeHelper.LightText;
 
-            this.txtInitVel.Location = new Point(710, y1);
-            this.txtInitVel.Size = new Size(160, 25);
+            this.txtInitVel.Location = new Point(570, yRow1);
+            this.txtInitVel.Size = new Size(70, 24);
             this.txtInitVel.Text = "0";
-            this.txtInitVel.Font = new Font("Consolas", 10F);
-            this.txtInitVel.BackColor = ThemeHelper.CardBackground;
+            this.txtInitVel.Font = new Font("Consolas", 9.5F);
+            this.txtInitVel.BackColor = Color.FromArgb(15, 23, 42);
             this.txtInitVel.ForeColor = Color.White;
             this.txtInitVel.BorderStyle = BorderStyle.FixedSingle;
 
-            int y2 = 82;
-            this.lblParam.Text = "Parametre (α / c / v):";
-            this.lblParam.Location = new Point(24, y2 + 4);
+            this.lblParam.Text = "α / c / v:";
+            this.lblParam.Location = new Point(650, yRow1 + 3);
             this.lblParam.AutoSize = true;
             this.lblParam.ForeColor = ThemeHelper.LightText;
 
-            this.txtParam.Location = new Point(155, y2);
-            this.txtParam.Size = new Size(60, 25);
-            this.txtParam.Text = "0.1";
-            this.txtParam.Font = new Font("Consolas", 10F);
-            this.txtParam.BackColor = ThemeHelper.CardBackground;
+            this.txtParam.Location = new Point(705, yRow1);
+            this.txtParam.Size = new Size(45, 24);
+            this.txtParam.Text = "1";
+            this.txtParam.Font = new Font("Consolas", 9.5F);
+            this.txtParam.BackColor = Color.FromArgb(15, 23, 42);
             this.txtParam.ForeColor = Color.White;
             this.txtParam.BorderStyle = BorderStyle.FixedSingle;
+            this.txtParam.TextAlign = HorizontalAlignment.Center;
 
+            int yRow2 = 78;
             this.lblL.Text = "Uzunluk L:";
-            this.lblL.Location = new Point(225, y2 + 4);
+            this.lblL.Location = new Point(20, yRow2 + 3);
             this.lblL.AutoSize = true;
             this.lblL.ForeColor = ThemeHelper.LightText;
 
-            this.txtL.Location = new Point(295, y2);
-            this.txtL.Size = new Size(50, 25);
+            this.txtL.Location = new Point(85, yRow2);
+            this.txtL.Size = new Size(45, 24);
             this.txtL.Text = "1";
-            this.txtL.Font = new Font("Consolas", 10F);
-            this.txtL.BackColor = ThemeHelper.CardBackground;
+            this.txtL.BackColor = Color.FromArgb(15, 23, 42);
             this.txtL.ForeColor = Color.White;
             this.txtL.BorderStyle = BorderStyle.FixedSingle;
+            this.txtL.TextAlign = HorizontalAlignment.Center;
 
             this.lblT.Text = "Süre T:";
-            this.lblT.Location = new Point(355, y2 + 4);
+            this.lblT.Location = new Point(140, yRow2 + 3);
             this.lblT.AutoSize = true;
             this.lblT.ForeColor = ThemeHelper.LightText;
 
-            this.txtT.Location = new Point(405, y2);
-            this.txtT.Size = new Size(50, 25);
-            this.txtT.Text = "0.5";
-            this.txtT.Font = new Font("Consolas", 10F);
-            this.txtT.BackColor = ThemeHelper.CardBackground;
+            this.txtT.Location = new Point(185, yRow2);
+            this.txtT.Size = new Size(45, 24);
+            this.txtT.Text = "0.2";
+            this.txtT.BackColor = Color.FromArgb(15, 23, 42);
             this.txtT.ForeColor = Color.White;
             this.txtT.BorderStyle = BorderStyle.FixedSingle;
+            this.txtT.TextAlign = HorizontalAlignment.Center;
 
-            this.lblNx.Text = "Nx (Mekan):";
-            this.lblNx.Location = new Point(465, y2 + 4);
+            this.lblNx.Text = "Nx:";
+            this.lblNx.Location = new Point(240, yRow2 + 3);
             this.lblNx.AutoSize = true;
             this.lblNx.ForeColor = ThemeHelper.LightText;
 
-            this.numNx.Location = new Point(545, y2);
-            this.numNx.Size = new Size(55, 25);
-            this.numNx.Minimum = 5;
-            this.numNx.Maximum = 200;
-            this.numNx.Value = 25;
-            this.numNx.BackColor = ThemeHelper.CardBackground;
+            this.numNx.Location = new Point(268, yRow2);
+            this.numNx.Size = new Size(50, 24);
+            this.numNx.Minimum = 10;
+            this.numNx.Maximum = 500;
+            this.numNx.Value = 50;
+            this.numNx.BackColor = Color.FromArgb(15, 23, 42);
             this.numNx.ForeColor = Color.White;
 
-            this.lblNt.Text = "Nt (Zaman):";
-            this.lblNt.Location = new Point(610, y2 + 4);
+            this.lblNt.Text = "Nt:";
+            this.lblNt.Location = new Point(328, yRow2 + 3);
             this.lblNt.AutoSize = true;
             this.lblNt.ForeColor = ThemeHelper.LightText;
 
-            this.numNt.Location = new Point(690, y2);
-            this.numNt.Size = new Size(60, 25);
-            this.numNt.Minimum = 5;
+            this.numNt.Location = new Point(355, yRow2);
+            this.numNt.Size = new Size(55, 24);
+            this.numNt.Minimum = 10;
             this.numNt.Maximum = 2000;
-            this.numNt.Value = 150;
-            this.numNt.BackColor = ThemeHelper.CardBackground;
+            this.numNt.Value = 200;
+            this.numNt.BackColor = Color.FromArgb(15, 23, 42);
             this.numNt.ForeColor = Color.White;
 
-            this.lblBc.Text = "Sınırlar [u(0), u(L)]:";
-            this.lblBc.Location = new Point(760, y2 + 4);
+            this.lblBc.Text = "Sınırlar [Sol, Sağ]:";
+            this.lblBc.Location = new Point(420, yRow2 + 3);
             this.lblBc.AutoSize = true;
             this.lblBc.ForeColor = ThemeHelper.LightText;
 
-            this.txtBcLeft.Location = new Point(870, y2);
-            this.txtBcLeft.Size = new Size(35, 25);
+            this.txtBcLeft.Location = new Point(520, yRow2);
+            this.txtBcLeft.Size = new Size(40, 24);
             this.txtBcLeft.Text = "0";
-            this.txtBcLeft.Font = new Font("Consolas", 9F);
-            this.txtBcLeft.BackColor = ThemeHelper.CardBackground;
+            this.txtBcLeft.BackColor = Color.FromArgb(15, 23, 42);
             this.txtBcLeft.ForeColor = Color.White;
             this.txtBcLeft.BorderStyle = BorderStyle.FixedSingle;
+            this.txtBcLeft.TextAlign = HorizontalAlignment.Center;
 
-            this.txtBcRight.Location = new Point(910, y2);
-            this.txtBcRight.Size = new Size(35, 25);
+            this.txtBcRight.Location = new Point(568, yRow2);
+            this.txtBcRight.Size = new Size(40, 24);
             this.txtBcRight.Text = "0";
-            this.txtBcRight.Font = new Font("Consolas", 9F);
-            this.txtBcRight.BackColor = ThemeHelper.CardBackground;
+            this.txtBcRight.BackColor = Color.FromArgb(15, 23, 42);
             this.txtBcRight.ForeColor = Color.White;
             this.txtBcRight.BorderStyle = BorderStyle.FixedSingle;
+            this.txtBcRight.TextAlign = HorizontalAlignment.Center;
 
-            int y3 = 120;
-            this.btnSolve.Location = new Point(24, y3);
-            this.btnCopy.Location = new Point(175, y3);
+            this.btnSolve.Location = new Point(640, yRow2 - 2);
+
+            // CFL Indicator Bar
+            this.pnlCflBar.Location = new Point(20, 114);
+            this.pnlCflBar.Size = new Size(900, 34);
+            this.pnlCflBar.BackColor = Color.FromArgb(15, 23, 42);
+            this.pnlCflBar.Padding = new Padding(10, 6, 10, 6);
+
+            this.lblCflIcon.Text = "⚖️";
+            this.lblCflIcon.Dock = DockStyle.Left;
+            this.lblCflIcon.Width = 26;
+            this.lblCflIcon.Font = new Font("Segoe UI", 10F);
+
+            this.lblCflText.Text = "CFL Kararlılık Durumu Hesaplanıyor...";
+            this.lblCflText.Dock = DockStyle.Fill;
+            this.lblCflText.Font = new Font("Consolas", 9.5F, FontStyle.Bold);
+            this.lblCflText.ForeColor = Color.FromArgb(52, 211, 153);
+            this.lblCflText.TextAlign = ContentAlignment.MiddleLeft;
+
+            this.pnlCflBar.Controls.Add(this.lblCflText);
+            this.pnlCflBar.Controls.Add(this.lblCflIcon);
 
             this.pnlControls.Controls.Add(this.pnlPresets);
             this.pnlControls.Controls.Add(this.lblPdeType);
@@ -250,54 +303,206 @@ namespace MathApp.Controls
             this.pnlControls.Controls.Add(this.txtBcLeft);
             this.pnlControls.Controls.Add(this.txtBcRight);
             this.pnlControls.Controls.Add(this.btnSolve);
-            this.pnlControls.Controls.Add(this.btnCopy);
+            this.pnlControls.Controls.Add(this.pnlCflBar);
 
-            // pnlCardResult
-            this.pnlCardResult.Dock = DockStyle.Top;
-            this.pnlCardResult.Height = 65;
-            this.pnlCardResult.BackColor = ThemeHelper.CardBackground;
-            this.pnlCardResult.Padding = new Padding(20, 8, 20, 8);
+            // ================== TABBED VISUALS ==================
+            this.tabPdeVisual.Dock = DockStyle.Fill;
+            this.tabPdeVisual.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            this.tabPdeVisual.Padding = new Point(12, 4);
 
-            this.lblStability.Dock = DockStyle.Top;
-            this.lblStability.Height = 26;
-            this.lblStability.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold);
-            this.lblStability.ForeColor = Color.FromArgb(52, 211, 153);
-            this.lblStability.Text = "Kararlılık & Yöntem: Bekleniyor";
+            // Tab 1: Heatmap
+            this.tabHeatmap.Text = "Mekan-Zaman Isı Haritası (Heatmap)";
+            this.tabHeatmap.BackColor = Color.FromArgb(15, 23, 42);
+            this.tabHeatmap.Padding = new Padding(8);
 
-            this.lblDetails.Dock = DockStyle.Bottom;
-            this.lblDetails.Height = 20;
-            this.lblDetails.Font = new Font("Segoe UI", 9F);
-            this.lblDetails.ForeColor = ThemeHelper.MutedText;
-            this.lblDetails.Text = "PDE çözümü bekleniyor.";
+            this.pnlHeatmapHeader.Dock = DockStyle.Top;
+            this.pnlHeatmapHeader.Height = 32;
+            this.pnlHeatmapHeader.BackColor = Color.FromArgb(24, 33, 52);
 
-            this.pnlCardResult.Controls.Add(this.lblDetails);
-            this.pnlCardResult.Controls.Add(this.lblStability);
+            this.lblHeatmapTitle.Text = "🗺️ 2B Mekan-Zaman Dağılımı u(x, t):";
+            this.lblHeatmapTitle.Dock = DockStyle.Left;
+            this.lblHeatmapTitle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            this.lblHeatmapTitle.ForeColor = Color.FromArgb(56, 189, 248);
+            this.lblHeatmapTitle.TextAlign = ContentAlignment.MiddleLeft;
+            this.lblHeatmapTitle.Padding = new Padding(8, 0, 0, 0);
 
-            // txtOutput
+            this.lblColorbarLegend.Text = "Mavi (Min) ── Yeşil ── Sarı ── Kırmızı (Maks)";
+            this.lblColorbarLegend.Dock = DockStyle.Left;
+            this.lblColorbarLegend.Font = new Font("Segoe UI", 8F);
+            this.lblColorbarLegend.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblColorbarLegend.TextAlign = ContentAlignment.MiddleLeft;
+            this.lblColorbarLegend.Padding = new Padding(20, 0, 0, 0);
+
+            this.btnExportHeatmapPng.Text = "📷 PNG Kaydet";
+            this.btnExportHeatmapPng.Dock = DockStyle.Right;
+            this.btnExportHeatmapPng.Width = 100;
+            this.btnExportHeatmapPng.FlatStyle = FlatStyle.Flat;
+            this.btnExportHeatmapPng.BackColor = Color.FromArgb(33, 44, 70);
+            this.btnExportHeatmapPng.ForeColor = Color.FromArgb(186, 230, 253);
+            this.btnExportHeatmapPng.Font = new Font("Segoe UI", 8F);
+            this.btnExportHeatmapPng.FlatAppearance.BorderSize = 0;
+            this.btnExportHeatmapPng.Cursor = Cursors.Hand;
+
+            this.pnlHeatmapHeader.Controls.Add(this.lblColorbarLegend);
+            this.pnlHeatmapHeader.Controls.Add(this.lblHeatmapTitle);
+            this.pnlHeatmapHeader.Controls.Add(this.btnExportHeatmapPng);
+
+            this.pnlHeatmapCanvas.Dock = DockStyle.Fill;
+            this.pnlHeatmapCanvas.BackColor = Color.FromArgb(11, 15, 28);
+            this.pnlHeatmapCanvas.DoubleBuffered(true);
+
+            this.tabHeatmap.Controls.Add(this.pnlHeatmapCanvas);
+            this.tabHeatmap.Controls.Add(this.pnlHeatmapHeader);
+
+            // Tab 2: Animation & Time Slider
+            this.tabAnimation.Text = "Canlı Dalga & Isı Animasyonu";
+            this.tabAnimation.BackColor = Color.FromArgb(15, 23, 42);
+            this.tabAnimation.Padding = new Padding(8);
+
+            this.pnlAnimToolbar.Dock = DockStyle.Top;
+            this.pnlAnimToolbar.Height = 44;
+            this.pnlAnimToolbar.BackColor = Color.FromArgb(24, 33, 52);
+            this.pnlAnimToolbar.Padding = new Padding(8, 6, 8, 6);
+
+            this.btnPlayPause.Text = "▶ Oynat";
+            this.btnPlayPause.Dock = DockStyle.Left;
+            this.btnPlayPause.Width = 80;
+            this.btnPlayPause.FlatStyle = FlatStyle.Flat;
+            this.btnPlayPause.BackColor = Color.FromArgb(16, 185, 129);
+            this.btnPlayPause.ForeColor = Color.White;
+            this.btnPlayPause.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+            this.btnPlayPause.FlatAppearance.BorderSize = 0;
+            this.btnPlayPause.Cursor = Cursors.Hand;
+
+            this.lblCurrentTime.Text = "t = 0.000 s (Adım: 0 / 0)";
+            this.lblCurrentTime.Dock = DockStyle.Left;
+            this.lblCurrentTime.Width = 190;
+            this.lblCurrentTime.Font = new Font("Consolas", 9.5F, FontStyle.Bold);
+            this.lblCurrentTime.ForeColor = Color.FromArgb(56, 189, 248);
+            this.lblCurrentTime.TextAlign = ContentAlignment.MiddleCenter;
+
+            this.lblAnimSpeed.Text = "Hız:";
+            this.lblAnimSpeed.Dock = DockStyle.Right;
+            this.lblAnimSpeed.Width = 32;
+            this.lblAnimSpeed.Font = new Font("Segoe UI", 8.5F);
+            this.lblAnimSpeed.ForeColor = ThemeHelper.LightText;
+            this.lblAnimSpeed.TextAlign = ContentAlignment.MiddleRight;
+
+            this.cmbAnimSpeed.Dock = DockStyle.Right;
+            this.cmbAnimSpeed.Width = 65;
+            this.cmbAnimSpeed.DropDownStyle = ComboBoxStyle.DropDownList;
+            this.cmbAnimSpeed.BackColor = Color.FromArgb(15, 23, 42);
+            this.cmbAnimSpeed.ForeColor = Color.White;
+            this.cmbAnimSpeed.Items.AddRange(new object[] { "1x", "2x", "5x" });
+            this.cmbAnimSpeed.SelectedIndex = 0;
+
+            this.trkTimeStep.Dock = DockStyle.Fill;
+            this.trkTimeStep.Minimum = 0;
+            this.trkTimeStep.Maximum = 100;
+            this.trkTimeStep.Value = 0;
+            this.trkTimeStep.TickStyle = TickStyle.None;
+
+            this.pnlAnimToolbar.Controls.Add(this.trkTimeStep);
+            this.pnlAnimToolbar.Controls.Add(this.lblAnimSpeed);
+            this.pnlAnimToolbar.Controls.Add(this.cmbAnimSpeed);
+            this.pnlAnimToolbar.Controls.Add(this.lblCurrentTime);
+            this.pnlAnimToolbar.Controls.Add(this.btnPlayPause);
+
+            this.pnlAnimCanvas.Dock = DockStyle.Fill;
+            this.pnlAnimCanvas.BackColor = Color.FromArgb(11, 15, 28);
+            this.pnlAnimCanvas.DoubleBuffered(true);
+
+            this.tabAnimation.Controls.Add(this.pnlAnimCanvas);
+            this.tabAnimation.Controls.Add(this.pnlAnimToolbar);
+
+            // Tab 3: Snapshots
+            this.tabSnapshots.Text = "Zaman Kesitleri Tablosu";
+            this.tabSnapshots.BackColor = Color.FromArgb(24, 33, 52);
+            this.tabSnapshots.Padding = new Padding(6);
+
+            this.pnlSnapToolbar.Dock = DockStyle.Top;
+            this.pnlSnapToolbar.Height = 32;
+            this.pnlSnapToolbar.BackColor = Color.FromArgb(24, 33, 52);
+
+            this.btnCopyPdeTsv.Dock = DockStyle.Right;
+            this.btnCopyPdeTsv.Height = 28;
+            this.pnlSnapToolbar.Controls.Add(this.btnCopyPdeTsv);
+
+            SetupGrid(this.dgvSnapshots);
+            this.tabSnapshots.Controls.Add(this.dgvSnapshots);
+            this.tabSnapshots.Controls.Add(this.pnlSnapToolbar);
+
+            // Tab 4: Text Report
+            this.tabTextReport.Text = "Rapor & Konsol";
+            this.tabTextReport.BackColor = Color.FromArgb(24, 33, 52);
+            this.tabTextReport.Padding = new Padding(6);
+
             this.txtOutput.Dock = DockStyle.Fill;
-            this.txtOutput.BackColor = Color.FromArgb(11, 17, 32);
+            this.txtOutput.BackColor = Color.FromArgb(11, 15, 28);
             this.txtOutput.ForeColor = Color.FromArgb(226, 232, 240);
             this.txtOutput.Font = new Font("Consolas", 9.5F);
             this.txtOutput.BorderStyle = BorderStyle.None;
             this.txtOutput.ReadOnly = true;
 
-            // Assemble PdeSolverControl
+            this.tabTextReport.Controls.Add(this.txtOutput);
+
+            this.tabPdeVisual.TabPages.Add(this.tabHeatmap);
+            this.tabPdeVisual.TabPages.Add(this.tabAnimation);
+            this.tabPdeVisual.TabPages.Add(this.tabSnapshots);
+            this.tabPdeVisual.TabPages.Add(this.tabTextReport);
+
+            // Assemble
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.BackColor = ThemeHelper.DarkBackground;
-            this.Controls.Add(this.txtOutput);
-            this.Controls.Add(this.pnlCardResult);
+            this.Controls.Add(this.tabPdeVisual);
             this.Controls.Add(this.pnlControls);
             this.Controls.Add(this.pnlHeader);
             this.Name = "PdeSolverControl";
-            this.Size = new Size(960, 680);
+            this.Size = new Size(950, 700);
 
             this.pnlControls.ResumeLayout(false);
             this.pnlControls.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numNx)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numNt)).EndInit();
-            this.pnlCardResult.ResumeLayout(false);
+            this.pnlCflBar.ResumeLayout(false);
+            this.tabPdeVisual.ResumeLayout(false);
+            this.tabHeatmap.ResumeLayout(false);
+            this.pnlHeatmapHeader.ResumeLayout(false);
+            this.tabAnimation.ResumeLayout(false);
+            this.pnlAnimToolbar.ResumeLayout(false);
+            this.pnlAnimToolbar.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.trkTimeStep)).EndInit();
+            this.tabSnapshots.ResumeLayout(false);
+            this.pnlSnapToolbar.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dgvSnapshots)).EndInit();
+            this.tabTextReport.ResumeLayout(false);
             this.ResumeLayout(false);
+        }
+
+        private void SetupGrid(DataGridView dgv)
+        {
+            dgv.Dock = DockStyle.Fill;
+            dgv.BackgroundColor = Color.FromArgb(15, 23, 42);
+            dgv.BorderStyle = BorderStyle.None;
+            dgv.EnableHeadersVisualStyles = false;
+            dgv.AllowUserToAddRows = false;
+            dgv.AllowUserToDeleteRows = false;
+            dgv.AllowUserToResizeRows = false;
+            dgv.RowHeadersVisible = false;
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(24, 33, 52);
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+            dgv.ColumnHeadersHeight = 24;
+            dgv.DefaultCellStyle.BackColor = Color.FromArgb(20, 28, 48);
+            dgv.DefaultCellStyle.ForeColor = Color.White;
+            dgv.DefaultCellStyle.Font = new Font("Consolas", 9.5F);
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(37, 99, 235);
+            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgv.GridColor = Color.FromArgb(40, 50, 75);
+            dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.ReadOnly = true;
         }
 
         private Panel pnlHeader;
@@ -308,6 +513,7 @@ namespace MathApp.Controls
         private Button btnExWave;
         private Button btnExAdvect;
         private Button btnExGauss;
+
         private Label lblPdeType;
         private ComboBox cmbPdeType;
         private Label lblInitU;
@@ -328,10 +534,34 @@ namespace MathApp.Controls
         private TextBox txtBcLeft;
         private TextBox txtBcRight;
         private Button btnSolve;
-        private Button btnCopy;
-        private Panel pnlCardResult;
-        private Label lblStability;
-        private Label lblDetails;
+
+        private Panel pnlCflBar;
+        private Label lblCflIcon;
+        private Label lblCflText;
+
+        private TabControl tabPdeVisual;
+        private TabPage tabHeatmap;
+        private Panel pnlHeatmapHeader;
+        private Label lblHeatmapTitle;
+        private Label lblColorbarLegend;
+        private Button btnExportHeatmapPng;
+        private Panel pnlHeatmapCanvas;
+
+        private TabPage tabAnimation;
+        private Panel pnlAnimToolbar;
+        private Button btnPlayPause;
+        private Label lblCurrentTime;
+        private TrackBar trkTimeStep;
+        private Label lblAnimSpeed;
+        private ComboBox cmbAnimSpeed;
+        private Panel pnlAnimCanvas;
+
+        private TabPage tabSnapshots;
+        private Panel pnlSnapToolbar;
+        private Button btnCopyPdeTsv;
+        private DataGridView dgvSnapshots;
+
+        private TabPage tabTextReport;
         private RichTextBox txtOutput;
     }
 }
