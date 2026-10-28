@@ -25,6 +25,8 @@ namespace MathApp
             this.pnlLogo = new Panel();
             this.lblLogo = new Label();
             this.lblLogoSub = new Label();
+            this.pnlSearch = new Panel();
+            this.txtSearchNav = new TextBox();
             this.lblVersion = new Label();
 
             this.lblCat1 = new Label();
@@ -51,28 +53,29 @@ namespace MathApp
             this.pnlSidebar.SuspendLayout();
             this.pnlNavButtons.SuspendLayout();
             this.pnlLogo.SuspendLayout();
+            this.pnlSearch.SuspendLayout();
             this.SuspendLayout();
 
             // pnlSidebar (Left Navigation Bar)
             this.pnlSidebar.BackColor = ThemeHelper.SidebarBackground;
             this.pnlSidebar.Dock = DockStyle.Left;
-            this.pnlSidebar.Width = 255;
+            this.pnlSidebar.Width = 265;
             this.pnlSidebar.Padding = new Padding(8, 0, 8, 8);
 
             // pnlLogo
             this.pnlLogo.Dock = DockStyle.Top;
-            this.pnlLogo.Height = 80;
-            this.pnlLogo.Padding = new Padding(10, 12, 10, 6);
+            this.pnlLogo.Height = 72;
+            this.pnlLogo.Padding = new Padding(12, 12, 12, 4);
 
             this.lblLogo.Dock = DockStyle.Top;
             this.lblLogo.Height = 32;
-            this.lblLogo.Font = new Font("Segoe UI Semibold", 16F, FontStyle.Bold);
+            this.lblLogo.Font = new Font("Segoe UI Semibold", 15.5F, FontStyle.Bold);
             this.lblLogo.ForeColor = Color.FromArgb(56, 189, 248);
             this.lblLogo.Text = "ƒ(x) ttCalculator";
             this.lblLogo.TextAlign = ContentAlignment.MiddleLeft;
 
             this.lblLogoSub.Dock = DockStyle.Top;
-            this.lblLogoSub.Height = 20;
+            this.lblLogoSub.Height = 18;
             this.lblLogoSub.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
             this.lblLogoSub.ForeColor = ThemeHelper.MutedText;
             this.lblLogoSub.Text = "Nümerik Matematik Stüdyosu";
@@ -80,6 +83,20 @@ namespace MathApp
 
             this.pnlLogo.Controls.Add(this.lblLogoSub);
             this.pnlLogo.Controls.Add(this.lblLogo);
+
+            // pnlSearch (Module Quick Filter)
+            this.pnlSearch.Dock = DockStyle.Top;
+            this.pnlSearch.Height = 38;
+            this.pnlSearch.Padding = new Padding(10, 4, 10, 6);
+
+            this.txtSearchNav.Dock = DockStyle.Fill;
+            this.txtSearchNav.BackColor = Color.FromArgb(20, 28, 45);
+            this.txtSearchNav.ForeColor = Color.FromArgb(203, 213, 225);
+            this.txtSearchNav.Font = new Font("Segoe UI", 9F);
+            this.txtSearchNav.BorderStyle = BorderStyle.FixedSingle;
+            this.txtSearchNav.Text = "🔍 Modül ara (Ctrl+F)...";
+
+            this.pnlSearch.Controls.Add(this.txtSearchNav);
 
             // pnlNavButtons container with autoscroll support
             this.pnlNavButtons.Dock = DockStyle.Fill;
@@ -90,7 +107,7 @@ namespace MathApp
                 lbl.Dock = DockStyle.Top;
                 lbl.Height = 28;
                 lbl.Text = text;
-                lbl.Font = new Font("Segoe UI Semibold", 8F, FontStyle.Bold);
+                lbl.Font = new Font("Segoe UI Semibold", 7.8F, FontStyle.Bold);
                 lbl.ForeColor = Color.FromArgb(100, 116, 139);
                 lbl.TextAlign = ContentAlignment.BottomLeft;
                 lbl.Padding = new Padding(12, 0, 0, 4);
@@ -101,11 +118,11 @@ namespace MathApp
                 btn.Dock = DockStyle.Top;
                 btn.FlatStyle = FlatStyle.Flat;
                 btn.FlatAppearance.BorderSize = 0;
-                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59);
+                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(24, 33, 52);
                 btn.FlatAppearance.MouseDownBackColor = ThemeHelper.AccentBlue;
                 btn.Font = new Font("Segoe UI", 9.2F, FontStyle.Regular);
                 btn.ForeColor = Color.FromArgb(203, 213, 225);
-                btn.Size = new Size(239, 36);
+                btn.Size = new Size(249, 36);
                 btn.TabIndex = index + 1;
                 btn.Text = text;
                 btn.TextAlign = ContentAlignment.MiddleLeft;
@@ -138,8 +155,8 @@ namespace MathApp
 
             // Footer version label
             this.lblVersion.Dock = DockStyle.Bottom;
-            this.lblVersion.Height = 26;
-            this.lblVersion.Text = "v2.4 • 128-bit Decimal Motoru";
+            this.lblVersion.Height = 28;
+            this.lblVersion.Text = "v2.5 • 128-bit Decimal Motoru • 60 FPS";
             this.lblVersion.Font = new Font("Segoe UI", 8F);
             this.lblVersion.ForeColor = Color.FromArgb(100, 116, 139);
             this.lblVersion.TextAlign = ContentAlignment.MiddleCenter;
@@ -172,6 +189,7 @@ namespace MathApp
 
             // Assemble pnlSidebar
             this.pnlSidebar.Controls.Add(this.pnlNavButtons);
+            this.pnlSidebar.Controls.Add(this.pnlSearch);
             this.pnlSidebar.Controls.Add(this.pnlLogo);
             this.pnlSidebar.Controls.Add(this.lblVersion);
 
@@ -182,9 +200,10 @@ namespace MathApp
             // MainForm
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1220, 750);
-            this.MinimumSize = new Size(1060, 680);
+            this.ClientSize = new Size(1260, 780);
+            this.MinimumSize = new Size(1080, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.KeyPreview = true;
             this.Controls.Add(this.pnlContent);
             this.Controls.Add(this.pnlSidebar);
             this.Name = "MainForm";
@@ -193,6 +212,8 @@ namespace MathApp
             this.pnlSidebar.ResumeLayout(false);
             this.pnlNavButtons.ResumeLayout(false);
             this.pnlLogo.ResumeLayout(false);
+            this.pnlSearch.ResumeLayout(false);
+            this.pnlSearch.PerformLayout();
             this.ResumeLayout(false);
         }
 
@@ -202,6 +223,8 @@ namespace MathApp
         private Panel pnlLogo;
         private Label lblLogo;
         private Label lblLogoSub;
+        private Panel pnlSearch;
+        private TextBox txtSearchNav;
         private Label lblVersion;
 
         private Label lblCat1;

@@ -234,6 +234,7 @@ namespace MathApp.Controls
                 int steps = (int)numSteps.Value;
                 string method = cmbMethod.SelectedItem?.ToString() ?? "RK4";
 
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var results = await Task.Run(() =>
                 {
                     return DifferentialEquations.SolveOdeSystem(
@@ -247,6 +248,7 @@ namespace MathApp.Controls
                         "t"
                     );
                 });
+                sw.Stop();
 
                 if (results.Count == 0)
                 {
@@ -268,7 +270,7 @@ namespace MathApp.Controls
                 lblFinalValue.Text = sbFinal.ToString();
 
                 decimal dt = (tEnd - t0) / steps;
-                lblFinalDetails.Text = $"Yöntem: {method} | Adım Aralığı (h): {dt:F6} | Toplam Nokta: {results.Count}";
+                lblFinalDetails.Text = $"Yöntem: {method} | Adım Aralığı (h): {dt:F6} | Toplam Nokta: {results.Count} | ⏱️ {sw.ElapsedMilliseconds} ms";
 
                 // Build Table
                 StringBuilder sbOut = new StringBuilder();

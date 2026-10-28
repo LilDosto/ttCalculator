@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using MathApp.Controls;
 
@@ -23,6 +24,8 @@ namespace MathApp
         private PdeSystemSolverControl pdeSystemControl;
 
         private UserControl[] allControls;
+        private Button[] allNavButtons;
+        private Button activeNavButton;
 
         protected override CreateParams CreateParams
         {
@@ -30,7 +33,7 @@ namespace MathApp
             {
                 CreateParams cp = base.CreateParams;
                 // WS_EX_COMPOSITED (0x02000000) paints all descendants in bottom-to-top order using double-buffering.
-                // Eliminates window tearing and redraw flicker.
+                // Eliminates window tearing and redraw flicker completely.
                 cp.ExStyle |= 0x02000000;
                 return cp;
             }
@@ -44,6 +47,8 @@ namespace MathApp
 
             ThemeHelper.ApplyTheme(this);
             InitializeControls();
+            SetupSearchFilter();
+            SetupHotkeys();
 
             // Default View
             ShowControl(calcControl);
@@ -114,8 +119,38 @@ namespace MathApp
                 pdeSystemControl
             };
 
+            allNavButtons = new Button[] {
+                btnNavCalc,
+                btnNavGraph,
+                btnNavCombinatorics,
+                btnNavRoot,
+                btnNavSystem,
+                btnNavDerivative,
+                btnNavMatrix,
+                btnNavTaylor,
+                btnNavMultiTaylor,
+                btnNavOde,
+                btnNavOdeSystem,
+                btnNavPde,
+                btnNavPdeSystem
+            };
+
+            // Custom paint active indicator bar on navigation buttons
+            foreach (var btn in allNavButtons)
+            {
+                btn.Paint += (s, pe) =>
+                {
+                    if (s == activeNavButton)
+                    {
+                        using (Brush barBrush = new SolidBrush(ThemeHelper.AccentBlue))
+                        {
+                            pe.Graphics.FillRectangle(barBrush, 0, 4, 4, btn.Height - 8);
+                        }
+                    }
+                };
+            }
+
             pnlContent.SuspendLayout();
-            // Pre-add all controls once to avoid Win32 HWND re-creation and flickering on tab switch
             pnlContent.Controls.AddRange(allControls);
             foreach (var ctrl in allControls)
             {
@@ -123,6 +158,79 @@ namespace MathApp
                 ThemeHelper.EnableDoubleBuffering(ctrl);
             }
             pnlContent.ResumeLayout(false);
+        }
+
+        private void SetupSearchFilter()
+        {
+            string placeholder = "🔍 Modül ara (Ctrl+F)...";
+            txtSearchNav.GotFocus += (s, e) =>
+            {
+                if (txtSearchNav.Text == placeholder)
+                {
+                    txtSearchNav.Text = "";
+                    txtSearchNav.ForeColor = Color.White;
+                }
+            };
+
+            txtSearchNav.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtSearchNav.Text))
+                {
+                    txtSearchNav.Text = placeholder;
+                    txtSearchNav.ForeColor = Color.FromArgb(148, 163, 184);
+                }
+            };
+
+            txtSearchNav.TextChanged += (s, e) =>
+            {
+                string query = txtSearchNav.Text.Trim();
+                if (query == placeholder) return;
+
+                bool empty = string.IsNullOrWhiteSpace(query);
+                foreach (var btn in allNavButtons)
+                {
+                    if (empty)
+                    {
+                        btn.Visible = true;
+                    }
+                    else
+                    {
+                        btn.Visible = btn.Text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+                    }
+                }
+            };
+
+            txtSearchNav.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    var firstMatch = allNavButtons.FirstOrDefault(b => b.Visible);
+                    firstMatch?.PerformClick();
+                }
+            };
+        }
+
+        private void SetupHotkeys()
+        {
+            this.KeyDown += (s, e) =>
+            {
+                if (e.Control && e.KeyCode == Keys.F)
+                {
+                    txtSearchNav.Focus();
+                    txtSearchNav.SelectAll();
+                    e.SuppressKeyPress = true;
+                }
+                else if (e.Control && e.KeyCode == Keys.D1) { btnNavCalc.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D2) { btnNavGraph.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D3) { btnNavCombinatorics.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D4) { btnNavRoot.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D5) { btnNavSystem.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D6) { btnNavDerivative.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D7) { btnNavMatrix.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D8) { btnNavTaylor.PerformClick(); e.SuppressKeyPress = true; }
+                else if (e.Control && e.KeyCode == Keys.D9) { btnNavOde.PerformClick(); e.SuppressKeyPress = true; }
+            };
         }
 
         private void ShowControl(UserControl control)
@@ -148,40 +256,26 @@ namespace MathApp
 
         private void HighlightButton(Button activeBtn)
         {
-            Color activeColor = ThemeHelper.AccentBlue;
-            Color idleColor = ThemeHelper.SidebarBackground;
+            activeNavButton = activeBtn;
+            Color activeBg = Color.FromArgb(24, 33, 52);
+            Color idleBg = ThemeHelper.SidebarBackground;
 
-            Button[] allButtons = {
-                btnNavCalc,
-                btnNavRoot,
-                btnNavSystem,
-                btnNavMatrix,
-                btnNavDerivative,
-                btnNavTaylor,
-                btnNavMultiTaylor,
-                btnNavCombinatorics,
-                btnNavGraph,
-                btnNavOde,
-                btnNavOdeSystem,
-                btnNavPde,
-                btnNavPdeSystem
-            };
-
-            foreach (var btn in allButtons)
+            foreach (var btn in allNavButtons)
             {
                 if (btn == null) continue;
                 if (btn == activeBtn)
                 {
-                    btn.BackColor = activeColor;
-                    btn.ForeColor = Color.White;
-                    btn.Font = new Font(btn.Font, FontStyle.Bold);
+                    btn.BackColor = activeBg;
+                    btn.ForeColor = Color.FromArgb(56, 189, 248);
+                    btn.Font = new Font("Segoe UI Semibold", 9.2F, FontStyle.Bold);
                 }
                 else
                 {
-                    btn.BackColor = idleColor;
+                    btn.BackColor = idleBg;
                     btn.ForeColor = Color.FromArgb(203, 213, 225);
-                    btn.Font = new Font(btn.Font, FontStyle.Regular);
+                    btn.Font = new Font("Segoe UI", 9.2F, FontStyle.Regular);
                 }
+                btn.Invalidate();
             }
         }
     }

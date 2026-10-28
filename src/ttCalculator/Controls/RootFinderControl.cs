@@ -139,6 +139,7 @@ namespace MathApp.Controls
                     decimal minX = ParseDecimal(minXText, "Arama Alt Sınırı (a)");
                     decimal maxX = ParseDecimal(maxXText, "Arama Üst Sınırı (b)");
 
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
                     var allRoots = await Task.Run(() =>
                     {
                         bool prevRad = Function.UseRadians;
@@ -152,13 +153,14 @@ namespace MathApp.Controls
                             Function.UseRadians = prevRad;
                         }
                     });
+                    sw.Stop();
 
                     if (allRoots.Count == 0)
                     {
                         txtResult.Text = $"[{minX}, {maxX}] aralığında kök bulunamadı.";
                         lblRootValue.Text = "Kök Bulunamadı";
                         lblRootValue.ForeColor = Color.FromArgb(239, 68, 68);
-                        lblRootDetails.Text = $"[{minX}, {maxX}] aralığında f({variable}) = 0 sağlayan kök bulunamadı.";
+                        lblRootDetails.Text = $"[{minX}, {maxX}] aralığında f({variable}) = 0 sağlayan kök bulunamadı. (⏱️ {sw.ElapsedMilliseconds} ms)";
                     }
                     else
                     {
@@ -167,7 +169,7 @@ namespace MathApp.Controls
                             $"=== [{minX}, {maxX}] ARALIĞINDA BULUNAN TÜM KÖKLER ===",
                             $"Denklem           : f({variable}) = {eq}",
                             $"Tarama Aralığı    : [{minX}, {maxX}]",
-                            $"Bulunan Kök Sayısı: {allRoots.Count} adet",
+                            $"Bulunan Kök Sayısı: {allRoots.Count} adet | ⏱️ {sw.ElapsedMilliseconds} ms",
                             new string('-', 55)
                         };
 
@@ -185,7 +187,7 @@ namespace MathApp.Controls
 
                         lblRootValue.Text = heroText;
                         lblRootValue.ForeColor = Color.FromArgb(52, 211, 153);
-                        lblRootDetails.Text = $"🎯 [{minX}, {maxX}] aralığında toplam {allRoots.Count} adet reel kök başarıyla bulundu.";
+                        lblRootDetails.Text = $"🎯 [{minX}, {maxX}] aralığında {allRoots.Count} kök bulundu | ⏱️ {sw.ElapsedMilliseconds} ms";
                     }
                     return;
                 }

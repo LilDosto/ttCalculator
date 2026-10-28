@@ -114,6 +114,7 @@ namespace MathApp.Controls
                 int nx = (int)numNx.Value;
                 int nt = (int)numNt.Value;
 
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var grid = await Task.Run(() =>
                 {
                     return DifferentialEquations.SolveCoupledPdeSystem(
@@ -129,11 +130,12 @@ namespace MathApp.Controls
                         dv
                     );
                 });
+                sw.Stop();
 
                 lblSummary.Text = grid.SystemInfo;
                 decimal dx = lengthL / (nx - 1);
                 decimal dt = totalTimeT / (nt - 1);
-                lblDetails.Text = $"Izgara: {nx} mekan × {nt} zaman | Boyut: x ∈ [0, {lengthL}], t ∈ [0, {totalTimeT}] | Sıfır-Akı (Neumann) Sınırları";
+                lblDetails.Text = $"Izgara: {nx} mekan × {nt} zaman | Boyut: x ∈ [0, {lengthL}], t ∈ [0, {totalTimeT}] | Sıfır-Akı (Neumann) | ⏱️ {sw.ElapsedMilliseconds} ms";
 
                 // Format Table
                 StringBuilder sb = new StringBuilder();

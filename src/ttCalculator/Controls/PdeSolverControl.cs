@@ -136,6 +136,7 @@ namespace MathApp.Controls
                 if (!decimal.TryParse(txtBcRight.Text.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal bcRight))
                     bcRight = 0m;
 
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 if (sel == 4)
                 {
                     // 2D Laplace
@@ -145,9 +146,10 @@ namespace MathApp.Controls
                     {
                         return DifferentialEquations.Solve2DLaplace(nx, nx, bcLeft, bcRight, topBc, bottomBc);
                     });
+                    sw.Stop();
 
                     lblStability.Text = $"2B Laplace Denklemi (SOR): {laplace.Iterations} iterasyonda yakınsadı (Kalıntı: {laplace.FinalResidual:G4})";
-                    lblDetails.Text = $"Izgara: {nx} × {nx} düğüm | Sınırlar: Sol={bcLeft}, Sağ={bcRight}, Üst={topBc}, Alt={bottomBc}";
+                    lblDetails.Text = $"Izgara: {nx} × {nx} düğüm | Sınırlar: Sol={bcLeft}, Sağ={bcRight}, Üst={topBc}, Alt={bottomBc} | ⏱️ {sw.ElapsedMilliseconds} ms";
 
                     StringBuilder sbL = new StringBuilder();
                     sbL.AppendLine("==========================================================================================");
@@ -206,11 +208,12 @@ namespace MathApp.Controls
                         initVel
                     );
                 });
+                sw.Stop();
 
                 lblStability.Text = grid.StabilityNote;
                 decimal dx = lengthL / (nx - 1);
                 decimal dt = totalTimeT / (nt - 1);
-                lblDetails.Text = $"Izgara: {nx} mekan × {nt} zaman noktası | Δx = {dx:F4}, Δt = {dt:F6} | x ∈ [0, {lengthL}], t ∈ [0, {totalTimeT}]";
+                lblDetails.Text = $"Izgara: {nx} mekan × {nt} zaman noktası | Δx = {dx:F4}, Δt = {dt:F6} | x ∈ [0, {lengthL}], t ∈ [0, {totalTimeT}] | ⏱️ {sw.ElapsedMilliseconds} ms";
 
                 // Format Table of Time Slices
                 StringBuilder sb = new StringBuilder();

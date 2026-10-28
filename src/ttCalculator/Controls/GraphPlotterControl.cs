@@ -111,6 +111,7 @@ namespace MathApp.Controls
                 new object[] { true });
 
             SetupEvents();
+            ThemeHelper.StyleModernTabControl(tabManager);
 
             // Default preset
             AddFunctionCurve("sin(x)", false, -10f, 10f);
@@ -896,15 +897,18 @@ namespace MathApp.Controls
                             }
                         }
 
-                        string coordInfo = $"x = {logX:F3}  |  f(x) = {logY:F4}  ({activeCurve.Equation})";
+                        decimal dfxDec = EvalDeriv(activeCurve.Compiled, (decimal)logX);
+                        string coordInfo = $"x = {logX:F3}  |  f(x) = {logY:F4}  |  f'(x) = {dfxDec:F4}  ({activeCurve.Equation})";
                         using (Font hudFont = new Font("Consolas", 9F, FontStyle.Bold))
                         using (Brush hudBg = new SolidBrush(Color.FromArgb(220, 15, 23, 42)))
+                        using (Pen hudBorder = new Pen(Color.FromArgb(56, 189, 248), 1.2f))
                         using (Brush hudFg = new SolidBrush(Color.FromArgb(186, 230, 253)))
                         {
                             SizeF sz = g.MeasureString(coordInfo, hudFont);
-                            RectangleF rect = new RectangleF(16, 12, sz.Width + 12, sz.Height + 8);
+                            RectangleF rect = new RectangleF(16, 12, sz.Width + 14, sz.Height + 8);
                             g.FillRectangle(hudBg, rect);
-                            g.DrawString(coordInfo, hudFont, hudFg, rect.X + 6, rect.Y + 4);
+                            g.DrawRectangle(hudBorder, rect.X, rect.Y, rect.Width, rect.Height);
+                            g.DrawString(coordInfo, hudFont, hudFg, rect.X + 7, rect.Y + 4);
                         }
                     }
                     catch { }

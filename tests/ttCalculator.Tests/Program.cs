@@ -10,7 +10,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("========================================");
-            Console.WriteLine("ttCalculator v2.4 Algorithm Verification");
+            Console.WriteLine("ttCalculator v2.5 Algorithm Verification");
             Console.WriteLine("========================================");
 
             int passed = 0;

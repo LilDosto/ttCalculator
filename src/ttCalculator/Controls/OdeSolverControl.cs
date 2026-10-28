@@ -85,6 +85,7 @@ namespace MathApp.Controls
                 int steps = (int)numSteps.Value;
                 string method = cmbMethod.SelectedItem?.ToString() ?? "RK4";
 
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var results = await Task.Run(() =>
                 {
                     bool prevRad = Function.UseRadians;
@@ -98,6 +99,7 @@ namespace MathApp.Controls
                         Function.UseRadians = prevRad;
                     }
                 });
+                sw.Stop();
 
                 if (results != null && results.Count > 0)
                 {
@@ -107,7 +109,7 @@ namespace MathApp.Controls
 
                     lblFinalValue.Text = $"y({lastXStr}) ≈ {lastYStr}";
                     lblFinalValue.ForeColor = Color.FromArgb(52, 211, 153);
-                    lblFinalDetails.Text = $"✅ {method} ile {steps} adımda h = {((xEnd - x0) / steps).ToString("0.######", CultureInfo.InvariantCulture)} adım boyutuyla başarıyla çözüldü.";
+                    lblFinalDetails.Text = $"✅ {method} ile {steps} adımda (h = {((xEnd - x0) / steps).ToString("0.######", CultureInfo.InvariantCulture)}) | ⏱️ {sw.ElapsedMilliseconds} ms";
 
                     StringBuilder sb = new StringBuilder();
                     sb.AppendLine("=== DİFERANSİYEL DENKLEM NÜMERİK ÇÖZÜM TABLOSU ===");
