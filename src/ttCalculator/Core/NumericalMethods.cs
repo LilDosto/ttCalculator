@@ -405,7 +405,7 @@ public class NumericalMethods
         }
     }
 
-    private static decimal ComputeMixedPartialDerivative(
+    public static decimal ComputeMixedPartialDerivative(
         Function f,
         List<string> varNames,
         int[] orders,

@@ -1,4 +1,4 @@
-# 📐 ttCalculator v3.4.0
+# 📐 ttCalculator v3.5.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,11 +13,11 @@ Tüm matematiksel çekirdek, otomatik test paketinden **%100 başarıyla (0 hata
 
 ## 🚀 Hızlı Başlangıç & Kurulum
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.4.0)** sayfasına gidin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v3.5.0)** sayfasına gidin.
 2. İhtiyacınıza göre indirin:
-   - **`ttCalculator-v3.4.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
+   - **`ttCalculator-v3.5.0-Setup.exe` (Önerilen)**: Standart Windows kurulum sihirbazı. Masaüstüne ve Başlat Menüsüne kısayol oluşturur, Denetim Masası / Program Ekle-Kaldır entegrasyonu sağlar.
    - **`ttCalculator.exe`**: Kurulumsuz doğrudan çalıştırılabilen tek dosya taşınabilir (portable) sürüm.
-   - **`ttCalculator-v3.4.0-win-x64.zip`**: Taşınabilir arşiv paketi.
+   - **`ttCalculator-v3.5.0-win-x64.zip`**: Taşınabilir arşiv paketi.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
@@ -116,22 +116,46 @@ Uygulama modern koyu tema (Dark Theme) arayüzü ile 13 ana modülden oluşmakta
 * **Grafik Stüdyosu Entegrasyonu:** `[📈 Kökü Grafikte Göster]` butonu ile kök noktasını ve fonksiyonu anında Grafik Çizici sekmesine aktarma.
 * **Nümerik Koruma:** $f'(x) \approx 0$ sıfıra bölme ve ıraksama (divergence) denetimleri.
 
-### 7. 📜 Taylor Serisi Açılımı (Kesirli & Faktöriyelli Form)
-* Tek ve çok değişkenli Taylor açılımlarında katsayılar hem ondalıklı, hem **sadeleştirilmiş kesirli formda**, hem de formülasyona tam uygun **analitik faktöriyelli formda** ($\frac{f^{(k)}(a)}{k!}$) gösterilir.
+### 7. 📜 Taylor Serisi Hesaplayıcı (Tek Değişkenli - v3.5)
+* **Gelişmiş Formül & Merkez Girişi:** $f(x)$ girdi kartı, Maclaurin ($a=0$) hızlı butonu, $n \in [1, 20]$ derece seçimi ve hızlı fonksiyon şablonları ($\sin, \cos, e^x, \ln(1+x), \frac{1}{1-x}, \arctan$).
+* **Vurgulu Polinom Kartı:** Büyük matematiksel $P_n(x)$ gösterimi, `[📈 Grafikte Göster]`, `[📋 Polinomu Kopyala]`, `[LaTeX Kopyala]` entegrasyonu.
+* **Mini 2D Yakınsama Önizleme Tuvali:** Gerçek fonksiyon $f(x)$ ile Taylor yaklaşımı $P_n(x)$'in merkez $a$ etrafındaki yakınsamasını gerçek zamanlı çizen çift tamponlu 2B kanvas.
+* **3 Sekmeli Analitik Sonuçlar:**
+  1. *Katsayılar & Türev Tablosu (DataGridView):* Her $k$ mertebesi için $f^{(k)}(x)$, $f^{(k)}(a)$, $k!$, kesirli ve ondalıklı $c_k$ katsayıları ve terimler.
+  2. *Hata Analizi & Lagrange Kalanı ($R_n(x)$):* Teorik formül ve test noktalarında ($a \pm 0.1, a \pm 0.5, a \pm 1, a \pm 2$) mutlak ve bağıl hata analizi tablosu.
+  3. *Detaylı Rapor:* Sadeleştirilmiş kesirli, faktöriyelli ve ondalıklı tam açılımlar.
 
-### 8. 🎲 Kombinatorik, Polar Dönüşüm ve Özel Fonksiyonlar (v3.4)
+### 8. 🌐 Çok Değişkenli Taylor Serisi & Teğet Düzlem Stüdyosu (v3.5)
+* **Kompakt Etiket/Chip Mimarisi:** $f(x_1, \dots, x_k)$ için dinamik değişken ve merkez noktası chip kartları (`[Var: x | x₀: 0 | ✕]`), `[+ Değişken Ekle]`, `[Tümü = 0]`.
+* **Katmanlı Analiz Blokları:**
+  - *Blok 1 (Doğrusal Yaklaşım $n=1$):* Teğet düzlem denklemi $L(x, y)$, $\nabla f(a)$ gradyan vektörü ve `[📋 Teğet Düzlemini Kopyala]`.
+  - *Blok 2 (Kuadratik Yaklaşım $n=2$):* Hessian matrisi $H(a)$, ikinci derece terimler $Q(x, y)$ ve 2 değişkenli ekstremum teşhisi ($\det(H) > 0 \implies$ min/max, $\det(H) < 0 \implies$ eyer noktası).
+  - *Blok 3 (Tam Polinom):* $T_n$ kesirli, faktöriyelli ve ondalıklı tam çok değişkenli açılım.
+* **Kısmi & Çapraz Türevler Tablosu (DataGridView):** Çoklu indeks $|\alpha|$, diferansiyel operatörleri, sayısal değerler, $\alpha!$ paydası ve katsayılar.
+
+### 9. 🎲 Kombinatorik, Polar Dönüşüm ve Özel Fonksiyonlar (v3.4)
 * **4 Kartlı Modern Mimari:** Ayrık Matematik ($n!, P, C$), Asenkron Dizi Üreteci (güvenlik koruması ve sayfalamalı gösterim), Vektörel Polar Dönüşüm (canlı vektör açısı ve büyüklük diyagramı) ve İleri Analitik Fonksiyonlar ($\sinh, \cosh, \tanh, \log_b$).
 * **Zengin Sekmeli Çıktı Alanı:** Özet Kartı, Pascal Üçgeni Piramidi, Sayfalamalı Kombinasyon Listesi, `[JSON İndir]` ve `[Kopyala]` araçları.
 
-### 9. 📐 Nümerik Türev, Kısmi Türev & Hessian Stüdyosu (v3.4)
+### 10. 📐 Nümerik Türev, Kısmi Türev & Hessian Stüdyosu (v3.4)
 * **Nümerik Ayar Çubuğu:** $h$ adım boyutu hızlı seçimleri (`1e-3`, `1e-5`, `1e-7`), Merkezi/İleri/Geri fark formülleri, $O(h^2), O(h^4), O(h^6)$ doğruluk derecesi.
 * **Tek Değişkenli Türev & Teğet Çizici:** $f^{(n)}(x_0)$ hesabı, teğet ve normal doğru denklemleri, `[📈 Teğeti Grafikte Çiz]` entegrasyonu.
 * **Çok Değişkenli Analiz, Gradyan & Hessian:** Dinamik değişken ekleme, $\nabla f$ gradyan vektörü, birim $\vec{u}$ vektörü ile yönlü türev ($D_{\vec{u}} f$) ve 2. mertebe Hessian simetrik matrisi ile yerel ekstremum (min/max/eyer) testi.
 
-### 10. 🔢 Basit & Bilimsel Hesap Makinesi
+### 11. 🧮 Matris Cebiri & Ayrıştırma Stüdyosu (v3.5)
+* **Dinamik Mini Tablolar (DataGridView):** A ve B matrisleri için otomatik sütun genişlemeli, klavye gezintili ve Excel / CSV panosundan doğrudan yapıştırma (`Ctrl+V`) ve kopyalama (`Ctrl+C`) destekli gridler.
+* **Hızlı Matris Araçları:** `[Birim (I)]`, `[Sıfır]`, `[Rastgele]`, `[SPD Üret]` ($M = R^T R + n I$ simetrik pozitif tanımlı matris oluşturucu), `[A ↔ B Takas]`, `[A → B Kopyala]`.
+* **Kategorize İşlem Sekmeleri:**
+  1. *Tekil Analiz (Matrix A):* Tam Analiz, $A^{-1}$ (Ters Matris), $A^T$ (Transpoz), $-A$, İz & Determinant, 1/2/$\infty$/Frobenius Normları, Kondisyon Sayısı $\kappa(A)$ ve Rank.
+  2. *Ayrıştırmalar (Decompositions):* LU ($P\cdot A = L\cdot U$), QR (Householder yansımaları), Cholesky ($A = L\cdot L^T$, otomatik SPD doğrulaması), SVD ($A = U\cdot\Sigma\cdot V^T$), Özdeğerler ve Özvektörler ($\lambda, V$).
+  3. *İki Matrisli Cebir & Sistem Çözücü:* $A + B$, $A - B$, $A \times B$, $k \cdot A$, $A \odot B$ (Hadamard), $A \oslash B$ (Noktasal Böl), Lineer Sistem Çözücü ($A\cdot X = B$), Transpoz Denklem Çözücü ($A^T\cdot X^T = B^T$).
+* **Üst KPI Kartları & Rapor:** $\det(A)$, $\text{rank}(A)$ ve $\kappa(A)$ durum rozetleri, `[📥 Ans → A]`, `[📥 Ans → B]`, `[LaTeX Kopyala]` (bmatrix) ve `[📋 Kopyala]`.
+* **Nümerik Koruma:** Tekil matris ($|\det| < 10^{-12}$) uyarısı ve non-SPD Cholesky uyarıları.
+
+### 12. 🔢 Basit & Bilimsel Hesap Makinesi
 * 128-bit `decimal` motoru, RAD/DEG modları, otomatik parantez tamamlama ve geçmiş paneli.
 
-### 10. ⚖️ Doğrusal & Doğrusal Olmayan Denklem Sistemleri
+### 13. ⚖️ Doğrusal & Doğrusal Olmayan Denklem Sistemleri
 * LU, QR, Ters Matris, Gauss-Seidel ve Çok Boyutlu Newton-Raphson çözücüleri.
 
 ### 11. 🧮 Gelişmiş Matris Hesaplayıcı & 5 Temel Ayrışım
