@@ -1,4 +1,4 @@
-# 📐 ttCalculator v2.1.0
+# 📐 ttCalculator v2.2.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -15,13 +15,38 @@ Tüm matematiksel çekirdek, 1.169 otomatik testten oluşan kapsamlı doğrulama
 
 Uygulamanın hazır derlenmiş Windows sürümünü (`ttCalculator.exe`) hemen çalıştırmak için:
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.1.0)** sayfasına gidin.
-2. **`ttCalculator.exe`** (veya `ttCalculator-v2.1.0-win-x64.zip`) dosyasını indirin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.2.0)** sayfasına gidin.
+2. **`ttCalculator.exe`** (veya `ttCalculator-v2.2.0-win-x64.zip`) dosyasını indirin.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
 
-## ✨ v2.1.0 Temel Özellikleri & Modüller
+## 📁 Proje Mimarisi
+
+Proje, modern ve temiz bir .NET 8 çözüm mimarisine sahiptir:
+
+```
+ttCalculator/
+├── ttCalculator.sln             # Ana Visual Studio / .NET Çözüm Dosyası
+├── src/
+│   └── ttCalculator/            # Masaüstü Uygulaması (WinForms / .NET 8)
+│       ├── Controls/            # 9 Temel Arayüz Modülü ve Kullanıcı Kontrolleri
+│       ├── Core/                # 128-bit Matematik, Matris ve Nümerik Yöntem Çekirdeği
+│       ├── MainForm.cs          # Ana Pencere ve Akışkan Gezinme Yönetimi
+│       ├── ThemeHelper.cs       # Koyu Tema ve Çift Tamponlama (Double Buffering)
+│       ├── Program.cs           # Tekil Örnek (Single-Instance Mutex) Giriş Noktası
+│       └── ttCalculator.csproj  # Uygulama Proje Yapılandırması
+├── tests/
+│   └── ttCalculator.Tests/      # Otomatik Doğrulama Testleri (1.169 Test)
+│       └── ttCalculator.Tests.csproj
+├── Release/                     # Taşınabilir Tek Dosya Dağıtımları
+├── LICENSE                      # MIT Lisansı
+└── README.md
+```
+
+---
+
+## ✨ Temel Özellikler & Modüller
 
 Uygulama modern koyu tema (Dark Theme) arayüzü ile 9 ana modülden oluşmaktadır:
 
@@ -98,11 +123,14 @@ Uygulama modern koyu tema (Dark Theme) arayüzü ile 9 ana modülden oluşmaktad
 git clone https://github.com/LilDosto/ttCalculator.git
 cd ttCalculator
 
-# Projeyi derleyin
-dotnet build MathApp/MathApp/MathApp.csproj -c Release
+# Çözümü derleyin
+dotnet build ttCalculator.sln -c Release
 
-# Tek parça .exe olarak yayımlayın
-dotnet publish MathApp/MathApp/MathApp.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o "Release"
+# Doğrulama testlerini çalıştırın
+dotnet run --project tests/ttCalculator.Tests/ttCalculator.Tests.csproj
+
+# Tek dosya .exe olarak yayımlayın
+dotnet publish src/ttCalculator/ttCalculator.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o "Release"
 ```
 
 ---
