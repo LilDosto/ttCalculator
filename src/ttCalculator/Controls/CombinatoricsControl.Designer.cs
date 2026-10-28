@@ -221,20 +221,24 @@ namespace MathApp.Controls
 
             // Group 4: Special Functions
             StyleGroupBox(grpSpecial, "4. Hiperbolik, Ters Trig & Özel Logaritma", new Point(12, 414), new Size(350, 105));
-            StyleLabel(lblSpecialX, "x:", new Point(15, 24));
-            this.txtSpecialX.Location = new Point(36, 21);
-            this.txtSpecialX.Size = new Size(80, 23);
+            StyleLabel(lblSpecialX, "x:", new Point(12, 24));
+            this.txtSpecialX.Location = new Point(32, 21);
+            this.txtSpecialX.Size = new Size(75, 24);
             this.txtSpecialX.BackColor = Color.FromArgb(40, 43, 56);
             this.txtSpecialX.ForeColor = Color.White;
             this.txtSpecialX.BorderStyle = BorderStyle.FixedSingle;
+            this.txtSpecialX.Font = new Font("Consolas", 9.5F);
+            this.txtSpecialX.TextAlign = HorizontalAlignment.Center;
             this.txtSpecialX.Text = "0.75";
 
-            StyleLabel(lblBase, "Taban b:", new Point(130, 24));
-            this.txtBase.Location = new Point(188, 21);
-            this.txtBase.Size = new Size(50, 23);
+            StyleLabel(lblBase, "Taban (b):", new Point(125, 24));
+            this.txtBase.Location = new Point(200, 21);
+            this.txtBase.Size = new Size(85, 24);
             this.txtBase.BackColor = Color.FromArgb(40, 43, 56);
             this.txtBase.ForeColor = Color.White;
             this.txtBase.BorderStyle = BorderStyle.FixedSingle;
+            this.txtBase.Font = new Font("Consolas", 9.5F);
+            this.txtBase.TextAlign = HorizontalAlignment.Center;
             this.txtBase.Text = "2";
 
             StyleActionBtn(btnSpecialCalc, "sinh, cosh, asin, acos, atan, log Hesapla", new Point(15, 54), new Size(320, 26));

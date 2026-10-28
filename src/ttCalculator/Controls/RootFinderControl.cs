@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -90,6 +91,11 @@ namespace MathApp.Controls
                     lblMinX.Text = "Alt Sınır (a):";
                     lblMaxX.Text = "Üst Sınır (b):";
                     break;
+                case 4:
+                    lblMethodDesc.Text = "🎯 [a, b] aralığını 500 adımlı ızgara taramasıyla inceler; aralıktaki TÜM kökleri yüksek hassasiyetle bulur.";
+                    lblMinX.Text = "Arama Alt Sınırı (a):";
+                    lblMaxX.Text = "Arama Üst Sınırı (b):";
+                    break;
             }
         }
 
@@ -127,6 +133,62 @@ namespace MathApp.Controls
                 string initPtText = txtInitialPoint.Text;
                 string minXText = txtMinX.Text;
                 string maxXText = txtMaxX.Text;
+
+                if (idx == 4) // Find All Roots in Interval
+                {
+                    decimal minX = ParseDecimal(minXText, "Arama Alt Sınırı (a)");
+                    decimal maxX = ParseDecimal(maxXText, "Arama Üst Sınırı (b)");
+
+                    var allRoots = await Task.Run(() =>
+                    {
+                        bool prevRad = Function.UseRadians;
+                        Function.UseRadians = true;
+                        try
+                        {
+                            return NumericalMethods.FindAllRoots(eq, minX, maxX, variable);
+                        }
+                        finally
+                        {
+                            Function.UseRadians = prevRad;
+                        }
+                    });
+
+                    if (allRoots.Count == 0)
+                    {
+                        txtResult.Text = $"[{minX}, {maxX}] aralığında kök bulunamadı.";
+                        lblRootValue.Text = "Kök Bulunamadı";
+                        lblRootValue.ForeColor = Color.FromArgb(239, 68, 68);
+                        lblRootDetails.Text = $"[{minX}, {maxX}] aralığında f({variable}) = 0 sağlayan kök bulunamadı.";
+                    }
+                    else
+                    {
+                        var rootLines = new List<string>
+                        {
+                            $"=== [{minX}, {maxX}] ARALIĞINDA BULUNAN TÜM KÖKLER ===",
+                            $"Denklem           : f({variable}) = {eq}",
+                            $"Tarama Aralığı    : [{minX}, {maxX}]",
+                            $"Bulunan Kök Sayısı: {allRoots.Count} adet",
+                            new string('-', 55)
+                        };
+
+                        for (int k = 0; k < allRoots.Count; k++)
+                        {
+                            string rStr = allRoots[k].Root.ToString("0.##########", CultureInfo.InvariantCulture);
+                            string fStr = allRoots[k].FVal.ToString("G5", CultureInfo.InvariantCulture);
+                            rootLines.Add($"  {k + 1}) {variable}_{k + 1} = {rStr,-16}  =>  f({variable}_{k + 1}) = {fStr}");
+                        }
+
+                        txtResult.Text = string.Join(Environment.NewLine, rootLines);
+
+                        string heroText = string.Join(",  ", allRoots.Take(4).Select((r, k) => $"{variable}_{k + 1} ≈ {r.Root.ToString("0.#####", CultureInfo.InvariantCulture)}"));
+                        if (allRoots.Count > 4) heroText += $" ... (+{allRoots.Count - 4} kök daha)";
+
+                        lblRootValue.Text = heroText;
+                        lblRootValue.ForeColor = Color.FromArgb(52, 211, 153);
+                        lblRootDetails.Text = $"🎯 [{minX}, {maxX}] aralığında toplam {allRoots.Count} adet reel kök başarıyla bulundu.";
+                    }
+                    return;
+                }
 
                 var (logs, finalRoot) = await Task.Run(() =>
                 {

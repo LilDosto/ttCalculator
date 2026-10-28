@@ -42,6 +42,12 @@ namespace MathApp
             this.btnNavTaylor = new Button();
             this.btnNavMultiTaylor = new Button();
 
+            this.lblCat4 = new Label();
+            this.btnNavOde = new Button();
+            this.btnNavOdeSystem = new Button();
+            this.btnNavPde = new Button();
+            this.btnNavPdeSystem = new Button();
+
             this.pnlSidebar.SuspendLayout();
             this.pnlNavButtons.SuspendLayout();
             this.pnlLogo.SuspendLayout();
@@ -50,7 +56,7 @@ namespace MathApp
             // pnlSidebar (Left Navigation Bar)
             this.pnlSidebar.BackColor = ThemeHelper.SidebarBackground;
             this.pnlSidebar.Dock = DockStyle.Left;
-            this.pnlSidebar.Width = 245;
+            this.pnlSidebar.Width = 255;
             this.pnlSidebar.Padding = new Padding(8, 0, 8, 8);
 
             // pnlLogo
@@ -97,9 +103,9 @@ namespace MathApp
                 btn.FlatAppearance.BorderSize = 0;
                 btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59);
                 btn.FlatAppearance.MouseDownBackColor = ThemeHelper.AccentBlue;
-                btn.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+                btn.Font = new Font("Segoe UI", 9.2F, FontStyle.Regular);
                 btn.ForeColor = Color.FromArgb(203, 213, 225);
-                btn.Size = new Size(229, 38);
+                btn.Size = new Size(239, 36);
                 btn.TabIndex = index + 1;
                 btn.Text = text;
                 btn.TextAlign = ContentAlignment.MiddleLeft;
@@ -111,7 +117,7 @@ namespace MathApp
             // Categories
             StyleNavCategory(this.lblCat1, "HESAPLAMA & TEMEL");
             StyleNavButton(this.btnNavCalc, "🧮  Hesap Makinesi", 0);
-            StyleNavButton(this.btnNavGraph, "📈  Grafik Çizici", 1);
+            StyleNavButton(this.btnNavGraph, "📈  Grafik Çizici & Geometri", 1);
             StyleNavButton(this.btnNavCombinatorics, "🎲  Kombinatorik & Özel", 2);
 
             StyleNavCategory(this.lblCat2, "NÜMERİK ANALİZ");
@@ -124,15 +130,28 @@ namespace MathApp
             StyleNavButton(this.btnNavTaylor, "📐  Taylor Serisi (1D)", 7);
             StyleNavButton(this.btnNavMultiTaylor, "🌐  Çok Değişkenli Taylor", 8);
 
+            StyleNavCategory(this.lblCat4, "DİFERANSİYEL DENKLEMLER");
+            StyleNavButton(this.btnNavOde, "∫  Diferansiyel Denklem (ODE)", 9);
+            StyleNavButton(this.btnNavOdeSystem, "∭  Diferansiyel Sistem (ODE)", 10);
+            StyleNavButton(this.btnNavPde, "🌊  Kısmi Diferansiyel (PDE)", 11);
+            StyleNavButton(this.btnNavPdeSystem, "🌀  Kısmi Sistem (PDE System)", 12);
+
             // Footer version label
             this.lblVersion.Dock = DockStyle.Bottom;
             this.lblVersion.Height = 26;
-            this.lblVersion.Text = "v2.0 • 128-bit Decimal Motoru";
+            this.lblVersion.Text = "v2.3 • 128-bit Decimal Motoru";
             this.lblVersion.Font = new Font("Segoe UI", 8F);
             this.lblVersion.ForeColor = Color.FromArgb(100, 116, 139);
             this.lblVersion.TextAlign = ContentAlignment.MiddleCenter;
 
             // Add navigation controls in reverse order for DockStyle.Top inside pnlNavButtons
+            // Group 4 (Diferansiyel Denklemler)
+            this.pnlNavButtons.Controls.Add(this.btnNavPdeSystem);
+            this.pnlNavButtons.Controls.Add(this.btnNavPde);
+            this.pnlNavButtons.Controls.Add(this.btnNavOdeSystem);
+            this.pnlNavButtons.Controls.Add(this.btnNavOde);
+            this.pnlNavButtons.Controls.Add(this.lblCat4);
+
             // Group 3
             this.pnlNavButtons.Controls.Add(this.btnNavMultiTaylor);
             this.pnlNavButtons.Controls.Add(this.btnNavTaylor);
@@ -163,8 +182,8 @@ namespace MathApp
             // MainForm
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1180, 740);
-            this.MinimumSize = new Size(1020, 660);
+            this.ClientSize = new Size(1220, 750);
+            this.MinimumSize = new Size(1060, 680);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Controls.Add(this.pnlContent);
             this.Controls.Add(this.pnlSidebar);
@@ -199,5 +218,11 @@ namespace MathApp
         private Button btnNavMatrix;
         private Button btnNavTaylor;
         private Button btnNavMultiTaylor;
+
+        private Label lblCat4;
+        private Button btnNavOde;
+        private Button btnNavOdeSystem;
+        private Button btnNavPde;
+        private Button btnNavPdeSystem;
     }
 }

@@ -17,6 +17,11 @@ namespace MathApp
         private MultivariableTaylorControl multiTaylorControl;
         private CombinatoricsControl combinatoricsControl;
         private GraphPlotterControl graphControl;
+        private OdeSolverControl odeControl;
+        private OdeSystemSolverControl odeSystemControl;
+        private PdeSolverControl pdeControl;
+        private PdeSystemSolverControl pdeSystemControl;
+
         private UserControl[] allControls;
 
         protected override CreateParams CreateParams
@@ -53,6 +58,11 @@ namespace MathApp
             btnNavMultiTaylor.Click += (s, e) => { ShowControl(multiTaylorControl); HighlightButton(btnNavMultiTaylor); };
             btnNavCombinatorics.Click += (s, e) => { ShowControl(combinatoricsControl); HighlightButton(btnNavCombinatorics); };
             btnNavGraph.Click += (s, e) => { ShowControl(graphControl); HighlightButton(btnNavGraph); };
+
+            btnNavOde.Click += (s, e) => { ShowControl(odeControl); HighlightButton(btnNavOde); };
+            btnNavOdeSystem.Click += (s, e) => { ShowControl(odeSystemControl); HighlightButton(btnNavOdeSystem); };
+            btnNavPde.Click += (s, e) => { ShowControl(pdeControl); HighlightButton(btnNavPde); };
+            btnNavPdeSystem.Click += (s, e) => { ShowControl(pdeSystemControl); HighlightButton(btnNavPdeSystem); };
         }
 
         private void LoadApplicationIcon()
@@ -83,6 +93,10 @@ namespace MathApp
             multiTaylorControl = new MultivariableTaylorControl { Dock = DockStyle.Fill };
             combinatoricsControl = new CombinatoricsControl { Dock = DockStyle.Fill };
             graphControl = new GraphPlotterControl { Dock = DockStyle.Fill };
+            odeControl = new OdeSolverControl { Dock = DockStyle.Fill };
+            odeSystemControl = new OdeSystemSolverControl { Dock = DockStyle.Fill };
+            pdeControl = new PdeSolverControl { Dock = DockStyle.Fill };
+            pdeSystemControl = new PdeSystemSolverControl { Dock = DockStyle.Fill };
 
             allControls = new UserControl[] {
                 calcControl,
@@ -93,7 +107,11 @@ namespace MathApp
                 taylorControl,
                 multiTaylorControl,
                 combinatoricsControl,
-                graphControl
+                graphControl,
+                odeControl,
+                odeSystemControl,
+                pdeControl,
+                pdeSystemControl
             };
 
             pnlContent.SuspendLayout();
@@ -142,25 +160,29 @@ namespace MathApp
                 btnNavTaylor,
                 btnNavMultiTaylor,
                 btnNavCombinatorics,
-                btnNavGraph
+                btnNavGraph,
+                btnNavOde,
+                btnNavOdeSystem,
+                btnNavPde,
+                btnNavPdeSystem
             };
 
-            foreach (Button b in allButtons)
+            foreach (var btn in allButtons)
             {
-                b.BackColor = idleColor;
-                b.ForeColor = ThemeHelper.MutedText;
-                b.Font = new Font("Segoe UI", 10F, FontStyle.Regular);
+                if (btn == null) continue;
+                if (btn == activeBtn)
+                {
+                    btn.BackColor = activeColor;
+                    btn.ForeColor = Color.White;
+                    btn.Font = new Font(btn.Font, FontStyle.Bold);
+                }
+                else
+                {
+                    btn.BackColor = idleColor;
+                    btn.ForeColor = Color.FromArgb(203, 213, 225);
+                    btn.Font = new Font(btn.Font, FontStyle.Regular);
+                }
             }
-
-            activeBtn.BackColor = activeColor;
-            activeBtn.ForeColor = Color.White;
-            activeBtn.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
-        }
-
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            base.OnFormClosing(e);
-            Environment.Exit(0);
         }
     }
 }

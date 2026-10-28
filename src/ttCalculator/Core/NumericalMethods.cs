@@ -270,6 +270,118 @@ public class NumericalMethods
         return string.Join(" ", terms);
     }
 
+    public static (string Fractional, string Factorial, string Decimal, List<string> Details) MethodMultiVar_TaylorSeriesDetailed(
+        string eq, int degree, Dictionary<string, decimal> points, decimal h = 0.005m)
+    {
+        if (points == null || points.Count == 0) return ("0", "0", "0", new List<string>());
+
+        Function compiled = CompileFunction(eq);
+        decimal constant = EvaluateCompiledMultiVar(compiled, points);
+        if (DecimalMath.Abs(constant) <= 0.00001m) constant = 0m;
+
+        List<string> fracTerms = new List<string>();
+        List<string> factTerms = new List<string>();
+        List<string> decTerms = new List<string>();
+        List<string> details = new List<string>();
+
+        string constFrac = FormatFractionalCoeff(constant);
+        details.Add($"f(merkez) = {constFrac}  ({Math.Round(constant, 6).ToString("0.######", CultureInfo.InvariantCulture)})");
+
+        if (constant != 0m)
+        {
+            fracTerms.Add(constFrac);
+            factTerms.Add(constFrac);
+            decTerms.Add(Math.Round(constant, 6).ToString("0.######", CultureInfo.InvariantCulture));
+        }
+
+        List<string> varNames = points.Keys.ToList();
+        int kVars = varNames.Count;
+
+        for (int totalDeg = 1; totalDeg <= degree; totalDeg++)
+        {
+            List<int[]> multiIndices = GenerateMultiIndices(kVars, totalDeg);
+            foreach (int[] alpha in multiIndices)
+            {
+                decimal mixedDer = ComputeMixedPartialDerivative(compiled, varNames, alpha, points, h);
+                decimal denom = 1m;
+                List<string> factDenomParts = new List<string>();
+                for (int j = 0; j < kVars; j++)
+                {
+                    denom *= Factorial(alpha[j]);
+                    if (alpha[j] > 1) factDenomParts.Add($"{alpha[j]}!");
+                }
+
+                decimal coeff = mixedDer / denom;
+                if (DecimalMath.Abs(coeff) <= 0.00001m) continue;
+
+                List<string> factors = new List<string>();
+                List<string> idxNames = new List<string>();
+                for (int j = 0; j < kVars; j++)
+                {
+                    if (alpha[j] > 0)
+                    {
+                        string vName = varNames[j];
+                        factors.Add(FormatVarPower(vName, points[vName], alpha[j]));
+                        idxNames.Add($"{vName}^{alpha[j]}");
+                    }
+                }
+
+                string varPart = string.Join(" * ", factors);
+
+                // 1. Fractional
+                var frac = ToFraction(coeff);
+                string termFrac;
+                if (frac.HasValue)
+                {
+                    long num = frac.Value.Num;
+                    long den = frac.Value.Denom;
+                    string sign = num < 0 ? (fracTerms.Count == 0 ? "-" : "- ") : (fracTerms.Count == 0 ? "" : "+ ");
+                    long absNum = Math.Abs(num);
+                    if (den == 1)
+                        termFrac = absNum == 1 ? $"{sign}{varPart}" : $"{sign}{absNum}*{varPart}";
+                    else
+                        termFrac = absNum == 1 ? $"{sign}(1/{den})*{varPart}" : $"{sign}({absNum}/{den})*{varPart}";
+                }
+                else
+                {
+                    string sign = coeff < 0 ? (fracTerms.Count == 0 ? "-" : "- ") : (fracTerms.Count == 0 ? "" : "+ ");
+                    termFrac = $"{sign}{Math.Round(DecimalMath.Abs(coeff), 5).ToString("0.#####", CultureInfo.InvariantCulture)}*{varPart}";
+                }
+                fracTerms.Add(termFrac);
+
+                // 2. Factorial
+                string factDenomStr = factDenomParts.Count == 0 ? $"{totalDeg}!" : string.Join("·", factDenomParts);
+                var derFrac = ToFraction(mixedDer);
+                string factSign = mixedDer < 0 ? (factTerms.Count == 0 ? "-" : "- ") : (factTerms.Count == 0 ? "" : "+ ");
+                decimal absDer = DecimalMath.Abs(mixedDer);
+                string termFact;
+                if (derFrac.HasValue && derFrac.Value.Denom == 1)
+                {
+                    long dVal = Math.Abs(derFrac.Value.Num);
+                    termFact = dVal == 1 ? $"{factSign}(1/{factDenomStr})*{varPart}" : $"{factSign}({dVal}/{factDenomStr})*{varPart}";
+                }
+                else
+                {
+                    termFact = $"{factSign}({Math.Round(absDer, 4).ToString("0.####", CultureInfo.InvariantCulture)}/{factDenomStr})*{varPart}";
+                }
+                factTerms.Add(termFact);
+
+                // 3. Decimal
+                decTerms.Add(FormatTermWithCoeff(coeff, varPart, decTerms.Count == 0));
+
+                string derName = "∂^" + totalDeg + "f / " + string.Join("", idxNames.Select(s => "∂" + s));
+                string coeffFracStr = frac.HasValue ? (frac.Value.Denom == 1 ? $"{frac.Value.Num}" : $"{frac.Value.Num}/{frac.Value.Denom}") : Math.Round(coeff, 5).ToString("0.#####", CultureInfo.InvariantCulture);
+                details.Add($"• {derName,-28} = {Math.Round(mixedDer, 5).ToString("0.#####", CultureInfo.InvariantCulture),-10} | Payda: {denom,-5} => Kesirli Katsayı: {coeffFracStr,-10} | Ondalık: {Math.Round(coeff, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
+            }
+        }
+
+        string finalFrac = fracTerms.Count == 0 ? "0" : string.Join(" ", fracTerms);
+        string finalFact = factTerms.Count == 0 ? "0" : string.Join(" ", factTerms);
+        string finalDec = decTerms.Count == 0 ? "0" : string.Join(" ", decTerms);
+
+        return (finalFrac, finalFact, finalDec, details);
+    }
+
     private static List<int[]> GenerateMultiIndices(int numVars, int totalSum)
     {
         List<int[]> results = new List<int[]>();
@@ -388,6 +500,80 @@ public class NumericalMethods
             return $"{sign}{varPart}";
         }
         return $"{sign}{cStr}*{varPart}";
+    }
+
+    public static (long Num, long Denom)? ToFraction(decimal value, decimal tolerance = 0.0001m, int maxDenom = 50000)
+    {
+        if (value == 0m) return (0, 1);
+        long sign = value < 0 ? -1 : 1;
+        decimal val = DecimalMath.Abs(value);
+
+        long intPart = (long)Math.Round(val);
+        if (DecimalMath.Abs(val - intPart) <= tolerance)
+        {
+            return (sign * intPart, 1);
+        }
+
+        long h1 = 1, h2 = 0;
+        long k1 = 0, k2 = 1;
+        decimal b = val;
+
+        for (int iter = 0; iter < 15; iter++)
+        {
+            long a = (long)Math.Floor(b);
+            long auxH = a * h1 + h2;
+            long auxK = a * k1 + k2;
+
+            if (auxK > maxDenom || auxK <= 0) break;
+
+            h2 = h1; h1 = auxH;
+            k2 = k1; k1 = auxK;
+
+            decimal fractionVal = (decimal)h1 / (decimal)k1;
+            if (DecimalMath.Abs(val - fractionVal) <= tolerance)
+            {
+                return (sign * h1, k1);
+            }
+
+            decimal diff = b - a;
+            if (DecimalMath.Abs(diff) < 1e-12m) break;
+            b = 1m / diff;
+        }
+
+        for (int d = 2; d <= 240; d++)
+        {
+            decimal num = Math.Round(val * d);
+            if (DecimalMath.Abs(val - (num / d)) <= tolerance)
+            {
+                long n = (long)num;
+                long g = Gcd(n, d);
+                return (sign * (n / g), d / g);
+            }
+        }
+
+        return null;
+    }
+
+    public static string FormatFractionalCoeff(decimal coeff)
+    {
+        var frac = ToFraction(coeff);
+        if (frac.HasValue)
+        {
+            if (frac.Value.Denom == 1) return frac.Value.Num.ToString();
+            return $"{frac.Value.Num}/{frac.Value.Denom}";
+        }
+        return Math.Round(coeff, 6).ToString("0.######", CultureInfo.InvariantCulture);
+    }
+
+    private static long Gcd(long a, long b)
+    {
+        while (b != 0)
+        {
+            long t = b;
+            b = a % b;
+            a = t;
+        }
+        return Math.Abs(a);
     }
 
     public static decimal Method_NewtonRaphson(string eq, string variable, decimal initialValue, int iterationCount, decimal h = 0.0001m)
@@ -1110,5 +1296,165 @@ public class NumericalMethods
         logs.Add("");
         logs.Add($">>> BULUNAN KÖK: {variable} = {c.ToString("0.##########", CultureInfo.InvariantCulture)}   (f({variable}) = {finalFx.ToString("0.##########", CultureInfo.InvariantCulture)})");
         return logs;
+    }
+
+    /// <summary>
+    /// Scans the given [minX, maxX] interval with a fine grid, finds all sign changes and touching roots,
+    /// and refines each root with high precision. Avoids poles/asymptotes.
+    /// </summary>
+    public static List<(decimal Root, decimal FVal)> FindAllRoots(string eq, decimal minX, decimal maxX, string variable = "x", int samples = 500)
+    {
+        if (string.IsNullOrWhiteSpace(variable)) variable = "x";
+        if (minX > maxX) (minX, maxX) = (maxX, minX);
+        if (minX == maxX) maxX = minX + 1m;
+
+        Function f = CompileFunction(eq);
+        List<(decimal Root, decimal FVal)> results = new List<(decimal, decimal)>();
+        decimal step = (maxX - minX) / samples;
+
+        decimal? prevX = null;
+        decimal? prevY = null;
+
+        for (int i = 0; i <= samples; i++)
+        {
+            decimal curX = minX + i * step;
+            decimal curY;
+            try
+            {
+                curY = EvaluateCompiled(f, variable, curX);
+                if (DecimalMath.Abs(curY) > 1e7m) curY = 1e8m;
+            }
+            catch
+            {
+                prevX = null;
+                prevY = null;
+                continue;
+            }
+
+            if (DecimalMath.Abs(curY) <= 1e-9m)
+            {
+                AddUniqueRoot(results, curX, curY);
+            }
+            else if (prevX.HasValue && prevY.HasValue && (prevY.Value * curY < 0))
+            {
+                // Check if this is a pole jump rather than a true crossing
+                if (DecimalMath.Abs(curY - prevY.Value) < 500m)
+                {
+                    decimal r = RefineRootBisection(f, variable, prevX.Value, curX, prevY.Value, curY);
+                    try
+                    {
+                        decimal fr = EvaluateCompiled(f, variable, r);
+                        if (DecimalMath.Abs(fr) <= 1e-4m)
+                        {
+                            AddUniqueRoot(results, r, fr);
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            prevX = curX;
+            prevY = curY;
+        }
+
+        // Also check if any local minima dip close to zero (even multiplicity roots e.g. (x-2)^2)
+        decimal checkStep = (maxX - minX) / Math.Min(samples, 100);
+        for (int i = 0; i <= 100; i++)
+        {
+            decimal pt = minX + i * checkStep;
+            try
+            {
+                decimal yPt = EvaluateCompiled(f, variable, pt);
+                if (DecimalMath.Abs(yPt) < 0.2m)
+                {
+                    decimal nrRoot = RefineRootNewton(f, variable, pt, minX, maxX);
+                    decimal fnr = EvaluateCompiled(f, variable, nrRoot);
+                    if (DecimalMath.Abs(fnr) <= 1e-5m && nrRoot >= minX - 0.05m && nrRoot <= maxX + 0.05m)
+                    {
+                        AddUniqueRoot(results, nrRoot, fnr);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        results.Sort((a, b) => a.Root.CompareTo(b.Root));
+        return results;
+    }
+
+    private static decimal RefineRootBisection(Function f, string variable, decimal a, decimal b, decimal fa, decimal fb)
+    {
+        decimal mid = (a + b) / 2m;
+        for (int step = 0; step < 50; step++)
+        {
+            mid = (a + b) / 2m;
+            if (DecimalMath.Abs(b - a) < 1e-13m) break;
+
+            decimal fmid;
+            try { fmid = EvaluateCompiled(f, variable, mid); }
+            catch { break; }
+
+            if (DecimalMath.Abs(fmid) < 1e-13m) return mid;
+
+            if (fa * fmid <= 0)
+            {
+                b = mid;
+                fb = fmid;
+            }
+            else
+            {
+                a = mid;
+                fa = fmid;
+            }
+        }
+        return mid;
+    }
+
+    private static decimal RefineRootNewton(Function f, string variable, decimal x0, decimal minX, decimal maxX)
+    {
+        decimal x = x0;
+        decimal h = 0.0001m;
+        for (int step = 0; step < 25; step++)
+        {
+            decimal fx;
+            try { fx = EvaluateCompiled(f, variable, x); }
+            catch { break; }
+
+            if (DecimalMath.Abs(fx) < 1e-12m) return x;
+
+            decimal df;
+            try
+            {
+                decimal fPlus = EvaluateCompiled(f, variable, x + h);
+                decimal fMinus = EvaluateCompiled(f, variable, x - h);
+                df = (fPlus - fMinus) / (2m * h);
+            }
+            catch { break; }
+
+            if (DecimalMath.Abs(df) < 1e-12m) break;
+
+            decimal nextX = x - fx / df;
+            if (nextX < minX - 1m || nextX > maxX + 1m) break;
+            if (DecimalMath.Abs(nextX - x) < 1e-12m) return nextX;
+            x = nextX;
+        }
+        return x;
+    }
+
+    private static void AddUniqueRoot(List<(decimal Root, decimal FVal)> list, decimal root, decimal fval)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (DecimalMath.Abs(list[i].Root - root) < 1e-4m)
+            {
+                // If existing root has worse accuracy, update it
+                if (DecimalMath.Abs(fval) < DecimalMath.Abs(list[i].FVal))
+                {
+                    list[i] = (root, fval);
+                }
+                return;
+            }
+        }
+        list.Add((root, fval));
     }
 }

@@ -117,7 +117,8 @@ namespace MathApp.Controls
                 "Newton-Raphson (Türev Tabanlı — En Hızlı Yakınsama)",
                 "Bisection (İkiye Bölme — Garantili Aralık Yakınsaması)",
                 "Secant (Kiriş Yöntemi — Türev Gerektirmeyen Yaklaşım)",
-                "Regula Falsi (Doğrusal İnterpolasyon ile Kök Bulma)"
+                "Regula Falsi (Doğrusal İnterpolasyon ile Kök Bulma)",
+                "🎯 Tüm Kökleri Bul (Otomatik Çoklu Kök Taraması [a, b])"
             });
             this.cmbMethod.Location = new Point(140, 12);
             this.cmbMethod.Size = new Size(440, 26);

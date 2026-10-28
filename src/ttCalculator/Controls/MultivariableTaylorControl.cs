@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -120,13 +121,13 @@ namespace MathApp.Controls
                     return;
                 }
 
-                string result = await Task.Run(() =>
+                var (fracPoly, factPoly, decPoly, details) = await Task.Run(() =>
                 {
                     bool prevRad = Function.UseRadians;
                     Function.UseRadians = true;
                     try
                     {
-                        return NumericalMethods.MethodMultiVar_TaylorSeries(eq, degree, points);
+                        return NumericalMethods.MethodMultiVar_TaylorSeriesDetailed(eq, degree, points);
                     }
                     finally
                     {
@@ -135,13 +136,27 @@ namespace MathApp.Controls
                 });
 
                 string varsList = string.Join(", ", points.Keys);
-                string centerList = string.Join(", ", points.Select(kv => $"{kv.Key}₀={kv.Value}"));
+                string centerList = string.Join(", ", points.Select(kv => $"{kv.Key}₀ = {kv.Value}"));
 
-                txtResult.Text =
-                    $"=== Çok Değişkenli Taylor Açılımı ({degree}. Derece, Çapraz Kısmi Türevler Dahil) ===" + Environment.NewLine +
-                    $"Fonksiyon : f({varsList}) = {eq}" + Environment.NewLine +
-                    $"Merkez    : ({centerList})" + Environment.NewLine + Environment.NewLine +
-                    $"T_{degree}({varsList}) ≈ {result}";
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine($"=== ÇOK DEĞİŞKENLİ TAYLOR AÇILIMI ({degree}. Derece, Çapraz Kısmi Türevler Dahil) ===");
+                sb.AppendLine($"Fonksiyon : f({varsList}) = {eq}");
+                sb.AppendLine($"Merkez    : ({centerList})");
+                sb.AppendLine();
+                sb.AppendLine("📐 1) KESİRLİ SADELEŞTİRİLMİŞ FORM:");
+                sb.AppendLine($"   T_{degree}({varsList}) = {fracPoly}");
+                sb.AppendLine();
+                sb.AppendLine("📜 2) ANALİTİK FAKTÖRİYELLİ FORM [ (1/α!) · ∂^|α|f / ∂x^α ]:");
+                sb.AppendLine($"   T_{degree}({varsList}) = {factPoly}");
+                sb.AppendLine();
+                sb.AppendLine("🔢 3) ONDALIKLI SAYISAL YAKLAŞIM:");
+                sb.AppendLine($"   T_{degree}({varsList}) = {decPoly}");
+                sb.AppendLine();
+                sb.AppendLine(new string('=', 65));
+                sb.AppendLine("=== KISMİ TÜREVLER, PAYDA VE TERİM KATSAYILARI DETAYI ===");
+                sb.AppendLine(string.Join(Environment.NewLine, details));
+
+                txtResult.Text = sb.ToString();
             }
             catch (Exception ex)
             {
