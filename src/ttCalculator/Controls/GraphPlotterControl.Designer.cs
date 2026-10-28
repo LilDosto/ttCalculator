@@ -20,7 +20,7 @@ namespace MathApp.Controls
         private void InitializeComponent()
         {
             this.pnlHeader = ThemeHelper.CreateHeaderPanel(
-                "Gelişmiş Çoklu Fonksiyon & Geometri Grafiği Stüdyosu",
+                "Gelişmiş Çoklu Fonksiyon ve Geometri Grafiği Stüdyosu",
                 "Çoklu katmanlı eğriler, kutupsal (polar) fonksiyonlar, otomatik kritik nokta tespiti (kök, extremum, büküm), teğet inceleme ve parametre sürgüleri.");
 
             this.pnlControls = new Panel();
@@ -39,16 +39,16 @@ namespace MathApp.Controls
             this.lblMaxX = new Label();
             this.txtMaxX = new TextBox();
             this.chkClampRange = new CheckBox();
-            this.btnPlot = ThemeHelper.CreateActionButton("➕ Ekle / Çiz", 100, 27, true);
+            this.btnPlot = ThemeHelper.CreateActionButton("+ Ekle / Çiz", 100, 27, true);
 
             // Scale & Analysis Toolbar buttons
-            this.btnZoomXIn = ThemeHelper.CreateActionButton("↔ X Genişlet (+)", 105, 26, false);
+            this.btnZoomXIn = ThemeHelper.CreateActionButton("X Genişlet (+)", 100, 26, false);
             this.btnZoomXOut = ThemeHelper.CreateActionButton("X Daralt (-)", 85, 26, false);
             this.btnZoomX10 = ThemeHelper.CreateActionButton("X: 10×", 55, 26, false);
-            this.btnZoomYIn = ThemeHelper.CreateActionButton("↕ Y Genişlet (+)", 105, 26, false);
+            this.btnZoomYIn = ThemeHelper.CreateActionButton("Y Genişlet (+)", 100, 26, false);
             this.btnZoomYOut = ThemeHelper.CreateActionButton("Y Daralt (-)", 85, 26, false);
             this.btnAspect1to1 = ThemeHelper.CreateActionButton("1:1 Oran", 68, 26, false);
-            this.btnResetView = ThemeHelper.CreateActionButton("🔄 Sıfırla", 68, 26, false);
+            this.btnResetView = ThemeHelper.CreateActionButton("Sıfırla", 68, 26, false);
             this.chkCriticalPoints = new CheckBox();
             this.chkInspectMode = new CheckBox();
             this.chkShowAsymptotes = new CheckBox();
@@ -94,8 +94,8 @@ namespace MathApp.Controls
             this.tbParamC = new TrackBar();
             this.lblParamK = new Label();
             this.tbParamK = new TrackBar();
-            this.btnAnimate = ThemeHelper.CreateActionButton("▶ Canlı Dalga Animasyonu", 284, 30, true);
-            this.btnResetParams = ThemeHelper.CreateActionButton("🔄 Parametreleri Sıfırla", 284, 28, false);
+            this.btnAnimate = ThemeHelper.CreateActionButton("Canlı Dalga Animasyonu", 284, 30, true);
+            this.btnResetParams = ThemeHelper.CreateActionButton("Parametreleri Sıfırla", 284, 28, false);
             this.lblSliderHint = new Label();
 
             // Tools Tab Controls
@@ -103,17 +103,17 @@ namespace MathApp.Controls
             this.cmbToolF1 = new ComboBox();
             this.lblToolF2 = new Label();
             this.cmbToolF2 = new ComboBox();
-            this.btnCommonTangent = ThemeHelper.CreateActionButton("📐 Ortak Teğet Doğrusunu Bul", 284, 28, true);
-            this.btnNearestPoints = ThemeHelper.CreateActionButton("📍 En Yakın Noktalar & Doğru", 284, 28, false);
+            this.btnCommonTangent = ThemeHelper.CreateActionButton("Ortak Teğet Doğrusunu Bul", 284, 28, true);
+            this.btnNearestPoints = ThemeHelper.CreateActionButton("En Yakın Noktalar ve Doğru", 284, 28, false);
             this.lblToolSep = new Label();
             this.lblToolPointTan = new Label();
             this.txtTanPointX = new TextBox();
             this.txtTanPointY = new TextBox();
-            this.btnPointTangent = ThemeHelper.CreateActionButton("📏 Noktadan Teğet Çiz", 284, 28, false);
+            this.btnPointTangent = ThemeHelper.CreateActionButton("Noktadan Teğet Çiz", 284, 28, false);
             this.txtToolLog = new RichTextBox();
-            this.btnExportImage = ThemeHelper.CreateActionButton("📷 Grafiği Resim (PNG) Kaydet", 284, 28, false);
-            this.btnExportCsv = ThemeHelper.CreateActionButton("📊 Değer Tablosunu CSV İndir", 284, 28, false);
-            this.btnExportLatex = ThemeHelper.CreateActionButton("📜 LaTeX (TikZ) Kodu Üret", 284, 28, false);
+            this.btnExportImage = ThemeHelper.CreateActionButton("Grafiği Resim (PNG) Kaydet", 284, 28, false);
+            this.btnExportCsv = ThemeHelper.CreateActionButton("Değer Tablosunu CSV İndir", 284, 28, false);
+            this.btnExportLatex = ThemeHelper.CreateActionButton("LaTeX (TikZ) Kodu Üret", 284, 28, false);
 
             // Shapes Tab Controls
             this.lblShapeType = new Label();
@@ -127,7 +127,7 @@ namespace MathApp.Controls
             this.txtShapeDim2 = new TextBox();
             this.lblShapeAngle = new Label();
             this.txtShapeAngle = new TextBox();
-            this.btnAddShape = ThemeHelper.CreateActionButton("📐 Şekli Grafiğe Ekle", 284, 32, true);
+            this.btnAddShape = ThemeHelper.CreateActionButton("Şekli Grafiğe Ekle", 284, 32, true);
 
             this.pnlStatusBar = new Panel();
             this.lblStatus = new Label();
@@ -228,26 +228,26 @@ namespace MathApp.Controls
 
             int yRow2 = 70;
             this.btnZoomXIn.Location = new Point(14, yRow2);
-            this.btnZoomXOut.Location = new Point(122, yRow2);
-            this.btnZoomX10.Location = new Point(210, yRow2);
-            this.btnZoomYIn.Location = new Point(268, yRow2);
-            this.btnZoomYOut.Location = new Point(376, yRow2);
-            this.btnAspect1to1.Location = new Point(464, yRow2);
-            this.btnResetView.Location = new Point(535, yRow2);
+            this.btnZoomXOut.Location = new Point(118, yRow2);
+            this.btnZoomX10.Location = new Point(207, yRow2);
+            this.btnZoomYIn.Location = new Point(266, yRow2);
+            this.btnZoomYOut.Location = new Point(370, yRow2);
+            this.btnAspect1to1.Location = new Point(459, yRow2);
+            this.btnResetView.Location = new Point(531, yRow2);
 
-            this.chkCriticalPoints.Text = "🎯 Kritik Noktalar";
+            this.chkCriticalPoints.Text = "Kritik Noktalar";
             this.chkCriticalPoints.ForeColor = Color.FromArgb(52, 211, 153);
-            this.chkCriticalPoints.Location = new Point(608, yRow2 + 2);
-            this.chkCriticalPoints.Size = new Size(125, 24);
+            this.chkCriticalPoints.Location = new Point(603, yRow2 + 2);
+            this.chkCriticalPoints.Size = new Size(110, 24);
 
-            this.chkInspectMode.Text = "🔍 Teğet İncele";
+            this.chkInspectMode.Text = "Teğet İncele";
             this.chkInspectMode.ForeColor = Color.FromArgb(56, 189, 248);
-            this.chkInspectMode.Location = new Point(738, yRow2 + 2);
-            this.chkInspectMode.Size = new Size(115, 24);
+            this.chkInspectMode.Location = new Point(717, yRow2 + 2);
+            this.chkInspectMode.Size = new Size(100, 24);
 
             this.chkShowAsymptotes.Text = "Asimptotlar";
             this.chkShowAsymptotes.ForeColor = Color.FromArgb(244, 63, 94);
-            this.chkShowAsymptotes.Location = new Point(856, yRow2 + 2);
+            this.chkShowAsymptotes.Location = new Point(821, yRow2 + 2);
             this.chkShowAsymptotes.Size = new Size(95, 24);
 
             this.pnlControls.Controls.Add(this.pnlPresets);
@@ -283,6 +283,7 @@ namespace MathApp.Controls
             this.tabManager.Controls.Add(this.tabSliders);
             this.tabManager.Controls.Add(this.tabTools);
             this.tabManager.Controls.Add(this.tabShapes);
+            this.pnlRightSide.Controls.Add(this.tabManager);
 
             // tabFunctions
             this.tabFunctions.Text = "Eğriler";
@@ -392,7 +393,7 @@ namespace MathApp.Controls
             this.btnPtColor.BackColor = Color.FromArgb(250, 204, 21);
             this.btnPtColor.FlatStyle = FlatStyle.Flat;
 
-            this.btnAddPoint.Text = "➕ Ekle";
+            this.btnAddPoint.Text = "+ Ekle";
             this.btnAddPoint.Location = new Point(236, 188);
             this.btnAddPoint.Size = new Size(58, 25);
             this.btnAddPoint.BackColor = ThemeHelper.AccentBlue;
@@ -424,7 +425,7 @@ namespace MathApp.Controls
             this.btnClearPoints.ForeColor = Color.White;
             this.btnClearPoints.FlatStyle = FlatStyle.Flat;
 
-            this.lblPointHint.Text = "💡 İpucu: Grafik tuvalinde bir noktanın üzerine sağ tıklayarak da o noktayı silebilirsiniz.";
+            this.lblPointHint.Text = "İpucu: Grafik tuvalinde bir noktanın üzerine sağ tıklayarak da o noktayı silebilirsiniz.";
             this.lblPointHint.Location = new Point(8, 295);
             this.lblPointHint.Size = new Size(280, 50);
             this.lblPointHint.ForeColor = ThemeHelper.MutedText;
@@ -503,7 +504,7 @@ namespace MathApp.Controls
             this.btnAnimate.Location = new Point(8, 268);
             this.btnResetParams.Location = new Point(8, 302);
 
-            this.lblSliderHint.Text = "💡 İpucu: Formülünüze a, b, c veya k değişkenlerini ekleyin (ör: a*sin(b*x + c)). Sürgüleri hareket ettirerek dalga animasyonunu canlı izleyin.";
+            this.lblSliderHint.Text = "İpucu: Formülünüze a, b, c veya k değişkenlerini ekleyin (ör: a*sin(b*x + c)). Sürgüleri hareket ettirerek dalga animasyonunu canlı izleyin.";
             this.lblSliderHint.Location = new Point(8, 340);
             this.lblSliderHint.Size = new Size(284, 60);
             this.lblSliderHint.ForeColor = ThemeHelper.MutedText;
@@ -522,7 +523,7 @@ namespace MathApp.Controls
             this.tabSliders.Controls.Add(this.lblSliderHint);
 
             // tabTools
-            this.tabTools.Text = "Araçlar & Analiz";
+            this.tabTools.Text = "Araçlar";
             this.tabTools.BackColor = ThemeHelper.DarkBackground;
             this.tabTools.Padding = new Padding(8);
 

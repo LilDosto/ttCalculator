@@ -156,7 +156,7 @@ namespace MathApp
             // Footer version label
             this.lblVersion.Dock = DockStyle.Bottom;
             this.lblVersion.Height = 28;
-            this.lblVersion.Text = "v2.8 • 128-bit Decimal Motoru • 60 FPS";
+            this.lblVersion.Text = "v2.9 • 128-bit Decimal Motoru • 60 FPS";
             this.lblVersion.Font = new Font("Segoe UI", 8F);
             this.lblVersion.ForeColor = Color.FromArgb(100, 116, 139);
             this.lblVersion.TextAlign = ContentAlignment.MiddleCenter;

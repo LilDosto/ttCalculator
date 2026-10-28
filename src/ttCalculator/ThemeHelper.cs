@@ -96,6 +96,7 @@ namespace MathApp
             Label lblTitle = new Label
             {
                 Text = title,
+                UseMnemonic = false,
                 Location = new Point(24, 12),
                 AutoSize = false,
                 Size = new Size(900, 28),
@@ -107,6 +108,7 @@ namespace MathApp
             Label lblSub = new Label
             {
                 Text = subtitle,
+                UseMnemonic = false,
                 Location = new Point(24, 40),
                 AutoSize = false,
                 Size = new Size(900, 22),
@@ -170,6 +172,15 @@ namespace MathApp
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl.SizeMode = TabSizeMode.Fixed;
             tabControl.ItemSize = new Size(Math.Max(56, (tabControl.Width - 10) / Math.Max(1, tabControl.TabCount)), 32);
+
+            tabControl.Resize += (s, e) =>
+            {
+                if (tabControl.TabCount > 0 && tabControl.Width > 20)
+                {
+                    tabControl.ItemSize = new Size(Math.Max(56, (tabControl.Width - 10) / tabControl.TabCount), 32);
+                    tabControl.Invalidate();
+                }
+            };
 
             tabControl.DrawItem += (s, e) =>
             {

@@ -144,6 +144,14 @@ namespace MathApp.Controls
             AddFunctionCurve("sin(x)", false, -10f, 10f);
         }
 
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            GenerateAllPoints(false, isDraft: false);
+            DetectCriticalPoints();
+            pnlCanvas.Invalidate();
+        }
+
         private void SetupEvents()
         {
             btnPlot.Click += (s, e) => AddCurrentInputCurve();
@@ -170,12 +178,21 @@ namespace MathApp.Controls
             chkInspectMode.CheckedChanged += (s, e) => pnlCanvas.Invalidate();
             chkShowAsymptotes.CheckedChanged += (s, e) => pnlCanvas.Invalidate();
 
-            // Canvas Mouse Events
+            // Canvas Mouse & Paint Events
+            pnlCanvas.Paint += pnlCanvas_Paint;
             pnlCanvas.MouseDown += PnlCanvas_MouseDown;
             pnlCanvas.MouseMove += PnlCanvas_MouseMove;
             pnlCanvas.MouseUp += PnlCanvas_MouseUp;
             pnlCanvas.MouseLeave += (s, e) => { hoverMousePos = null; pnlCanvas.Invalidate(); };
             pnlCanvas.MouseWheel += PnlCanvas_MouseWheel;
+            pnlCanvas.Resize += (s, e) =>
+            {
+                if (pnlCanvas.Width > 10 && pnlCanvas.Height > 10)
+                {
+                    GenerateAllPoints(false, isDraft: false);
+                    pnlCanvas.Invalidate();
+                }
+            };
 
             // Curve management
             lstCurves.SelectedIndexChanged += LstCurves_SelectedIndexChanged;
@@ -981,8 +998,6 @@ namespace MathApp.Controls
                 rangeMaxY += shiftY;
 
                 lastMousePos = e.Location;
-                txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
-                txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
 
                 GenerateAllPoints(false, isDraft: true);
                 pnlCanvas.Invalidate();
@@ -1616,7 +1631,7 @@ namespace MathApp.Controls
         {
             var validCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar).ToList();
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("% ttCalculator v2.8 LaTeX Pgfplots / TikZ Kodu");
+            sb.AppendLine("% ttCalculator v2.9 LaTeX Pgfplots / TikZ Kodu");
             sb.AppendLine("\\begin{tikzpicture}");
             sb.AppendLine("\\begin{axis}[");
             sb.AppendLine($"    xmin={rangeMinX:F1}, xmax={rangeMaxX:F1},");
