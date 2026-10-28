@@ -20,8 +20,8 @@ namespace MathApp.Controls
         private void InitializeComponent()
         {
             this.pnlHeader = ThemeHelper.CreateHeaderPanel(
-                "Gelişmiş Çoklu Fonksiyon & Geometri Grafiği Çizici (Advanced Graph Plotter)",
-                "Çoklu fonksiyon desteği, ortak teğetler, en yakın nokta analizi, eksen sündürme, hazır parametrik şekiller ve tekil nokta yönetimi.");
+                "Gelişmiş Çoklu Fonksiyon & Geometri Grafiği Stüdyosu",
+                "Çoklu katmanlı eğriler, kutupsal (polar) fonksiyonlar, otomatik kritik nokta tespiti (kök, extremum, büküm), teğet inceleme ve parametre sürgüleri.");
 
             this.pnlControls = new Panel();
             this.pnlPresets = new FlowLayoutPanel();
@@ -33,26 +33,31 @@ namespace MathApp.Controls
 
             this.lblEquation = new Label();
             this.txtEquation = new TextBox();
+            this.chkPolar = new CheckBox();
             this.lblMinX = new Label();
             this.txtMinX = new TextBox();
             this.lblMaxX = new Label();
             this.txtMaxX = new TextBox();
             this.chkClampRange = new CheckBox();
-            this.btnPlot = ThemeHelper.CreateActionButton("➕ Çiz / Ekle", 110, 28, true);
+            this.btnPlot = ThemeHelper.CreateActionButton("➕ Ekle / Çiz", 100, 27, true);
 
-            // Scale Toolbar buttons
-            this.btnZoomXIn = ThemeHelper.CreateActionButton("↔️ X Sündür (+)", 105, 26, false);
-            this.btnZoomXOut = ThemeHelper.CreateActionButton("X Daralt (-)", 90, 26, false);
-            this.btnZoomX10 = ThemeHelper.CreateActionButton("X: 10×", 65, 26, false);
-            this.btnZoomYIn = ThemeHelper.CreateActionButton("↕️ Y Sündür (+)", 105, 26, false);
-            this.btnZoomYOut = ThemeHelper.CreateActionButton("Y Daralt (-)", 90, 26, false);
-            this.btnAspect1to1 = ThemeHelper.CreateActionButton("1:1 Oran", 75, 26, false);
-            this.btnResetView = ThemeHelper.CreateActionButton("🔄 Sıfırla", 75, 26, false);
+            // Scale & Analysis Toolbar buttons
+            this.btnZoomXIn = ThemeHelper.CreateActionButton("↔ X Genişlet (+)", 105, 26, false);
+            this.btnZoomXOut = ThemeHelper.CreateActionButton("X Daralt (-)", 85, 26, false);
+            this.btnZoomX10 = ThemeHelper.CreateActionButton("X: 10×", 55, 26, false);
+            this.btnZoomYIn = ThemeHelper.CreateActionButton("↕ Y Genişlet (+)", 105, 26, false);
+            this.btnZoomYOut = ThemeHelper.CreateActionButton("Y Daralt (-)", 85, 26, false);
+            this.btnAspect1to1 = ThemeHelper.CreateActionButton("1:1 Oran", 68, 26, false);
+            this.btnResetView = ThemeHelper.CreateActionButton("🔄 Sıfırla", 68, 26, false);
+            this.chkCriticalPoints = new CheckBox();
+            this.chkInspectMode = new CheckBox();
+            this.chkShowAsymptotes = new CheckBox();
 
             this.pnlRightSide = new Panel();
             this.tabManager = new TabControl();
             this.tabFunctions = new TabPage();
             this.tabPoints = new TabPage();
+            this.tabSliders = new TabPage();
             this.tabTools = new TabPage();
             this.tabShapes = new TabPage();
 
@@ -80,19 +85,35 @@ namespace MathApp.Controls
             this.btnClearPoints = new Button();
             this.lblPointHint = new Label();
 
+            // Sliders Tab Controls
+            this.lblParamA = new Label();
+            this.tbParamA = new TrackBar();
+            this.lblParamB = new Label();
+            this.tbParamB = new TrackBar();
+            this.lblParamC = new Label();
+            this.tbParamC = new TrackBar();
+            this.lblParamK = new Label();
+            this.tbParamK = new TrackBar();
+            this.btnAnimate = ThemeHelper.CreateActionButton("▶ Canlı Dalga Animasyonu", 284, 30, true);
+            this.btnResetParams = ThemeHelper.CreateActionButton("🔄 Parametreleri Sıfırla", 284, 28, false);
+            this.lblSliderHint = new Label();
+
             // Tools Tab Controls
             this.lblToolF1 = new Label();
             this.cmbToolF1 = new ComboBox();
             this.lblToolF2 = new Label();
             this.cmbToolF2 = new ComboBox();
-            this.btnCommonTangent = ThemeHelper.CreateActionButton("📐 Ortak Teğet Doğrusunu Bul", 260, 30, true);
-            this.btnNearestPoints = ThemeHelper.CreateActionButton("📍 En Yakın Noktalar & Doğru", 260, 30, false);
+            this.btnCommonTangent = ThemeHelper.CreateActionButton("📐 Ortak Teğet Doğrusunu Bul", 284, 28, true);
+            this.btnNearestPoints = ThemeHelper.CreateActionButton("📍 En Yakın Noktalar & Doğru", 284, 28, false);
             this.lblToolSep = new Label();
             this.lblToolPointTan = new Label();
             this.txtTanPointX = new TextBox();
             this.txtTanPointY = new TextBox();
-            this.btnPointTangent = ThemeHelper.CreateActionButton("📏 Noktadan Teğet Çiz", 260, 30, false);
+            this.btnPointTangent = ThemeHelper.CreateActionButton("📏 Noktadan Teğet Çiz", 284, 28, false);
             this.txtToolLog = new RichTextBox();
+            this.btnExportImage = ThemeHelper.CreateActionButton("📷 Grafiği Resim (PNG) Kaydet", 284, 28, false);
+            this.btnExportCsv = ThemeHelper.CreateActionButton("📊 Değer Tablosunu CSV İndir", 284, 28, false);
+            this.btnExportLatex = ThemeHelper.CreateActionButton("📜 LaTeX (TikZ) Kodu Üret", 284, 28, false);
 
             // Shapes Tab Controls
             this.lblShapeType = new Label();
@@ -106,7 +127,7 @@ namespace MathApp.Controls
             this.txtShapeDim2 = new TextBox();
             this.lblShapeAngle = new Label();
             this.txtShapeAngle = new TextBox();
-            this.btnAddShape = ThemeHelper.CreateActionButton("📐 Şekli Grafiğe Ekle", 260, 32, true);
+            this.btnAddShape = ThemeHelper.CreateActionButton("📐 Şekli Grafiğe Ekle", 284, 32, true);
 
             this.pnlStatusBar = new Panel();
             this.lblStatus = new Label();
@@ -117,53 +138,68 @@ namespace MathApp.Controls
             this.tabManager.SuspendLayout();
             this.tabFunctions.SuspendLayout();
             this.tabPoints.SuspendLayout();
+            this.tabSliders.SuspendLayout();
             this.tabTools.SuspendLayout();
             this.tabShapes.SuspendLayout();
             this.pnlStatusBar.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamA)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamB)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamC)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamK)).BeginInit();
             this.SuspendLayout();
+
+            // pnlHeader
+            this.pnlHeader.Dock = DockStyle.Top;
+            this.pnlHeader.Height = 50;
 
             // pnlControls
             this.pnlControls.Dock = DockStyle.Top;
-            this.pnlControls.Height = 104;
-            this.pnlControls.BackColor = ThemeHelper.DarkBackground;
-            this.pnlControls.Padding = new Padding(16, 6, 16, 6);
+            this.pnlControls.Height = 108;
+            this.pnlControls.BackColor = ThemeHelper.SidebarBackground;
+            this.pnlControls.Padding = new Padding(12, 4, 12, 4);
 
+            // Presets
             this.lblPresets.Text = "Hızlı:";
             this.lblPresets.AutoSize = true;
             this.lblPresets.ForeColor = ThemeHelper.MutedText;
-            this.lblPresets.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            this.lblPresets.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
             this.lblPresets.Margin = new Padding(0, 4, 6, 0);
 
-            this.pnlPresets.Location = new Point(16, 6);
-            this.pnlPresets.Size = new Size(950, 30);
+            this.pnlPresets.Location = new Point(14, 4);
+            this.pnlPresets.Size = new Size(950, 28);
             this.pnlPresets.Controls.Add(this.lblPresets);
             this.pnlPresets.Controls.Add(this.btnEx1);
             this.pnlPresets.Controls.Add(this.btnEx2);
             this.pnlPresets.Controls.Add(this.btnEx3);
             this.pnlPresets.Controls.Add(this.btnEx4);
 
-            int yRow1 = 40;
+            int yRow1 = 36;
             this.lblEquation.AutoSize = true;
             this.lblEquation.ForeColor = ThemeHelper.LightText;
             this.lblEquation.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
             this.lblEquation.Text = "f(x) =";
-            this.lblEquation.Location = new Point(16, yRow1 + 3);
+            this.lblEquation.Location = new Point(14, yRow1 + 4);
 
-            this.txtEquation.Location = new Point(60, yRow1);
-            this.txtEquation.Size = new Size(180, 25);
+            this.txtEquation.Location = new Point(56, yRow1);
+            this.txtEquation.Size = new Size(210, 25);
             this.txtEquation.Text = "sin(x)";
-            this.txtEquation.Font = new Font("Consolas", 10.5F);
+            this.txtEquation.Font = new Font("Consolas", 10.5F, FontStyle.Bold);
             this.txtEquation.BackColor = ThemeHelper.CardBackground;
             this.txtEquation.ForeColor = Color.White;
             this.txtEquation.BorderStyle = BorderStyle.FixedSingle;
 
+            this.chkPolar.Text = "Polar r(θ)";
+            this.chkPolar.ForeColor = Color.FromArgb(56, 189, 248);
+            this.chkPolar.Location = new Point(272, yRow1 + 3);
+            this.chkPolar.Size = new Size(82, 22);
+
             this.lblMinX.AutoSize = true;
             this.lblMinX.ForeColor = ThemeHelper.LightText;
             this.lblMinX.Text = "Min X:";
-            this.lblMinX.Location = new Point(250, yRow1 + 4);
+            this.lblMinX.Location = new Point(360, yRow1 + 4);
 
-            this.txtMinX.Location = new Point(292, yRow1);
-            this.txtMinX.Size = new Size(50, 25);
+            this.txtMinX.Location = new Point(402, yRow1);
+            this.txtMinX.Size = new Size(45, 25);
             this.txtMinX.Text = "-10";
             this.txtMinX.Font = new Font("Consolas", 9.5F);
             this.txtMinX.BackColor = ThemeHelper.CardBackground;
@@ -173,35 +209,51 @@ namespace MathApp.Controls
             this.lblMaxX.AutoSize = true;
             this.lblMaxX.ForeColor = ThemeHelper.LightText;
             this.lblMaxX.Text = "Max X:";
-            this.lblMaxX.Location = new Point(348, yRow1 + 4);
+            this.lblMaxX.Location = new Point(452, yRow1 + 4);
 
-            this.txtMaxX.Location = new Point(392, yRow1);
-            this.txtMaxX.Size = new Size(50, 25);
+            this.txtMaxX.Location = new Point(496, yRow1);
+            this.txtMaxX.Size = new Size(45, 25);
             this.txtMaxX.Text = "10";
             this.txtMaxX.Font = new Font("Consolas", 9.5F);
             this.txtMaxX.BackColor = ThemeHelper.CardBackground;
             this.txtMaxX.ForeColor = Color.White;
             this.txtMaxX.BorderStyle = BorderStyle.FixedSingle;
 
-            this.chkClampRange.Text = "[Min, Max] Kısıtla";
+            this.chkClampRange.Text = "Kısıtla";
             this.chkClampRange.ForeColor = ThemeHelper.LightText;
-            this.chkClampRange.Location = new Point(452, yRow1 + 3);
-            this.chkClampRange.Size = new Size(125, 22);
+            this.chkClampRange.Location = new Point(548, yRow1 + 3);
+            this.chkClampRange.Size = new Size(68, 22);
 
-            this.btnPlot.Location = new Point(570, yRow1 - 1);
+            this.btnPlot.Location = new Point(622, yRow1 - 1);
 
-            int yRow2 = 72;
-            this.btnZoomXIn.Location = new Point(16, yRow2);
-            this.btnZoomXOut.Location = new Point(126, yRow2);
-            this.btnZoomX10.Location = new Point(221, yRow2);
-            this.btnZoomYIn.Location = new Point(291, yRow2);
-            this.btnZoomYOut.Location = new Point(401, yRow2);
-            this.btnAspect1to1.Location = new Point(496, yRow2);
-            this.btnResetView.Location = new Point(576, yRow2);
+            int yRow2 = 70;
+            this.btnZoomXIn.Location = new Point(14, yRow2);
+            this.btnZoomXOut.Location = new Point(122, yRow2);
+            this.btnZoomX10.Location = new Point(210, yRow2);
+            this.btnZoomYIn.Location = new Point(268, yRow2);
+            this.btnZoomYOut.Location = new Point(376, yRow2);
+            this.btnAspect1to1.Location = new Point(464, yRow2);
+            this.btnResetView.Location = new Point(535, yRow2);
+
+            this.chkCriticalPoints.Text = "🎯 Kritik Noktalar";
+            this.chkCriticalPoints.ForeColor = Color.FromArgb(52, 211, 153);
+            this.chkCriticalPoints.Location = new Point(608, yRow2 + 2);
+            this.chkCriticalPoints.Size = new Size(125, 24);
+
+            this.chkInspectMode.Text = "🔍 Teğet İncele";
+            this.chkInspectMode.ForeColor = Color.FromArgb(56, 189, 248);
+            this.chkInspectMode.Location = new Point(738, yRow2 + 2);
+            this.chkInspectMode.Size = new Size(115, 24);
+
+            this.chkShowAsymptotes.Text = "Asimptotlar";
+            this.chkShowAsymptotes.ForeColor = Color.FromArgb(244, 63, 94);
+            this.chkShowAsymptotes.Location = new Point(856, yRow2 + 2);
+            this.chkShowAsymptotes.Size = new Size(95, 24);
 
             this.pnlControls.Controls.Add(this.pnlPresets);
             this.pnlControls.Controls.Add(this.lblEquation);
             this.pnlControls.Controls.Add(this.txtEquation);
+            this.pnlControls.Controls.Add(this.chkPolar);
             this.pnlControls.Controls.Add(this.lblMinX);
             this.pnlControls.Controls.Add(this.txtMinX);
             this.pnlControls.Controls.Add(this.lblMaxX);
@@ -215,6 +267,9 @@ namespace MathApp.Controls
             this.pnlControls.Controls.Add(this.btnZoomYOut);
             this.pnlControls.Controls.Add(this.btnAspect1to1);
             this.pnlControls.Controls.Add(this.btnResetView);
+            this.pnlControls.Controls.Add(this.chkCriticalPoints);
+            this.pnlControls.Controls.Add(this.chkInspectMode);
+            this.pnlControls.Controls.Add(this.chkShowAsymptotes);
 
             // pnlRightSide (Tabbed Manager)
             this.pnlRightSide.Dock = DockStyle.Right;
@@ -225,11 +280,12 @@ namespace MathApp.Controls
             this.tabManager.Dock = DockStyle.Fill;
             this.tabManager.Controls.Add(this.tabFunctions);
             this.tabManager.Controls.Add(this.tabPoints);
+            this.tabManager.Controls.Add(this.tabSliders);
             this.tabManager.Controls.Add(this.tabTools);
             this.tabManager.Controls.Add(this.tabShapes);
 
             // tabFunctions
-            this.tabFunctions.Text = "📈 Eğriler";
+            this.tabFunctions.Text = "Eğriler";
             this.tabFunctions.BackColor = ThemeHelper.DarkBackground;
             this.tabFunctions.Padding = new Padding(8);
 
@@ -239,54 +295,50 @@ namespace MathApp.Controls
             this.lstCurves.ForeColor = Color.White;
             this.lstCurves.Font = new Font("Consolas", 9.5F);
 
-            this.btnCurveColor.Text = "🎨 Renk";
-            this.btnCurveColor.Size = new Size(85, 26);
+            this.btnCurveColor.Text = "Renk";
+            this.btnCurveColor.Size = new Size(70, 26);
             this.btnCurveColor.Location = new Point(8, 230);
             this.btnCurveColor.BackColor = Color.FromArgb(30, 41, 59);
             this.btnCurveColor.ForeColor = Color.White;
             this.btnCurveColor.FlatStyle = FlatStyle.Flat;
 
-            this.cmbCurveStyle.Location = new Point(100, 230);
-            this.cmbCurveStyle.Size = new Size(95, 25);
+            this.cmbCurveStyle.Location = new Point(82, 230);
+            this.cmbCurveStyle.Size = new Size(110, 25);
             this.cmbCurveStyle.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbCurveStyle.BackColor = ThemeHelper.CardBackground;
             this.cmbCurveStyle.ForeColor = Color.White;
-            this.cmbCurveStyle.Items.AddRange(new object[] { "Düz Çizgi", "Kesikli", "Noktalı" });
-            this.cmbCurveStyle.SelectedIndex = 0;
 
-            this.cmbCurveThickness.Location = new Point(202, 230);
-            this.cmbCurveThickness.Size = new Size(90, 25);
+            this.cmbCurveThickness.Location = new Point(196, 230);
+            this.cmbCurveThickness.Size = new Size(95, 25);
             this.cmbCurveThickness.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbCurveThickness.BackColor = ThemeHelper.CardBackground;
             this.cmbCurveThickness.ForeColor = Color.White;
-            this.cmbCurveThickness.Items.AddRange(new object[] { "1 px", "2 px", "3 px", "4 px" });
-            this.cmbCurveThickness.SelectedIndex = 1;
 
-            this.btnCurveToggle.Text = "👁️ Göster/Gizle";
-            this.btnCurveToggle.Size = new Size(138, 28);
+            this.btnCurveToggle.Text = "Göster/Gizle";
+            this.btnCurveToggle.Size = new Size(135, 28);
             this.btnCurveToggle.Location = new Point(8, 265);
-            this.btnCurveToggle.BackColor = Color.FromArgb(30, 41, 59);
+            this.btnCurveToggle.BackColor = Color.FromArgb(14, 116, 144);
             this.btnCurveToggle.ForeColor = Color.White;
             this.btnCurveToggle.FlatStyle = FlatStyle.Flat;
 
-            this.btnCurveDelete.Text = "🗑️ Eğriyi Sil";
-            this.btnCurveDelete.Size = new Size(138, 28);
-            this.btnCurveDelete.Location = new Point(154, 265);
-            this.btnCurveDelete.BackColor = Color.FromArgb(153, 27, 27);
+            this.btnCurveDelete.Text = "Eğriyi Sil";
+            this.btnCurveDelete.Size = new Size(135, 28);
+            this.btnCurveDelete.Location = new Point(155, 265);
+            this.btnCurveDelete.BackColor = Color.FromArgb(185, 28, 28);
             this.btnCurveDelete.ForeColor = Color.White;
             this.btnCurveDelete.FlatStyle = FlatStyle.Flat;
 
-            this.btnCurveEdit.Text = "✏️ Düzenle";
-            this.btnCurveEdit.Size = new Size(138, 28);
-            this.btnCurveEdit.Location = new Point(8, 298);
-            this.btnCurveEdit.BackColor = Color.FromArgb(30, 41, 59);
+            this.btnCurveEdit.Text = "Düzenle";
+            this.btnCurveEdit.Size = new Size(135, 28);
+            this.btnCurveEdit.Location = new Point(8, 300);
+            this.btnCurveEdit.BackColor = Color.FromArgb(40, 58, 85);
             this.btnCurveEdit.ForeColor = Color.White;
             this.btnCurveEdit.FlatStyle = FlatStyle.Flat;
 
-            this.btnCurveClearAll.Text = "🧹 Tümünü Sil";
-            this.btnCurveClearAll.Size = new Size(138, 28);
-            this.btnCurveClearAll.Location = new Point(154, 298);
-            this.btnCurveClearAll.BackColor = Color.FromArgb(45, 55, 72);
+            this.btnCurveClearAll.Text = "Tümünü Sil";
+            this.btnCurveClearAll.Size = new Size(135, 28);
+            this.btnCurveClearAll.Location = new Point(155, 300);
+            this.btnCurveClearAll.BackColor = Color.FromArgb(127, 29, 29);
             this.btnCurveClearAll.ForeColor = Color.White;
             this.btnCurveClearAll.FlatStyle = FlatStyle.Flat;
 
@@ -300,7 +352,7 @@ namespace MathApp.Controls
             this.tabFunctions.Controls.Add(this.btnCurveClearAll);
 
             // tabPoints
-            this.tabPoints.Text = "📍 Noktalar";
+            this.tabPoints.Text = "Noktalar";
             this.tabPoints.BackColor = ThemeHelper.DarkBackground;
             this.tabPoints.Padding = new Padding(8);
 
@@ -310,75 +362,71 @@ namespace MathApp.Controls
             this.lstPoints.ForeColor = Color.White;
             this.lstPoints.Font = new Font("Consolas", 9.5F);
 
-            int py = 190;
             this.lblPtX.Text = "X:";
-            this.lblPtX.Location = new Point(8, py + 3);
+            this.lblPtX.Location = new Point(8, 192);
             this.lblPtX.AutoSize = true;
             this.lblPtX.ForeColor = ThemeHelper.LightText;
 
-            this.txtPtX.Location = new Point(28, py);
+            this.txtPtX.Location = new Point(28, 189);
             this.txtPtX.Size = new Size(60, 24);
             this.txtPtX.Text = "0";
-            this.txtPtX.Font = new Font("Consolas", 9.5F);
+            this.txtPtX.Font = new Font("Consolas", 9F);
             this.txtPtX.BackColor = ThemeHelper.CardBackground;
             this.txtPtX.ForeColor = Color.White;
 
             this.lblPtY.Text = "Y:";
-            this.lblPtY.Location = new Point(95, py + 3);
+            this.lblPtY.Location = new Point(96, 192);
             this.lblPtY.AutoSize = true;
             this.lblPtY.ForeColor = ThemeHelper.LightText;
 
-            this.txtPtY.Location = new Point(115, py);
+            this.txtPtY.Location = new Point(116, 189);
             this.txtPtY.Size = new Size(60, 24);
             this.txtPtY.Text = "0";
-            this.txtPtY.Font = new Font("Consolas", 9.5F);
+            this.txtPtY.Font = new Font("Consolas", 9F);
             this.txtPtY.BackColor = ThemeHelper.CardBackground;
             this.txtPtY.ForeColor = Color.White;
 
-            this.btnPtColor.Text = "🎨";
-            this.btnPtColor.Location = new Point(182, py);
-            this.btnPtColor.Size = new Size(35, 25);
+            this.btnPtColor.Text = "Renk";
+            this.btnPtColor.Location = new Point(184, 188);
+            this.btnPtColor.Size = new Size(48, 25);
             this.btnPtColor.BackColor = Color.FromArgb(250, 204, 21);
             this.btnPtColor.FlatStyle = FlatStyle.Flat;
 
             this.btnAddPoint.Text = "➕ Ekle";
-            this.btnAddPoint.Location = new Point(222, py);
-            this.btnAddPoint.Size = new Size(70, 25);
+            this.btnAddPoint.Location = new Point(236, 188);
+            this.btnAddPoint.Size = new Size(58, 25);
             this.btnAddPoint.BackColor = ThemeHelper.AccentBlue;
             this.btnAddPoint.ForeColor = Color.White;
             this.btnAddPoint.FlatStyle = FlatStyle.Flat;
 
-            int py2 = 222;
             this.lblPtShape.Text = "Şekil:";
-            this.lblPtShape.Location = new Point(8, py2 + 3);
+            this.lblPtShape.Location = new Point(8, 225);
             this.lblPtShape.AutoSize = true;
             this.lblPtShape.ForeColor = ThemeHelper.LightText;
 
-            this.cmbPtShape.Location = new Point(50, py2);
-            this.cmbPtShape.Size = new Size(125, 25);
+            this.cmbPtShape.Location = new Point(50, 222);
+            this.cmbPtShape.Size = new Size(130, 24);
             this.cmbPtShape.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbPtShape.BackColor = ThemeHelper.CardBackground;
             this.cmbPtShape.ForeColor = Color.White;
-            this.cmbPtShape.Items.AddRange(new object[] { "Daire", "Kare", "Çarpı", "Elmas" });
-            this.cmbPtShape.SelectedIndex = 0;
 
-            this.btnDeletePoint.Text = "🗑️ Seçiliyi Sil";
-            this.btnDeletePoint.Size = new Size(138, 28);
+            this.btnDeletePoint.Text = "Seçiliyi Sil";
             this.btnDeletePoint.Location = new Point(8, 255);
-            this.btnDeletePoint.BackColor = Color.FromArgb(153, 27, 27);
+            this.btnDeletePoint.Size = new Size(135, 27);
+            this.btnDeletePoint.BackColor = Color.FromArgb(185, 28, 28);
             this.btnDeletePoint.ForeColor = Color.White;
             this.btnDeletePoint.FlatStyle = FlatStyle.Flat;
 
-            this.btnClearPoints.Text = "🧹 Tümünü Sil";
-            this.btnClearPoints.Size = new Size(138, 28);
-            this.btnClearPoints.Location = new Point(154, 255);
-            this.btnClearPoints.BackColor = Color.FromArgb(45, 55, 72);
+            this.btnClearPoints.Text = "Tümünü Sil";
+            this.btnClearPoints.Location = new Point(152, 255);
+            this.btnClearPoints.Size = new Size(135, 27);
+            this.btnClearPoints.BackColor = Color.FromArgb(127, 29, 29);
             this.btnClearPoints.ForeColor = Color.White;
             this.btnClearPoints.FlatStyle = FlatStyle.Flat;
 
-            this.lblPointHint.Text = "💡 İpucu: Grafik tuvalinde bir noktanın üzerine sağ tıklayarak da o noktayı doğrudan silebilirsiniz.";
-            this.lblPointHint.Location = new Point(8, 290);
-            this.lblPointHint.Size = new Size(284, 50);
+            this.lblPointHint.Text = "💡 İpucu: Grafik tuvalinde bir noktanın üzerine sağ tıklayarak da o noktayı silebilirsiniz.";
+            this.lblPointHint.Location = new Point(8, 295);
+            this.lblPointHint.Size = new Size(280, 50);
             this.lblPointHint.ForeColor = ThemeHelper.MutedText;
             this.lblPointHint.Font = new Font("Segoe UI", 8.5F);
 
@@ -395,68 +443,150 @@ namespace MathApp.Controls
             this.tabPoints.Controls.Add(this.btnClearPoints);
             this.tabPoints.Controls.Add(this.lblPointHint);
 
+            // tabSliders
+            this.tabSliders.Text = "Parametreler";
+            this.tabSliders.BackColor = ThemeHelper.DarkBackground;
+            this.tabSliders.Padding = new Padding(8);
+
+            this.lblParamA.Text = "a = 1.00";
+            this.lblParamA.Location = new Point(8, 8);
+            this.lblParamA.AutoSize = true;
+            this.lblParamA.ForeColor = Color.FromArgb(56, 189, 248);
+            this.lblParamA.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+
+            this.tbParamA.Location = new Point(8, 28);
+            this.tbParamA.Size = new Size(284, 45);
+            this.tbParamA.Minimum = -100;
+            this.tbParamA.Maximum = 100;
+            this.tbParamA.Value = 10;
+            this.tbParamA.TickFrequency = 20;
+
+            this.lblParamB.Text = "b = 1.00";
+            this.lblParamB.Location = new Point(8, 72);
+            this.lblParamB.AutoSize = true;
+            this.lblParamB.ForeColor = Color.FromArgb(52, 211, 153);
+            this.lblParamB.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+
+            this.tbParamB.Location = new Point(8, 92);
+            this.tbParamB.Size = new Size(284, 45);
+            this.tbParamB.Minimum = -100;
+            this.tbParamB.Maximum = 100;
+            this.tbParamB.Value = 10;
+            this.tbParamB.TickFrequency = 20;
+
+            this.lblParamC.Text = "c = 0.00";
+            this.lblParamC.Location = new Point(8, 136);
+            this.lblParamC.AutoSize = true;
+            this.lblParamC.ForeColor = Color.FromArgb(245, 158, 11);
+            this.lblParamC.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+
+            this.tbParamC.Location = new Point(8, 156);
+            this.tbParamC.Size = new Size(284, 45);
+            this.tbParamC.Minimum = -100;
+            this.tbParamC.Maximum = 100;
+            this.tbParamC.Value = 0;
+            this.tbParamC.TickFrequency = 20;
+
+            this.lblParamK.Text = "k = 1.00";
+            this.lblParamK.Location = new Point(8, 200);
+            this.lblParamK.AutoSize = true;
+            this.lblParamK.ForeColor = Color.FromArgb(168, 85, 247);
+            this.lblParamK.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+
+            this.tbParamK.Location = new Point(8, 220);
+            this.tbParamK.Size = new Size(284, 45);
+            this.tbParamK.Minimum = -100;
+            this.tbParamK.Maximum = 100;
+            this.tbParamK.Value = 10;
+            this.tbParamK.TickFrequency = 20;
+
+            this.btnAnimate.Location = new Point(8, 268);
+            this.btnResetParams.Location = new Point(8, 302);
+
+            this.lblSliderHint.Text = "💡 İpucu: Formülünüze a, b, c veya k değişkenlerini ekleyin (ör: a*sin(b*x + c)). Sürgüleri hareket ettirerek dalga animasyonunu canlı izleyin.";
+            this.lblSliderHint.Location = new Point(8, 340);
+            this.lblSliderHint.Size = new Size(284, 60);
+            this.lblSliderHint.ForeColor = ThemeHelper.MutedText;
+            this.lblSliderHint.Font = new Font("Segoe UI", 8.5F);
+
+            this.tabSliders.Controls.Add(this.lblParamA);
+            this.tabSliders.Controls.Add(this.tbParamA);
+            this.tabSliders.Controls.Add(this.lblParamB);
+            this.tabSliders.Controls.Add(this.tbParamB);
+            this.tabSliders.Controls.Add(this.lblParamC);
+            this.tabSliders.Controls.Add(this.tbParamC);
+            this.tabSliders.Controls.Add(this.lblParamK);
+            this.tabSliders.Controls.Add(this.tbParamK);
+            this.tabSliders.Controls.Add(this.btnAnimate);
+            this.tabSliders.Controls.Add(this.btnResetParams);
+            this.tabSliders.Controls.Add(this.lblSliderHint);
+
             // tabTools
-            this.tabTools.Text = "🛠️ Araçlar";
+            this.tabTools.Text = "Araçlar & Analiz";
             this.tabTools.BackColor = ThemeHelper.DarkBackground;
             this.tabTools.Padding = new Padding(8);
 
             this.lblToolF1.Text = "1. Fonksiyon:";
-            this.lblToolF1.Location = new Point(8, 8);
+            this.lblToolF1.Location = new Point(8, 6);
             this.lblToolF1.AutoSize = true;
             this.lblToolF1.ForeColor = ThemeHelper.LightText;
 
-            this.cmbToolF1.Location = new Point(8, 28);
+            this.cmbToolF1.Location = new Point(8, 24);
             this.cmbToolF1.Size = new Size(284, 25);
             this.cmbToolF1.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbToolF1.BackColor = ThemeHelper.CardBackground;
             this.cmbToolF1.ForeColor = Color.White;
 
             this.lblToolF2.Text = "2. Fonksiyon:";
-            this.lblToolF2.Location = new Point(8, 60);
+            this.lblToolF2.Location = new Point(8, 52);
             this.lblToolF2.AutoSize = true;
             this.lblToolF2.ForeColor = ThemeHelper.LightText;
 
-            this.cmbToolF2.Location = new Point(8, 80);
+            this.cmbToolF2.Location = new Point(8, 70);
             this.cmbToolF2.Size = new Size(284, 25);
             this.cmbToolF2.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbToolF2.BackColor = ThemeHelper.CardBackground;
             this.cmbToolF2.ForeColor = Color.White;
 
-            this.btnCommonTangent.Location = new Point(8, 115);
-            this.btnNearestPoints.Location = new Point(8, 150);
+            this.btnCommonTangent.Location = new Point(8, 100);
+            this.btnNearestPoints.Location = new Point(8, 132);
 
             this.lblToolSep.Text = "────────────────────────────";
-            this.lblToolSep.Location = new Point(8, 185);
-            this.lblToolSep.Size = new Size(284, 16);
+            this.lblToolSep.Location = new Point(8, 163);
+            this.lblToolSep.Size = new Size(284, 14);
             this.lblToolSep.ForeColor = ThemeHelper.MutedText;
 
             this.lblToolPointTan.Text = "Noktadan Teğet (x₀, y₀):";
-            this.lblToolPointTan.Location = new Point(8, 203);
+            this.lblToolPointTan.Location = new Point(8, 178);
             this.lblToolPointTan.AutoSize = true;
             this.lblToolPointTan.ForeColor = ThemeHelper.LightText;
 
-            this.txtTanPointX.Location = new Point(8, 225);
+            this.txtTanPointX.Location = new Point(8, 198);
             this.txtTanPointX.Size = new Size(70, 24);
             this.txtTanPointX.Text = "0";
             this.txtTanPointX.Font = new Font("Consolas", 9.5F);
             this.txtTanPointX.BackColor = ThemeHelper.CardBackground;
             this.txtTanPointX.ForeColor = Color.White;
 
-            this.txtTanPointY.Location = new Point(85, 225);
+            this.txtTanPointY.Location = new Point(85, 198);
             this.txtTanPointY.Size = new Size(70, 24);
             this.txtTanPointY.Text = "3";
             this.txtTanPointY.Font = new Font("Consolas", 9.5F);
             this.txtTanPointY.BackColor = ThemeHelper.CardBackground;
             this.txtTanPointY.ForeColor = Color.White;
 
-            this.btnPointTangent.Location = new Point(8, 255);
+            this.btnPointTangent.Location = new Point(8, 226);
 
-            this.txtToolLog.Location = new Point(8, 292);
-            this.txtToolLog.Size = new Size(284, 140);
+            this.txtToolLog.Location = new Point(8, 258);
+            this.txtToolLog.Size = new Size(284, 90);
             this.txtToolLog.BackColor = Color.FromArgb(11, 17, 32);
             this.txtToolLog.ForeColor = Color.FromArgb(226, 232, 240);
-            this.txtToolLog.Font = new Font("Consolas", 8.5F);
+            this.txtToolLog.Font = new Font("Consolas", 8F);
             this.txtToolLog.ReadOnly = true;
+
+            this.btnExportImage.Location = new Point(8, 355);
+            this.btnExportCsv.Location = new Point(8, 387);
+            this.btnExportLatex.Location = new Point(8, 419);
 
             this.tabTools.Controls.Add(this.lblToolF1);
             this.tabTools.Controls.Add(this.cmbToolF1);
@@ -470,9 +600,12 @@ namespace MathApp.Controls
             this.tabTools.Controls.Add(this.txtTanPointY);
             this.tabTools.Controls.Add(this.btnPointTangent);
             this.tabTools.Controls.Add(this.txtToolLog);
+            this.tabTools.Controls.Add(this.btnExportImage);
+            this.tabTools.Controls.Add(this.btnExportCsv);
+            this.tabTools.Controls.Add(this.btnExportLatex);
 
             // tabShapes
-            this.tabShapes.Text = "📐 Şekiller";
+            this.tabShapes.Text = "Şekiller";
             this.tabShapes.BackColor = ThemeHelper.DarkBackground;
             this.tabShapes.Padding = new Padding(8);
 
@@ -486,74 +619,63 @@ namespace MathApp.Controls
             this.cmbShapeType.DropDownStyle = ComboBoxStyle.DropDownList;
             this.cmbShapeType.BackColor = ThemeHelper.CardBackground;
             this.cmbShapeType.ForeColor = Color.White;
-            this.cmbShapeType.Items.AddRange(new object[] {
-                "Daire (Çember)",
-                "Kare",
-                "Dikdörtgen",
-                "Eşkenar Üçgen",
-                "Elips",
-                "Düzgün Altıgen"
-            });
-            this.cmbShapeType.SelectedIndex = 0;
 
-            int sy = 68;
             this.lblShapeCenter.Text = "Merkez (x, y):";
-            this.lblShapeCenter.Location = new Point(8, sy);
+            this.lblShapeCenter.Location = new Point(8, 68);
             this.lblShapeCenter.AutoSize = true;
             this.lblShapeCenter.ForeColor = ThemeHelper.LightText;
 
-            this.txtShapeCenterX.Location = new Point(8, sy + 20);
-            this.txtShapeCenterX.Size = new Size(60, 24);
+            this.txtShapeCenterX.Location = new Point(8, 88);
+            this.txtShapeCenterX.Size = new Size(70, 24);
             this.txtShapeCenterX.Text = "0";
             this.txtShapeCenterX.Font = new Font("Consolas", 9.5F);
             this.txtShapeCenterX.BackColor = ThemeHelper.CardBackground;
             this.txtShapeCenterX.ForeColor = Color.White;
 
-            this.txtShapeCenterY.Location = new Point(75, sy + 20);
-            this.txtShapeCenterY.Size = new Size(60, 24);
+            this.txtShapeCenterY.Location = new Point(85, 88);
+            this.txtShapeCenterY.Size = new Size(70, 24);
             this.txtShapeCenterY.Text = "0";
             this.txtShapeCenterY.Font = new Font("Consolas", 9.5F);
             this.txtShapeCenterY.BackColor = ThemeHelper.CardBackground;
             this.txtShapeCenterY.ForeColor = Color.White;
 
-            int sy2 = 120;
             this.lblShapeDim1.Text = "Yarıçap / Kenar A:";
-            this.lblShapeDim1.Location = new Point(8, sy2);
+            this.lblShapeDim1.Location = new Point(8, 122);
             this.lblShapeDim1.AutoSize = true;
             this.lblShapeDim1.ForeColor = ThemeHelper.LightText;
 
-            this.txtShapeDim1.Location = new Point(8, sy2 + 20);
-            this.txtShapeDim1.Size = new Size(80, 24);
+            this.txtShapeDim1.Location = new Point(8, 142);
+            this.txtShapeDim1.Size = new Size(140, 24);
             this.txtShapeDim1.Text = "4";
             this.txtShapeDim1.Font = new Font("Consolas", 9.5F);
             this.txtShapeDim1.BackColor = ThemeHelper.CardBackground;
             this.txtShapeDim1.ForeColor = Color.White;
 
             this.lblShapeDim2.Text = "Yükseklik / Kenar B:";
-            this.lblShapeDim2.Location = new Point(100, sy2);
+            this.lblShapeDim2.Location = new Point(8, 175);
             this.lblShapeDim2.AutoSize = true;
             this.lblShapeDim2.ForeColor = ThemeHelper.LightText;
 
-            this.txtShapeDim2.Location = new Point(100, sy2 + 20);
-            this.txtShapeDim2.Size = new Size(80, 24);
+            this.txtShapeDim2.Location = new Point(8, 195);
+            this.txtShapeDim2.Size = new Size(140, 24);
             this.txtShapeDim2.Text = "2";
             this.txtShapeDim2.Font = new Font("Consolas", 9.5F);
             this.txtShapeDim2.BackColor = ThemeHelper.CardBackground;
             this.txtShapeDim2.ForeColor = Color.White;
 
             this.lblShapeAngle.Text = "Dönüş (°):";
-            this.lblShapeAngle.Location = new Point(190, sy2);
+            this.lblShapeAngle.Location = new Point(8, 228);
             this.lblShapeAngle.AutoSize = true;
             this.lblShapeAngle.ForeColor = ThemeHelper.LightText;
 
-            this.txtShapeAngle.Location = new Point(190, sy2 + 20);
-            this.txtShapeAngle.Size = new Size(60, 24);
+            this.txtShapeAngle.Location = new Point(8, 248);
+            this.txtShapeAngle.Size = new Size(140, 24);
             this.txtShapeAngle.Text = "0";
             this.txtShapeAngle.Font = new Font("Consolas", 9.5F);
             this.txtShapeAngle.BackColor = ThemeHelper.CardBackground;
             this.txtShapeAngle.ForeColor = Color.White;
 
-            this.btnAddShape.Location = new Point(8, 180);
+            this.btnAddShape.Location = new Point(8, 290);
 
             this.tabShapes.Controls.Add(this.lblShapeType);
             this.tabShapes.Controls.Add(this.cmbShapeType);
@@ -568,52 +690,49 @@ namespace MathApp.Controls
             this.tabShapes.Controls.Add(this.txtShapeAngle);
             this.tabShapes.Controls.Add(this.btnAddShape);
 
-            this.pnlRightSide.Controls.Add(this.tabManager);
-
             // pnlStatusBar
             this.pnlStatusBar.Dock = DockStyle.Bottom;
-            this.pnlStatusBar.Height = 28;
-            this.pnlStatusBar.BackColor = Color.FromArgb(11, 17, 32);
-            this.pnlStatusBar.Padding = new Padding(16, 4, 16, 4);
+            this.pnlStatusBar.Height = 26;
+            this.pnlStatusBar.BackColor = Color.FromArgb(11, 15, 28);
+            this.pnlStatusBar.Controls.Add(this.lblStatus);
 
             this.lblStatus.Dock = DockStyle.Fill;
-            this.lblStatus.ForeColor = ThemeHelper.MutedText;
-            this.lblStatus.Font = new Font("Segoe UI", 9F);
+            this.lblStatus.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblStatus.Font = new Font("Segoe UI", 8.5F);
             this.lblStatus.TextAlign = ContentAlignment.MiddleLeft;
-            this.lblStatus.Text = "Hazır. Sol tık: Nokta ekle | Sağ tık: Nokta sil | Shift+Tekerlek: X sündür | Ctrl+Tekerlek: Y sündür";
-            this.pnlStatusBar.Controls.Add(this.lblStatus);
+            this.lblStatus.Padding = new Padding(8, 0, 0, 0);
+            this.lblStatus.Text = "Hazır. Sol tık: Nokta ekle | Sağ tık: Nokta sil | Shift+Tekerlek: X Genişlet | Ctrl+Tekerlek: Y Genişlet";
 
             // pnlCanvas
             this.pnlCanvas.Dock = DockStyle.Fill;
-            this.pnlCanvas.BackColor = Color.FromArgb(11, 17, 32);
+            this.pnlCanvas.BackColor = Color.FromArgb(15, 23, 42);
             this.pnlCanvas.Cursor = Cursors.Cross;
-            this.pnlCanvas.Paint += new PaintEventHandler(this.pnlCanvas_Paint);
-            this.pnlCanvas.Resize += new EventHandler(this.pnlCanvas_Resize);
 
-            // Assemble GraphPlotterControl
-            this.AutoScaleDimensions = new SizeF(7F, 15F);
-            this.AutoScaleMode = AutoScaleMode.Font;
-            this.BackColor = ThemeHelper.DarkBackground;
+            // Form assembly
             this.Controls.Add(this.pnlCanvas);
-            this.Controls.Add(this.pnlStatusBar);
             this.Controls.Add(this.pnlRightSide);
+            this.Controls.Add(this.pnlStatusBar);
             this.Controls.Add(this.pnlControls);
             this.Controls.Add(this.pnlHeader);
-            this.Name = "GraphPlotterControl";
-            this.Size = new Size(1100, 720);
 
             this.pnlControls.ResumeLayout(false);
             this.pnlControls.PerformLayout();
+            this.pnlRightSide.ResumeLayout(false);
+            this.tabManager.ResumeLayout(false);
             this.tabFunctions.ResumeLayout(false);
             this.tabPoints.ResumeLayout(false);
             this.tabPoints.PerformLayout();
+            this.tabSliders.ResumeLayout(false);
+            this.tabSliders.PerformLayout();
             this.tabTools.ResumeLayout(false);
             this.tabTools.PerformLayout();
             this.tabShapes.ResumeLayout(false);
             this.tabShapes.PerformLayout();
-            this.tabManager.ResumeLayout(false);
-            this.pnlRightSide.ResumeLayout(false);
             this.pnlStatusBar.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamA)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamB)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamC)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbParamK)).EndInit();
             this.ResumeLayout(false);
         }
 
@@ -627,6 +746,7 @@ namespace MathApp.Controls
         private Button btnEx4;
         private Label lblEquation;
         private TextBox txtEquation;
+        private CheckBox chkPolar;
         private Label lblMinX;
         private TextBox txtMinX;
         private Label lblMaxX;
@@ -641,11 +761,15 @@ namespace MathApp.Controls
         private Button btnZoomYOut;
         private Button btnAspect1to1;
         private Button btnResetView;
+        private CheckBox chkCriticalPoints;
+        private CheckBox chkInspectMode;
+        private CheckBox chkShowAsymptotes;
 
         private Panel pnlRightSide;
         private TabControl tabManager;
         private TabPage tabFunctions;
         private TabPage tabPoints;
+        private TabPage tabSliders;
         private TabPage tabTools;
         private TabPage tabShapes;
 
@@ -671,6 +795,18 @@ namespace MathApp.Controls
         private Button btnClearPoints;
         private Label lblPointHint;
 
+        private Label lblParamA;
+        private TrackBar tbParamA;
+        private Label lblParamB;
+        private TrackBar tbParamB;
+        private Label lblParamC;
+        private TrackBar tbParamC;
+        private Label lblParamK;
+        private TrackBar tbParamK;
+        private Button btnAnimate;
+        private Button btnResetParams;
+        private Label lblSliderHint;
+
         private Label lblToolF1;
         private ComboBox cmbToolF1;
         private Label lblToolF2;
@@ -683,6 +819,9 @@ namespace MathApp.Controls
         private TextBox txtTanPointY;
         private Button btnPointTangent;
         private RichTextBox txtToolLog;
+        private Button btnExportImage;
+        private Button btnExportCsv;
+        private Button btnExportLatex;
 
         private Label lblShapeType;
         private ComboBox cmbShapeType;

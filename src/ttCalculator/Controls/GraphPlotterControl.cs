@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
+using MathApp.Core;
 
 namespace MathApp.Controls
 {
@@ -16,8 +18,8 @@ namespace MathApp.Controls
         {
             Circle,
             Square,
-            Cross,
-            Diamond
+            Diamond,
+            Cross
         }
 
         public class PlotPoint
@@ -48,6 +50,7 @@ namespace MathApp.Controls
             public float VerticalX { get; set; } = 0f;
             public float VerticalMinY { get; set; } = 0f;
             public float VerticalMaxY { get; set; } = 0f;
+            public bool IsPolar { get; set; } = false;
 
             public List<List<PointF>> Segments { get; set; } = new List<List<PointF>>();
 
@@ -55,13 +58,25 @@ namespace MathApp.Controls
             {
                 string vis = Visible ? "✓" : "✗";
                 if (IsVerticalLine) return $"{vis} [Doğru] x = {VerticalX:F2}";
+                if (IsPolar) return $"{vis} [Polar] r = {Equation}";
                 string clampStr = ClampDomain ? $" [{DomainMinX:F1}, {DomainMaxX:F1}]" : "";
                 return $"{vis} y = {Equation}{clampStr}";
             }
         }
 
+        public class CriticalPoint
+        {
+            public float X { get; set; }
+            public float Y { get; set; }
+            public string TypeName { get; set; }
+            public Color Color { get; set; }
+            public string Details { get; set; }
+        }
+
         private readonly List<PlotCurve> _curves = new List<PlotCurve>();
         private readonly List<PlotPoint> _points = new List<PlotPoint>();
+        private readonly List<CriticalPoint> _criticalPoints = new List<CriticalPoint>();
+        private readonly List<float> _asymptotePoles = new List<float>();
 
         private readonly Color[] _palette = new Color[]
         {
@@ -88,6 +103,14 @@ namespace MathApp.Controls
         private Point lastHoverRecorded = new Point(-999, -999);
         private Timer resampleDebounceTimer;
 
+        // Dynamic Parameters (Sliders)
+        private float _paramA = 1.0f;
+        private float _paramB = 1.0f;
+        private float _paramC = 0.0f;
+        private float _paramK = 1.0f;
+        private Timer _animTimer;
+        private float _animPhase = 0f;
+
         public GraphPlotterControl()
         {
             InitializeComponent();
@@ -99,9 +122,13 @@ namespace MathApp.Controls
                 if (!isDragging)
                 {
                     GenerateAllPoints(false, isDraft: false);
+                    DetectCriticalPoints();
                     pnlCanvas.Invalidate();
                 }
             };
+
+            _animTimer = new Timer { Interval = 33 }; // ~30-60 FPS
+            _animTimer.Tick += AnimTimer_Tick;
 
             typeof(Panel).InvokeMember(
                 "DoubleBuffered",
@@ -125,10 +152,10 @@ namespace MathApp.Controls
             txtMaxX.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; AddCurrentInputCurve(); } };
 
             // Presets
-            btnEx1.Click += (s, e) => { txtEquation.Text = "sin(x) * x"; AddCurrentInputCurve(); };
-            btnEx2.Click += (s, e) => { txtEquation.Text = "x^3 - 3*x"; AddCurrentInputCurve(); };
-            btnEx3.Click += (s, e) => { txtEquation.Text = "exp(-x^2/4)*cos(2*x)"; AddCurrentInputCurve(); };
-            btnEx4.Click += (s, e) => { txtEquation.Text = "1 / (x^2 - 1)"; AddCurrentInputCurve(); };
+            btnEx1.Click += (s, e) => { txtEquation.Text = "sin(x) * x"; chkPolar.Checked = false; AddCurrentInputCurve(); };
+            btnEx2.Click += (s, e) => { txtEquation.Text = "x^3 - 3*x"; chkPolar.Checked = false; AddCurrentInputCurve(); };
+            btnEx3.Click += (s, e) => { txtEquation.Text = "exp(-x^2/4)*cos(2*x)"; chkPolar.Checked = false; AddCurrentInputCurve(); };
+            btnEx4.Click += (s, e) => { txtEquation.Text = "1 / (x^2 - 1)"; chkPolar.Checked = false; AddCurrentInputCurve(); };
 
             // Scaling & Zoom toolbar
             btnZoomXIn.Click += (s, e) => ScaleAxisX(0.7f);
@@ -138,6 +165,10 @@ namespace MathApp.Controls
             btnZoomYOut.Click += (s, e) => ScaleAxisY(1.4f);
             btnAspect1to1.Click += (s, e) => LockAspect1to1();
             btnResetView.Click += (s, e) => ResetView();
+
+            chkCriticalPoints.CheckedChanged += (s, e) => { DetectCriticalPoints(); pnlCanvas.Invalidate(); };
+            chkInspectMode.CheckedChanged += (s, e) => pnlCanvas.Invalidate();
+            chkShowAsymptotes.CheckedChanged += (s, e) => pnlCanvas.Invalidate();
 
             // Canvas Mouse Events
             pnlCanvas.MouseDown += PnlCanvas_MouseDown;
@@ -175,14 +206,102 @@ namespace MathApp.Controls
                 }
             };
 
+            // Parameters Tab Events (Sliders)
+            tbParamA.Scroll += (s, e) => { _paramA = tbParamA.Value / 10f; lblParamA.Text = $"a = {_paramA:F2}"; UpdateParametersAndReplot(); };
+            tbParamB.Scroll += (s, e) => { _paramB = tbParamB.Value / 10f; lblParamB.Text = $"b = {_paramB:F2}"; UpdateParametersAndReplot(); };
+            tbParamC.Scroll += (s, e) => { _paramC = tbParamC.Value / 10f; lblParamC.Text = $"c = {_paramC:F2}"; UpdateParametersAndReplot(); };
+            tbParamK.Scroll += (s, e) => { _paramK = tbParamK.Value / 10f; lblParamK.Text = $"k = {_paramK:F2}"; UpdateParametersAndReplot(); };
+
+            btnAnimate.Click += BtnAnimate_Click;
+            btnResetParams.Click += (s, e) =>
+            {
+                tbParamA.Value = 10; _paramA = 1.0f; lblParamA.Text = "a = 1.00";
+                tbParamB.Value = 10; _paramB = 1.0f; lblParamB.Text = "b = 1.00";
+                tbParamC.Value = 0;  _paramC = 0.0f; lblParamC.Text = "c = 0.00";
+                tbParamK.Value = 10; _paramK = 1.0f; lblParamK.Text = "k = 1.00";
+                UpdateParametersAndReplot();
+            };
+
             // Tools Tab
             btnCommonTangent.Click += BtnCommonTangent_Click;
             btnNearestPoints.Click += BtnNearestPoints_Click;
             btnPointTangent.Click += BtnPointTangent_Click;
 
+            // Export Events
+            btnExportImage.Click += BtnExportImage_Click;
+            btnExportCsv.Click += BtnExportCsv_Click;
+            btnExportLatex.Click += BtnExportLatex_Click;
+
             // Shapes Tab
             btnAddShape.Click += BtnAddShape_Click;
+
+            // Populate combo options
+            cmbCurveStyle.Items.AddRange(new object[] { "Düz (Solid)", "Kesikli (Dash)", "Noktalı (Dot)" });
+            cmbCurveStyle.SelectedIndex = 0;
+
+            cmbCurveThickness.Items.AddRange(new object[] { "1 px", "2 px", "3 px", "4 px", "6 px" });
+            cmbCurveThickness.SelectedIndex = 1;
+
+            cmbPtShape.Items.AddRange(new object[] { "Daire", "Kare", "Baklava", "Artı (+)" });
+            cmbPtShape.SelectedIndex = 0;
+
+            cmbShapeType.Items.AddRange(new object[] { "Çember / Daire", "Kare / Dikdörtgen", "Eşkenar Üçgen", "Çokgen (5-Gen)", "Çokgen (6-Gen)" });
+            cmbShapeType.SelectedIndex = 0;
         }
+
+        #region Parameters & Sliders
+
+        private void SetCurveParameters(PlotCurve curve)
+        {
+            if (curve?.Compiled == null) return;
+            curve.Compiled.SetVariable("a", (decimal)_paramA);
+            curve.Compiled.SetVariable("b", (decimal)_paramB);
+            curve.Compiled.SetVariable("c", (decimal)_paramC);
+            curve.Compiled.SetVariable("k", (decimal)_paramK);
+        }
+
+        private void UpdateParametersAndReplot()
+        {
+            foreach (var c in _curves)
+            {
+                if (c.Visible && !c.IsVerticalLine)
+                {
+                    SetCurveParameters(c);
+                    GenerateCurveSegments(c, isDraft: false);
+                }
+            }
+            DetectCriticalPoints();
+            pnlCanvas.Invalidate();
+        }
+
+        private void AnimTimer_Tick(object sender, EventArgs e)
+        {
+            _animPhase += 0.06f;
+            float animatedC = (float)Math.Sin(_animPhase) * 5f;
+            _paramC = (float)Math.Round(animatedC, 2);
+            tbParamC.Value = Math.Max(-100, Math.Min(100, (int)(_paramC * 10)));
+            lblParamC.Text = $"c = {_paramC:F2}";
+
+            UpdateParametersAndReplot();
+        }
+
+        private void BtnAnimate_Click(object sender, EventArgs e)
+        {
+            if (_animTimer.Enabled)
+            {
+                _animTimer.Stop();
+                btnAnimate.Text = "▶ Canlı Dalga Animasyonu";
+                btnAnimate.BackColor = ThemeHelper.AccentBlue;
+            }
+            else
+            {
+                _animTimer.Start();
+                btnAnimate.Text = "⏸ Animasyonu Durdur";
+                btnAnimate.BackColor = ThemeHelper.AmberWarning;
+            }
+        }
+
+        #endregion
 
         #region Scaling & Zooming
 
@@ -198,6 +317,7 @@ namespace MathApp.Controls
             txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
 
             GenerateAllPoints(false);
+            DetectCriticalPoints();
             pnlCanvas.Invalidate();
         }
 
@@ -211,6 +331,7 @@ namespace MathApp.Controls
             rangeMaxY = midY + halfH;
 
             GenerateAllPoints(false);
+            DetectCriticalPoints();
             pnlCanvas.Invalidate();
         }
 
@@ -220,14 +341,16 @@ namespace MathApp.Controls
             float w = Math.Max(1, pnlCanvas.Width);
             float h = Math.Max(1, pnlCanvas.Height);
 
-            float targetH = rangeW * (h / w);
+            float targetRangeH = rangeW * (h / w);
             float midY = (rangeMaxY + rangeMinY) / 2f;
-            rangeMinY = midY - targetH / 2f;
-            rangeMaxY = midY + targetH / 2f;
+
+            rangeMinY = midY - targetRangeH / 2f;
+            rangeMaxY = midY + targetRangeH / 2f;
 
             GenerateAllPoints(false);
+            DetectCriticalPoints();
             pnlCanvas.Invalidate();
-            lblStatus.Text = "Eksen oranları 1:1 olarak eşitlendi.";
+            lblStatus.Text = "Eksenler 1:1 orana kilitlendi.";
         }
 
         private void ResetView()
@@ -236,15 +359,19 @@ namespace MathApp.Controls
             rangeMaxX = 10f;
             rangeMinY = -6f;
             rangeMaxY = 6f;
+
             txtMinX.Text = "-10";
             txtMaxX.Text = "10";
+
             GenerateAllPoints(false);
+            DetectCriticalPoints();
             pnlCanvas.Invalidate();
+            lblStatus.Text = "Görünüm varsayılana sıfırlandı.";
         }
 
         #endregion
 
-        #region Curve Management
+        #region Curve & Function Management
 
         private void AddCurrentInputCurve()
         {
@@ -256,10 +383,17 @@ namespace MathApp.Controls
             if (minX >= maxX) { minX = -10f; maxX = 10f; }
 
             bool clamp = chkClampRange.Checked;
-            AddFunctionCurve(eq, clamp, minX, maxX);
+            bool isPolar = chkPolar.Checked || eq.StartsWith("r=", StringComparison.OrdinalIgnoreCase);
+
+            if (isPolar && eq.StartsWith("r=", StringComparison.OrdinalIgnoreCase))
+            {
+                eq = eq.Substring(2).Trim();
+            }
+
+            AddFunctionCurve(eq, clamp, minX, maxX, isPolar: isPolar);
         }
 
-        public void AddFunctionCurve(string eq, bool clamp, float minX, float maxX, Color? color = null, DashStyle dash = DashStyle.Solid, float thickness = 2.4f)
+        public void AddFunctionCurve(string eq, bool clamp, float minX, float maxX, Color? color = null, DashStyle dash = DashStyle.Solid, float thickness = 2.4f, bool isPolar = false)
         {
             try
             {
@@ -277,17 +411,20 @@ namespace MathApp.Controls
                     Visible = true,
                     ClampDomain = clamp,
                     DomainMinX = minX,
-                    DomainMaxX = maxX
+                    DomainMaxX = maxX,
+                    IsPolar = isPolar
                 };
 
+                SetCurveParameters(curve);
                 _curves.Add(curve);
                 RefreshCurvesList();
                 RefreshToolCombos();
 
                 GenerateCurveSegments(curve, isDraft: false);
+                DetectCriticalPoints();
                 pnlCanvas.Invalidate();
 
-                lblStatus.Text = $"✓ Eğri eklendi: y = {eq}";
+                lblStatus.Text = isPolar ? $"✓ Polar eğri eklendi: r = {eq}" : $"✓ Eğri eklendi: y = {eq}";
                 lblStatus.ForeColor = Color.FromArgb(52, 211, 153);
             }
             catch (Exception ex)
@@ -350,30 +487,38 @@ namespace MathApp.Controls
 
         private void LstCurves_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (lstCurves.SelectedItem is PlotCurve c)
+            if (lstCurves.SelectedItem is PlotCurve curve)
             {
-                btnCurveColor.BackColor = c.Color;
-                if (c.DashStyle == DashStyle.Solid) cmbCurveStyle.SelectedIndex = 0;
-                else if (c.DashStyle == DashStyle.Dash) cmbCurveStyle.SelectedIndex = 1;
-                else cmbCurveStyle.SelectedIndex = 2;
+                btnCurveColor.BackColor = curve.Color;
+                cmbCurveThickness.SelectedIndex = curve.Thickness switch
+                {
+                    1f => 0,
+                    2.4f or 2f => 1,
+                    3f => 2,
+                    4f => 3,
+                    6f => 4,
+                    _ => 1
+                };
 
-                if (c.Thickness <= 1.2f) cmbCurveThickness.SelectedIndex = 0;
-                else if (c.Thickness <= 2.2f) cmbCurveThickness.SelectedIndex = 1;
-                else if (c.Thickness <= 3.2f) cmbCurveThickness.SelectedIndex = 2;
-                else cmbCurveThickness.SelectedIndex = 3;
+                cmbCurveStyle.SelectedIndex = curve.DashStyle switch
+                {
+                    DashStyle.Solid => 0,
+                    DashStyle.Dash => 1,
+                    DashStyle.Dot => 2,
+                    _ => 0
+                };
             }
         }
 
         private void BtnCurveColor_Click(object sender, EventArgs e)
         {
-            if (lstCurves.SelectedItem is PlotCurve c)
+            if (lstCurves.SelectedItem is PlotCurve curve)
             {
-                using (ColorDialog cd = new ColorDialog())
+                using (ColorDialog cd = new ColorDialog { Color = curve.Color })
                 {
-                    cd.Color = c.Color;
                     if (cd.ShowDialog() == DialogResult.OK)
                     {
-                        c.Color = cd.Color;
+                        curve.Color = cd.Color;
                         btnCurveColor.BackColor = cd.Color;
                         pnlCanvas.Invalidate();
                     }
@@ -383,61 +528,76 @@ namespace MathApp.Controls
 
         private void CmbCurveStyle_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (lstCurves.SelectedItem is PlotCurve c)
+            if (lstCurves.SelectedItem is PlotCurve curve)
             {
-                if (cmbCurveStyle.SelectedIndex == 0) c.DashStyle = DashStyle.Solid;
-                else if (cmbCurveStyle.SelectedIndex == 1) c.DashStyle = DashStyle.Dash;
-                else c.DashStyle = DashStyle.Dot;
+                curve.DashStyle = cmbCurveStyle.SelectedIndex switch
+                {
+                    1 => DashStyle.Dash,
+                    2 => DashStyle.Dot,
+                    _ => DashStyle.Solid
+                };
                 pnlCanvas.Invalidate();
             }
         }
 
         private void CmbCurveThickness_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (lstCurves.SelectedItem is PlotCurve c)
+            if (lstCurves.SelectedItem is PlotCurve curve)
             {
-                c.Thickness = (cmbCurveThickness.SelectedIndex + 1) * 1.2f;
+                curve.Thickness = cmbCurveThickness.SelectedIndex switch
+                {
+                    0 => 1f,
+                    1 => 2.4f,
+                    2 => 3f,
+                    3 => 4f,
+                    4 => 6f,
+                    _ => 2.4f
+                };
                 pnlCanvas.Invalidate();
             }
         }
 
         private void BtnCurveToggle_Click(object sender, EventArgs e)
         {
-            if (lstCurves.SelectedItem is PlotCurve c)
+            if (lstCurves.SelectedItem is PlotCurve curve)
             {
-                c.Visible = !c.Visible;
-                int idx = lstCurves.SelectedIndex;
+                curve.Visible = !curve.Visible;
                 RefreshCurvesList();
-                lstCurves.SelectedIndex = idx;
+                DetectCriticalPoints();
                 pnlCanvas.Invalidate();
             }
         }
 
         private void BtnCurveDelete_Click(object sender, EventArgs e)
         {
-            if (lstCurves.SelectedItem is PlotCurve c)
+            if (lstCurves.SelectedItem is PlotCurve curve)
             {
-                _curves.Remove(c);
+                _curves.Remove(curve);
                 RefreshCurvesList();
                 RefreshToolCombos();
+                DetectCriticalPoints();
                 pnlCanvas.Invalidate();
-                lblStatus.Text = "Eğri listeden silindi.";
             }
         }
 
         private void EditSelectedCurve()
         {
-            if (lstCurves.SelectedItem is PlotCurve c && !c.IsVerticalLine)
+            if (lstCurves.SelectedItem is PlotCurve curve && !curve.IsVerticalLine)
             {
-                txtEquation.Text = c.Equation;
-                chkClampRange.Checked = c.ClampDomain;
-                if (c.ClampDomain)
+                txtEquation.Text = curve.Equation;
+                chkPolar.Checked = curve.IsPolar;
+                if (curve.ClampDomain)
                 {
-                    txtMinX.Text = c.DomainMinX.ToString(CultureInfo.InvariantCulture);
-                    txtMaxX.Text = c.DomainMaxX.ToString(CultureInfo.InvariantCulture);
+                    chkClampRange.Checked = true;
+                    txtMinX.Text = curve.DomainMinX.ToString("0.##", CultureInfo.InvariantCulture);
+                    txtMaxX.Text = curve.DomainMaxX.ToString("0.##", CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    chkClampRange.Checked = false;
                 }
                 txtEquation.Focus();
-                lblStatus.Text = $"Eğri düzenleme için yüklendi: y = {c.Equation}";
+                lblStatus.Text = $"Eğri düzenleme için kutuya yüklendi: {curve.Equation}";
             }
         }
 
@@ -446,67 +606,24 @@ namespace MathApp.Controls
             _curves.Clear();
             RefreshCurvesList();
             RefreshToolCombos();
+            _criticalPoints.Clear();
+            _asymptotePoles.Clear();
             pnlCanvas.Invalidate();
+            lblStatus.Text = "Tüm eğriler temizlendi.";
         }
 
         #endregion
 
-        #region Point Management
-
-        private void RefreshPointsList()
-        {
-            lstPoints.BeginUpdate();
-            lstPoints.Items.Clear();
-            foreach (var p in _points)
-            {
-                lstPoints.Items.Add(p);
-            }
-            lstPoints.EndUpdate();
-            if (_points.Count > 0 && lstPoints.SelectedIndex < 0)
-                lstPoints.SelectedIndex = _points.Count - 1;
-        }
-
-        private void BtnAddPoint_Click(object sender, EventArgs e)
-        {
-            float px = ParseFloat(txtPtX.Text, 0f);
-            float py = ParseFloat(txtPtY.Text, 0f);
-
-            PointShape shape = (PointShape)Math.Max(0, cmbPtShape.SelectedIndex);
-            _points.Add(new PlotPoint
-            {
-                X = px,
-                Y = py,
-                Color = btnPtColor.BackColor,
-                Shape = shape,
-                Size = 8
-            });
-
-            RefreshPointsList();
-            pnlCanvas.Invalidate();
-            lblStatus.Text = $"Nokta eklendi: ({px:F2}, {py:F2})";
-        }
-
-        private void BtnDeletePoint_Click(object sender, EventArgs e)
-        {
-            if (lstPoints.SelectedItem is PlotPoint p)
-            {
-                _points.Remove(p);
-                RefreshPointsList();
-                pnlCanvas.Invalidate();
-                lblStatus.Text = "Nokta silindi.";
-            }
-        }
-
-        #endregion
-
-        #region Point Generation & Segment Caching
+        #region Point Generation, Asymptote & Critical Points
 
         private void GenerateAllPoints(bool autoFitY, bool isDraft = false)
         {
+            _asymptotePoles.Clear();
             foreach (var c in _curves)
             {
                 if (c.Visible && !c.IsVerticalLine && c.Compiled != null)
                 {
+                    SetCurveParameters(c);
                     GenerateCurveSegments(c, isDraft);
                 }
             }
@@ -517,19 +634,73 @@ namespace MathApp.Controls
             curve.Segments.Clear();
             if (curve.Compiled == null) return;
 
+            // 1. Polar Curve Sampling
+            if (curve.IsPolar)
+            {
+                float minTheta = 0f;
+                float maxTheta = (float)(4 * Math.PI);
+                int polarSamples = isDraft ? 400 : 1200;
+                float dTheta = (maxTheta - minTheta) / polarSamples;
+
+                List<PointF> polarSeg = new List<PointF>();
+                bool prevRadP = Function.UseRadians;
+                Function.UseRadians = true;
+
+                try
+                {
+                    for (int i = 0; i <= polarSamples; i++)
+                    {
+                        float theta = minTheta + i * dTheta;
+                        try
+                        {
+                            curve.Compiled.SetVariable("theta", (decimal)theta);
+                            curve.Compiled.SetVariable("x", (decimal)theta);
+                            curve.Compiled.SetVariable("t", (decimal)theta);
+                            curve.Compiled.EvaluatePostfix();
+                            float r = (float)curve.Compiled.Result;
+
+                            if (!float.IsNaN(r) && !float.IsInfinity(r) && Math.Abs(r) < 1e5f)
+                            {
+                                float px = (float)(r * Math.Cos(theta));
+                                float py = (float)(r * Math.Sin(theta));
+                                polarSeg.Add(new PointF(px, py));
+                            }
+                            else
+                            {
+                                if (polarSeg.Count > 1) curve.Segments.Add(polarSeg);
+                                polarSeg = new List<PointF>();
+                            }
+                        }
+                        catch
+                        {
+                            if (polarSeg.Count > 1) curve.Segments.Add(polarSeg);
+                            polarSeg = new List<PointF>();
+                        }
+                    }
+                    if (polarSeg.Count > 1) curve.Segments.Add(polarSeg);
+                }
+                finally
+                {
+                    Function.UseRadians = prevRadP;
+                }
+                return;
+            }
+
+            // 2. Cartesian Curve Sampling
             float drawMinX = curve.ClampDomain ? Math.Max(rangeMinX, curve.DomainMinX) : rangeMinX;
             float drawMaxX = curve.ClampDomain ? Math.Min(rangeMaxX, curve.DomainMaxX) : rangeMaxX;
             if (drawMinX >= drawMaxX) return;
 
             int sampleCount = isDraft
-                ? Math.Min(200, Math.Max(100, pnlCanvas.Width / 3))
-                : Math.Max(500, pnlCanvas.Width * 2);
+                ? Math.Min(250, Math.Max(100, pnlCanvas.Width / 3))
+                : Math.Max(600, pnlCanvas.Width * 2);
 
             float step = (drawMaxX - drawMinX) / sampleCount;
             if (step <= 0) return;
 
             List<PointF> currentSegment = new List<PointF>();
             float? prevY = null;
+            float? prevX = null;
 
             bool prevRad = Function.UseRadians;
             Function.UseRadians = true;
@@ -551,15 +722,29 @@ namespace MathApp.Controls
                             continue;
                         }
 
-                        // Asymptote jump filter
-                        if (prevY.HasValue && Math.Abs(y - prevY.Value) > (rangeMaxY - rangeMinY) * 2.5f && (y * prevY.Value < 0))
+                        // Robust Asymptote Jump Filter: prevents drawing false lines connecting across poles
+                        float viewHeight = rangeMaxY - rangeMinY;
+                        bool isAsymptoteJump = prevY.HasValue && (
+                            Math.Abs(y - prevY.Value) > viewHeight * 1.5f && (
+                                (y * prevY.Value < 0) || Math.Abs(y) > viewHeight * 2f || Math.Abs(prevY.Value) > viewHeight * 2f
+                            )
+                        );
+
+                        if (isAsymptoteJump)
                         {
                             if (currentSegment.Count > 1) curve.Segments.Add(currentSegment);
                             currentSegment = new List<PointF>();
+
+                            // Record asymptote vertical pole location
+                            if (prevX.HasValue && !_asymptotePoles.Any(p => Math.Abs(p - x) < step * 2))
+                            {
+                                _asymptotePoles.Add((prevX.Value + x) / 2f);
+                            }
                         }
 
                         currentSegment.Add(new PointF(x, y));
                         prevY = y;
+                        prevX = x;
                     }
                     catch
                     {
@@ -580,69 +765,182 @@ namespace MathApp.Controls
             }
         }
 
+        private void DetectCriticalPoints()
+        {
+            _criticalPoints.Clear();
+            if (!chkCriticalPoints.Checked) return;
+
+            var activeCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar && c.Compiled != null).ToList();
+            if (activeCurves.Count == 0) return;
+
+            int steps = 140;
+            float dx = (rangeMaxX - rangeMinX) / steps;
+            if (dx <= 0) return;
+
+            foreach (var curve in activeCurves)
+            {
+                SetCurveParameters(curve);
+                float? prevX = null;
+                decimal? prevY = null;
+                decimal? prevD1 = null;
+                decimal? prevD2 = null;
+
+                for (int i = 0; i <= steps; i++)
+                {
+                    float x = rangeMinX + i * dx;
+                    try
+                    {
+                        decimal yDec = NumericalMethods.EvaluateCompiled(curve.Compiled, "x", (decimal)x);
+                        if (Math.Abs(yDec) > 1000m) continue;
+
+                        decimal h = 0.005m;
+                        decimal d1 = (NumericalMethods.EvaluateCompiled(curve.Compiled, "x", (decimal)x + h) -
+                                      NumericalMethods.EvaluateCompiled(curve.Compiled, "x", (decimal)x - h)) / (2m * h);
+                        decimal d2 = (NumericalMethods.EvaluateCompiled(curve.Compiled, "x", (decimal)x + h) -
+                                      2m * yDec +
+                                      NumericalMethods.EvaluateCompiled(curve.Compiled, "x", (decimal)x - h)) / (h * h);
+
+                        // 1. Root (f(x) = 0)
+                        if (prevY.HasValue && prevY.Value * yDec <= 0m && Math.Abs(yDec - prevY.Value) < 25m)
+                        {
+                            float rootX = x - (float)(yDec * (decimal)dx / (yDec - prevY.Value == 0 ? 1m : (yDec - prevY.Value)));
+                            if (rootX >= rangeMinX && rootX <= rangeMaxX && !_criticalPoints.Any(cp => Math.Abs(cp.X - rootX) < dx && cp.TypeName == "Kök"))
+                            {
+                                _criticalPoints.Add(new CriticalPoint
+                                {
+                                    X = rootX,
+                                    Y = 0f,
+                                    TypeName = "Kök",
+                                    Color = Color.FromArgb(16, 185, 129),
+                                    Details = $"Kök [f(x)=0]: ({rootX:F3}, 0.000)"
+                                });
+                            }
+                        }
+
+                        // 2. Extremum (f'(x) = 0)
+                        if (prevD1.HasValue && prevD1.Value * d1 <= 0m && Math.Abs(d1 - prevD1.Value) < 60m)
+                        {
+                            float extX = x - dx / 2f;
+                            float extY = (float)yDec;
+                            if (extX >= rangeMinX && extX <= rangeMaxX)
+                            {
+                                bool isMax = d2 < 0m;
+                                string type = isMax ? "Yerel Maks" : "Yerel Min";
+                                Color col = isMax ? Color.FromArgb(244, 63, 94) : Color.FromArgb(56, 189, 248);
+
+                                if (!_criticalPoints.Any(cp => Math.Abs(cp.X - extX) < dx && cp.TypeName == type))
+                                {
+                                    _criticalPoints.Add(new CriticalPoint
+                                    {
+                                        X = extX,
+                                        Y = extY,
+                                        TypeName = type,
+                                        Color = col,
+                                        Details = $"{type} [f'=0]: ({extX:F3}, {extY:F3})"
+                                    });
+                                }
+                            }
+                        }
+
+                        // 3. Inflection Point (f''(x) = 0)
+                        if (prevD2.HasValue && prevD2.Value * d2 <= 0m && Math.Abs(d2 - prevD2.Value) < 120m)
+                        {
+                            float inflX = x - dx / 2f;
+                            float inflY = (float)yDec;
+                            if (inflX >= rangeMinX && inflX <= rangeMaxX && !_criticalPoints.Any(cp => Math.Abs(cp.X - inflX) < dx && cp.TypeName == "Büküm"))
+                            {
+                                _criticalPoints.Add(new CriticalPoint
+                                {
+                                    X = inflX,
+                                    Y = inflY,
+                                    TypeName = "Büküm",
+                                    Color = Color.FromArgb(245, 158, 11),
+                                    Details = $"Büküm [f''=0]: ({inflX:F3}, {inflY:F3})"
+                                });
+                            }
+                        }
+
+                        prevX = x;
+                        prevY = yDec;
+                        prevD1 = d1;
+                        prevD2 = d2;
+                    }
+                    catch { }
+                }
+            }
+
+            // 4. Intersections between curves
+            if (activeCurves.Count >= 2)
+            {
+                for (int a = 0; a < activeCurves.Count; a++)
+                {
+                    for (int b = a + 1; b < activeCurves.Count; b++)
+                    {
+                        var c1 = activeCurves[a];
+                        var c2 = activeCurves[b];
+                        decimal? prevDiff = null;
+
+                        for (int i = 0; i <= steps; i++)
+                        {
+                            float x = rangeMinX + i * dx;
+                            try
+                            {
+                                decimal y1 = NumericalMethods.EvaluateCompiled(c1.Compiled, "x", (decimal)x);
+                                decimal y2 = NumericalMethods.EvaluateCompiled(c2.Compiled, "x", (decimal)x);
+                                decimal diff = y1 - y2;
+
+                                if (prevDiff.HasValue && prevDiff.Value * diff <= 0m && Math.Abs(diff - prevDiff.Value) < 30m)
+                                {
+                                    float intX = x - dx / 2f;
+                                    float intY = (float)y1;
+                                    if (!_criticalPoints.Any(cp => Math.Abs(cp.X - intX) < dx && cp.TypeName == "Kesişim"))
+                                    {
+                                        _criticalPoints.Add(new CriticalPoint
+                                        {
+                                            X = intX,
+                                            Y = intY,
+                                            TypeName = "Kesişim",
+                                            Color = Color.FromArgb(168, 85, 247),
+                                            Details = $"Kesişim: ({intX:F3}, {intY:F3})"
+                                        });
+                                    }
+                                }
+                                prevDiff = diff;
+                            }
+                            catch { }
+                        }
+                    }
+                }
+            }
+        }
+
         #endregion
 
-        #region Mouse Canvas Handlers
-
-        private void PnlCanvas_MouseWheel(object sender, MouseEventArgs e)
-        {
-            float zoom = (e.Delta > 0) ? 0.85f : 1.18f;
-
-            bool shift = (Control.ModifierKeys & Keys.Shift) == Keys.Shift;
-            bool ctrl = (Control.ModifierKeys & Keys.Control) == Keys.Control;
-
-            if (shift)
-            {
-                ScaleAxisX(zoom);
-                return;
-            }
-            if (ctrl)
-            {
-                ScaleAxisY(zoom);
-                return;
-            }
-
-            float rangeW = rangeMaxX - rangeMinX;
-            float rangeH = rangeMaxY - rangeMinY;
-            if (rangeW < 1e-4f && zoom < 1f) return;
-            if (rangeW > 1e6f && zoom > 1f) return;
-
-            float midX = (rangeMaxX + rangeMinX) / 2f;
-            float midY = (rangeMaxY + rangeMinY) / 2f;
-
-            rangeMinX = midX - (rangeW * zoom) / 2f;
-            rangeMaxX = midX + (rangeW * zoom) / 2f;
-            rangeMinY = midY - (rangeH * zoom) / 2f;
-            rangeMaxY = midY + (rangeH * zoom) / 2f;
-
-            txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
-            txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
-
-            GenerateAllPoints(false, isDraft: true);
-            resampleDebounceTimer.Stop();
-            resampleDebounceTimer.Start();
-            pnlCanvas.Invalidate();
-        }
+        #region Canvas Mouse Interaction
 
         private void PnlCanvas_MouseDown(object sender, MouseEventArgs e)
         {
-            pnlCanvas.Focus();
-
-            if (e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Left)
             {
-                // Requirement 1: Right-click deletes individual point!
+                isDragging = true;
+                didMoveMouse = false;
+                lastMousePos = e.Location;
+                Cursor = Cursors.SizeAll;
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                // Delete point under right click
                 float w = Math.Max(1, pnlCanvas.Width);
                 float h = Math.Max(1, pnlCanvas.Height);
-                float MapX(float x) => (x - rangeMinX) / (rangeMaxX - rangeMinX) * w;
-                float MapY(float y) => h - ((y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
 
                 PlotPoint toRemove = null;
-                for (int i = _points.Count - 1; i >= 0; i--)
+                foreach (var p in _points)
                 {
-                    var p = _points[i];
-                    float sx = MapX(p.X);
-                    float sy = MapY(p.Y);
-                    if (Math.Abs(sx - e.X) < 14 && Math.Abs(sy - e.Y) < 14)
+                    float sx = (p.X - rangeMinX) / (rangeMaxX - rangeMinX) * w;
+                    float sy = h - ((p.Y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
+
+                    float distSq = (e.X - sx) * (e.X - sx) + (e.Y - sy) * (e.Y - sy);
+                    if (distSq <= 120f)
                     {
                         toRemove = p;
                         break;
@@ -653,26 +951,19 @@ namespace MathApp.Controls
                 {
                     _points.Remove(toRemove);
                     RefreshPointsList();
-                    pnlCanvas.Invalidate();
                     lblStatus.Text = $"Nokta silindi: ({toRemove.X:F2}, {toRemove.Y:F2})";
+                    lblStatus.ForeColor = Color.FromArgb(244, 63, 94);
+                    pnlCanvas.Invalidate();
                 }
-                return;
-            }
-
-            if (e.Button == MouseButtons.Left)
-            {
-                isDragging = true;
-                didMoveMouse = false;
-                lastMousePos = e.Location;
-                Cursor = Cursors.SizeAll;
             }
         }
 
         private void PnlCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            hoverMousePos = e.Location;
+
             if (isDragging)
             {
-                hoverMousePos = e.Location;
                 int dx = e.X - lastMousePos.X;
                 int dy = e.Y - lastMousePos.Y;
 
@@ -680,34 +971,25 @@ namespace MathApp.Controls
 
                 float rangeW = rangeMaxX - rangeMinX;
                 float rangeH = rangeMaxY - rangeMinY;
-                float w = Math.Max(1, pnlCanvas.Width);
-                float h = Math.Max(1, pnlCanvas.Height);
 
-                float moveX = -dx * (rangeW / w);
-                float moveY = dy * (rangeH / h);
+                float shiftX = (dx / (float)pnlCanvas.Width) * rangeW;
+                float shiftY = (dy / (float)pnlCanvas.Height) * rangeH;
 
-                rangeMinX += moveX;
-                rangeMaxX += moveX;
-                rangeMinY += moveY;
-                rangeMaxY += moveY;
+                rangeMinX -= shiftX;
+                rangeMaxX -= shiftX;
+                rangeMinY += shiftY;
+                rangeMaxY += shiftY;
 
+                lastMousePos = e.Location;
                 txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
                 txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
 
-                lastMousePos = e.Location;
                 GenerateAllPoints(false, isDraft: true);
-                resampleDebounceTimer.Stop();
-                resampleDebounceTimer.Start();
                 pnlCanvas.Invalidate();
             }
             else
             {
-                if (Math.Abs(e.X - lastHoverRecorded.X) >= 2 || Math.Abs(e.Y - lastHoverRecorded.Y) >= 2)
-                {
-                    lastHoverRecorded = e.Location;
-                    hoverMousePos = e.Location;
-                    pnlCanvas.Invalidate();
-                }
+                pnlCanvas.Invalidate();
             }
         }
 
@@ -717,36 +999,35 @@ namespace MathApp.Controls
             {
                 if (!didMoveMouse)
                 {
-                    // Snap point onto active curve or clicked coordinate
+                    // Check if clicked near critical point
                     float w = Math.Max(1, pnlCanvas.Width);
                     float h = Math.Max(1, pnlCanvas.Height);
-                    float xPct = e.X / w;
-                    float logX = rangeMinX + xPct * (rangeMaxX - rangeMinX);
 
-                    var activeCurve = _curves.FirstOrDefault(c => c.Visible && !c.IsVerticalLine && c.Compiled != null);
-                    float logY;
-
-                    if (activeCurve != null)
+                    CriticalPoint clickedCp = null;
+                    foreach (var cp in _criticalPoints)
                     {
-                        bool prevRad = Function.UseRadians;
-                        Function.UseRadians = true;
-                        try
+                        float sx = (cp.X - rangeMinX) / (rangeMaxX - rangeMinX) * w;
+                        float sy = h - ((cp.Y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
+                        if ((e.X - sx) * (e.X - sx) + (e.Y - sy) * (e.Y - sy) <= 120f)
                         {
-                            decimal fx = NumericalMethods.EvaluateCompiled(activeCurve.Compiled, "x", (decimal)logX);
-                            logY = (float)fx;
+                            clickedCp = cp;
+                            break;
                         }
-                        catch
-                        {
-                            float yPct = (h - e.Y) / h;
-                            logY = rangeMinY + yPct * (rangeMaxY - rangeMinY);
-                        }
-                        finally
-                        {
-                            Function.UseRadians = prevRad;
-                        }
+                    }
+
+                    float logX, logY;
+                    Color ptColor = btnPtColor.BackColor;
+                    PointShape ptShape = (PointShape)Math.Max(0, cmbPtShape.SelectedIndex);
+
+                    if (clickedCp != null)
+                    {
+                        logX = clickedCp.X;
+                        logY = clickedCp.Y;
+                        ptColor = clickedCp.Color;
                     }
                     else
                     {
+                        logX = rangeMinX + (e.X / w) * (rangeMaxX - rangeMinX);
                         float yPct = (h - e.Y) / h;
                         logY = rangeMinY + yPct * (rangeMaxY - rangeMinY);
                     }
@@ -755,8 +1036,8 @@ namespace MathApp.Controls
                     {
                         X = logX,
                         Y = logY,
-                        Color = btnPtColor.BackColor,
-                        Shape = (PointShape)Math.Max(0, cmbPtShape.SelectedIndex),
+                        Color = ptColor,
+                        Shape = ptShape,
                         Size = 8
                     });
 
@@ -767,9 +1048,53 @@ namespace MathApp.Controls
                 isDragging = false;
                 resampleDebounceTimer.Stop();
                 GenerateAllPoints(false, isDraft: false);
+                DetectCriticalPoints();
                 Cursor = Cursors.Cross;
                 pnlCanvas.Invalidate();
             }
+        }
+
+        private void PnlCanvas_MouseWheel(object sender, MouseEventArgs e)
+        {
+            float zoomFactor = (e.Delta > 0) ? 0.85f : 1.18f;
+
+            float w = Math.Max(1, pnlCanvas.Width);
+            float h = Math.Max(1, pnlCanvas.Height);
+
+            float mouseLogX = rangeMinX + (e.X / w) * (rangeMaxX - rangeMinX);
+            float mouseLogY = rangeMinY + ((h - e.Y) / h) * (rangeMaxY - rangeMinY);
+
+            bool isShift = (ModifierKeys & Keys.Shift) == Keys.Shift;
+            bool isCtrl = (ModifierKeys & Keys.Control) == Keys.Control;
+
+            if (isShift)
+            {
+                rangeMinX = mouseLogX + (rangeMinX - mouseLogX) * zoomFactor;
+                rangeMaxX = mouseLogX + (rangeMaxX - mouseLogX) * zoomFactor;
+                lblStatus.Text = "X Ekseni ölçekleniyor (Shift+Tekerlek)...";
+            }
+            else if (isCtrl)
+            {
+                rangeMinY = mouseLogY + (rangeMinY - mouseLogY) * zoomFactor;
+                rangeMaxY = mouseLogY + (rangeMaxY - mouseLogY) * zoomFactor;
+                lblStatus.Text = "Y Ekseni ölçekleniyor (Ctrl+Tekerlek)...";
+            }
+            else
+            {
+                rangeMinX = mouseLogX + (rangeMinX - mouseLogX) * zoomFactor;
+                rangeMaxX = mouseLogX + (rangeMaxX - mouseLogX) * zoomFactor;
+                rangeMinY = mouseLogY + (rangeMinY - mouseLogY) * zoomFactor;
+                rangeMaxY = mouseLogY + (rangeMaxY - mouseLogY) * zoomFactor;
+            }
+
+            txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
+            txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
+
+            GenerateAllPoints(false, isDraft: true);
+            pnlCanvas.Invalidate();
+
+            resampleDebounceTimer.Stop();
+            resampleDebounceTimer.Start();
         }
 
         #endregion
@@ -788,8 +1113,8 @@ namespace MathApp.Controls
             float MapX(float x) => (x - rangeMinX) / (rangeMaxX - rangeMinX) * w;
             float MapY(float y) => h - ((y - rangeMinY) / (rangeMaxY - rangeMinY) * h);
 
-            // 1. Grid
-            DrawGrid(g, w, h, MapX, MapY);
+            // 1. Adaptive Grid with Sub-Divisions
+            DrawAdaptiveGrid(g, w, h, MapX, MapY);
 
             // 2. Axes
             using (Pen axisPen = new Pen(Color.FromArgb(148, 163, 184), 1.8f))
@@ -801,7 +1126,26 @@ namespace MathApp.Controls
                 if (x0 >= 0 && x0 <= w) g.DrawLine(axisPen, x0, 0, x0, h);
             }
 
-            // 3. Draw Curves
+            // 3. Vertical Asymptotes (if enabled)
+            if (chkShowAsymptotes.Checked && _asymptotePoles.Count > 0)
+            {
+                using (Pen asympPen = new Pen(Color.FromArgb(244, 63, 94), 1.4f) { DashStyle = DashStyle.Dash })
+                using (Font asympFont = new Font("Segoe UI Semibold", 8F, FontStyle.Bold))
+                using (Brush asympBr = new SolidBrush(Color.FromArgb(244, 63, 94)))
+                {
+                    foreach (var pole in _asymptotePoles)
+                    {
+                        float sx = MapX(pole);
+                        if (sx >= 0 && sx <= w)
+                        {
+                            g.DrawLine(asympPen, sx, 0, sx, h);
+                            g.DrawString($"x = {pole:F2}", asympFont, asympBr, sx + 4, 12);
+                        }
+                    }
+                }
+            }
+
+            // 4. Draw Curves
             foreach (var curve in _curves)
             {
                 if (!curve.Visible) continue;
@@ -845,7 +1189,30 @@ namespace MathApp.Controls
                 }
             }
 
-            // 4. Draw Marked Points
+            // 5. Critical Points (Roots, Min/Max, Inflection, Intersections)
+            if (chkCriticalPoints.Checked && _criticalPoints.Count > 0)
+            {
+                using (Font cpFont = new Font("Segoe UI", 8F, FontStyle.Bold))
+                using (Brush haloBrush = new SolidBrush(Color.FromArgb(60, 255, 255, 255)))
+                {
+                    foreach (var cp in _criticalPoints)
+                    {
+                        float sx = MapX(cp.X);
+                        float sy = MapY(cp.Y);
+                        if (sx < 0 || sx > w || sy < 0 || sy > h) continue;
+
+                        using (Brush ptBrush = new SolidBrush(cp.Color))
+                        using (Pen outlinePen = new Pen(Color.White, 1.2f))
+                        {
+                            g.FillEllipse(haloBrush, sx - 8, sy - 8, 16, 16);
+                            g.FillEllipse(ptBrush, sx - 4, sy - 4, 8, 8);
+                            g.DrawEllipse(outlinePen, sx - 4, sy - 4, 8, 8);
+                        }
+                    }
+                }
+            }
+
+            // 6. Draw Marked Points
             using (Font markFont = new Font("Consolas", 8.5F, FontStyle.Bold))
             using (Brush bgTag = new SolidBrush(Color.FromArgb(200, 15, 23, 42)))
             {
@@ -867,62 +1234,205 @@ namespace MathApp.Controls
                 }
             }
 
-            // 5. Live Hover Coordinate HUD
+            // 7. Dynamic Inspect Mode & Live Hover Coordinate HUD
             if (hoverMousePos.HasValue && !isDragging)
             {
                 float mx = hoverMousePos.Value.X;
                 float logX = rangeMinX + (mx / w) * (rangeMaxX - rangeMinX);
 
-                var activeCurve = _curves.FirstOrDefault(c => c.Visible && !c.IsVerticalLine && c.Compiled != null);
+                // Check critical point snap
+                CriticalPoint snappedCp = null;
+                if (chkCriticalPoints.Checked)
+                {
+                    snappedCp = _criticalPoints.FirstOrDefault(cp =>
+                    {
+                        float csx = MapX(cp.X);
+                        float csy = MapY(cp.Y);
+                        return (hoverMousePos.Value.X - csx) * (hoverMousePos.Value.X - csx) +
+                               (hoverMousePos.Value.Y - csy) * (hoverMousePos.Value.Y - csy) <= 120f;
+                    });
+                }
+
+                var activeCurve = _curves.FirstOrDefault(c => c.Visible && !c.IsVerticalLine && !c.IsPolar && c.Compiled != null);
                 if (activeCurve != null)
                 {
                     bool prevRad = Function.UseRadians;
                     Function.UseRadians = true;
                     try
                     {
-                        decimal fxDec = NumericalMethods.EvaluateCompiled(activeCurve.Compiled, "x", (decimal)logX);
+                        SetCurveParameters(activeCurve);
+                        float targetX = snappedCp != null ? snappedCp.X : logX;
+                        decimal fxDec = NumericalMethods.EvaluateCompiled(activeCurve.Compiled, "x", (decimal)targetX);
                         float logY = (float)fxDec;
                         float sy = MapY(logY);
+                        float sx = MapX(targetX);
 
-                        using (Pen dashPen = new Pen(Color.FromArgb(90, 248, 250, 252), 1f) { DashStyle = DashStyle.Dash })
+                        decimal dfxDec = EvalDeriv(activeCurve.Compiled, (decimal)targetX);
+                        float slope = (float)dfxDec;
+
+                        // Inspect Tangent Line
+                        if (chkInspectMode.Checked && !float.IsNaN(slope) && Math.Abs(slope) < 1e4f)
                         {
-                            g.DrawLine(dashPen, mx, 0, mx, h);
-                            if (sy >= 0 && sy <= h)
+                            using (Pen tanLinePen = new Pen(Color.FromArgb(0, 210, 255), 2f))
+                            using (Pen normPen = new Pen(Color.FromArgb(168, 85, 247), 1.2f) { DashStyle = DashStyle.Dash })
                             {
-                                g.DrawLine(dashPen, 0, sy, w, sy);
-                                using (Brush dotBrush = new SolidBrush(activeCurve.Color))
+                                float x1 = rangeMinX;
+                                float y1 = logY + slope * (x1 - targetX);
+                                float x2 = rangeMaxX;
+                                float y2 = logY + slope * (x2 - targetX);
+
+                                g.DrawLine(tanLinePen, MapX(x1), MapY(y1), MapX(x2), MapY(y2));
+
+                                // Normal line: slope = -1 / slope
+                                if (Math.Abs(slope) > 0.001f)
                                 {
-                                    g.FillEllipse(dotBrush, mx - 4, sy - 4, 8, 8);
+                                    float nSlope = -1f / slope;
+                                    float ny1 = logY + nSlope * (x1 - targetX);
+                                    float ny2 = logY + nSlope * (x2 - targetX);
+                                    g.DrawLine(normPen, MapX(x1), MapY(ny1), MapX(x2), MapY(ny2));
                                 }
                             }
                         }
 
-                        decimal dfxDec = EvalDeriv(activeCurve.Compiled, (decimal)logX);
-                        string coordInfo = $"x = {logX:F3}  |  f(x) = {logY:F4}  |  f'(x) = {dfxDec:F4}  ({activeCurve.Equation})";
-                        using (Font hudFont = new Font("Consolas", 9F, FontStyle.Bold))
-                        using (Brush hudBg = new SolidBrush(Color.FromArgb(220, 15, 23, 42)))
-                        using (Pen hudBorder = new Pen(Color.FromArgb(56, 189, 248), 1.2f))
-                        using (Brush hudFg = new SolidBrush(Color.FromArgb(186, 230, 253)))
+                        using (Pen dashPen = new Pen(Color.FromArgb(90, 248, 250, 252), 1f) { DashStyle = DashStyle.Dash })
                         {
-                            SizeF sz = g.MeasureString(coordInfo, hudFont);
-                            RectangleF rect = new RectangleF(16, 12, sz.Width + 14, sz.Height + 8);
-                            g.FillRectangle(hudBg, rect);
-                            g.DrawRectangle(hudBorder, rect.X, rect.Y, rect.Width, rect.Height);
-                            g.DrawString(coordInfo, hudFont, hudFg, rect.X + 7, rect.Y + 4);
+                            g.DrawLine(dashPen, sx, 0, sx, h);
+                            if (sy >= 0 && sy <= h)
+                            {
+                                g.DrawLine(dashPen, 0, sy, w, sy);
+                                using (Brush dotBrush = new SolidBrush(snappedCp != null ? snappedCp.Color : activeCurve.Color))
+                                {
+                                    g.FillEllipse(dotBrush, sx - 5, sy - 5, 10, 10);
+                                    g.DrawEllipse(Pens.White, sx - 5, sy - 5, 10, 10);
+                                }
+                            }
+                        }
+
+                        // Modern Acrylic HUD Card
+                        using (Font hudFont = new Font("Segoe UI", 9F, FontStyle.Bold))
+                        using (Brush hudBg = new SolidBrush(Color.FromArgb(230, 11, 15, 28)))
+                        using (Pen hudBorder = new Pen(Color.FromArgb(0, 210, 255), 1.5f))
+                        using (Brush textCyan = new SolidBrush(Color.FromArgb(0, 210, 255)))
+                        using (Brush textWhite = new SolidBrush(Color.White))
+                        using (Brush textYellow = new SolidBrush(Color.FromArgb(250, 204, 21)))
+                        {
+                            string tLine1 = snappedCp != null ? snappedCp.Details : $"x = {targetX:F3}  |  f(x) = {logY:F3}";
+                            string tLine2 = chkInspectMode.Checked
+                                ? $"Teğet: y = {slope:F2}x + {(logY - slope * targetX):F2}  |  dy/dx = {slope:F3}"
+                                : $"Eğim f'(x) = {dfxDec:F3}";
+
+                            float boxW = Math.Max(260, Math.Max(g.MeasureString(tLine1, hudFont).Width, g.MeasureString(tLine2, hudFont).Width) + 24);
+                            float boxH = 48;
+                            float bx = Math.Min(w - boxW - 12, Math.Max(12, sx + 12));
+                            float by = Math.Min(h - boxH - 12, Math.Max(12, sy - boxH - 12));
+
+                            g.FillRectangle(hudBg, bx, by, boxW, boxH);
+                            g.DrawRectangle(hudBorder, bx, by, boxW, boxH);
+
+                            g.DrawString(tLine1, hudFont, snappedCp != null ? textYellow : textCyan, bx + 10, by + 6);
+                            g.DrawString(tLine2, hudFont, textWhite, bx + 10, by + 25);
                         }
                     }
                     catch { }
-                    finally { Function.UseRadians = prevRad; }
+                    finally
+                    {
+                        Function.UseRadians = prevRad;
+                    }
                 }
             }
+        }
+
+        private void DrawAdaptiveGrid(Graphics g, float w, float h, Func<float, float> mapX, Func<float, float> mapY)
+        {
+            float rangeW = rangeMaxX - rangeMinX;
+            float stepW = CalculateStep(rangeW, 10);
+            float minorW = stepW / 5f;
+
+            float rangeH = rangeMaxY - rangeMinY;
+            float stepH = CalculateStep(rangeH, 8);
+            float minorH = stepH / 5f;
+
+            // 1. Minor Sub-Grid Lines
+            using (Pen minorPen = new Pen(Color.FromArgb(22, 32, 48), 1f))
+            {
+                if (minorW > 0)
+                {
+                    float startX = (float)Math.Floor(rangeMinX / minorW) * minorW;
+                    for (float x = startX; x <= rangeMaxX; x += minorW)
+                    {
+                        float sx = mapX(x);
+                        g.DrawLine(minorPen, sx, 0, sx, h);
+                    }
+                }
+                if (minorH > 0)
+                {
+                    float startY = (float)Math.Floor(rangeMinY / minorH) * minorH;
+                    for (float y = startY; y <= rangeMaxY; y += minorH)
+                    {
+                        float sy = mapY(y);
+                        g.DrawLine(minorPen, 0, sy, w, sy);
+                    }
+                }
+            }
+
+            // 2. Major Grid Lines & Numbers
+            using (Pen majorPen = new Pen(Color.FromArgb(45, 60, 85), 1.2f))
+            using (Font font = new Font("Segoe UI", 8.5F, FontStyle.Regular))
+            using (Brush brush = new SolidBrush(Color.FromArgb(148, 163, 184)))
+            {
+                if (stepW > 0)
+                {
+                    float startX = (float)Math.Floor(rangeMinX / stepW) * stepW;
+                    for (float x = startX; x <= rangeMaxX; x += stepW)
+                    {
+                        float sx = mapX(x);
+                        g.DrawLine(majorPen, sx, 0, sx, h);
+                        if (Math.Abs(x) > 1e-4f)
+                        {
+                            g.DrawString(x.ToString("0.##", CultureInfo.InvariantCulture), font, brush, sx + 3, h - 20);
+                        }
+                    }
+                }
+
+                if (stepH > 0)
+                {
+                    float startY = (float)Math.Floor(rangeMinY / stepH) * stepH;
+                    for (float y = startY; y <= rangeMaxY; y += stepH)
+                    {
+                        float sy = mapY(y);
+                        g.DrawLine(majorPen, 0, sy, w, sy);
+                        if (Math.Abs(y) > 1e-4f)
+                        {
+                            g.DrawString(y.ToString("0.##", CultureInfo.InvariantCulture), font, brush, 6, sy - 16);
+                        }
+                    }
+                }
+            }
+        }
+
+        private float CalculateStep(float range, int targetSteps)
+        {
+            float rawStep = range / targetSteps;
+            double log = Math.Log10(rawStep);
+            double baseExponent = Math.Floor(log);
+            double fraction = rawStep / Math.Pow(10, baseExponent);
+
+            double niceFraction;
+            if (fraction <= 1.5) niceFraction = 1;
+            else if (fraction <= 3.5) niceFraction = 2;
+            else if (fraction <= 7.5) niceFraction = 5;
+            else niceFraction = 10;
+
+            return (float)(niceFraction * Math.Pow(10, baseExponent));
         }
 
         private void DrawCustomPoint(Graphics g, float sx, float sy, PlotPoint p)
         {
             int sz = p.Size;
-            float half = sz / 2f;
+            int half = sz / 2;
+
             using (Brush b = new SolidBrush(p.Color))
-            using (Pen pen = new Pen(Color.White, 1.5f))
+            using (Pen pen = new Pen(Color.White, 1.2f))
             {
                 switch (p.Shape)
                 {
@@ -960,80 +1470,235 @@ namespace MathApp.Controls
             }
         }
 
-        private void DrawGrid(Graphics g, float w, float h, Func<float, float> mapX, Func<float, float> mapY)
+        private decimal EvalDeriv(Function fn, decimal x)
         {
-            using (Pen gridPen = new Pen(Color.FromArgb(30, 41, 59), 1))
-            using (Font font = new Font("Segoe UI", 8.5f))
-            using (Brush brush = new SolidBrush(Color.FromArgb(148, 163, 184)))
+            decimal h = 0.001m;
+            decimal y1 = NumericalMethods.EvaluateCompiled(fn, "x", x + h);
+            decimal y0 = NumericalMethods.EvaluateCompiled(fn, "x", x - h);
+            return (y1 - y0) / (2m * h);
+        }
+
+        #endregion
+
+        #region Points List Management
+
+        private void RefreshPointsList()
+        {
+            lstPoints.BeginUpdate();
+            lstPoints.Items.Clear();
+            foreach (var p in _points)
             {
-                float rangeW = rangeMaxX - rangeMinX;
-                float stepW = CalculateStep(rangeW, 10);
+                lstPoints.Items.Add(p);
+            }
+            lstPoints.EndUpdate();
+        }
 
-                float rangeH = rangeMaxY - rangeMinY;
-                float stepH = CalculateStep(rangeH, 8);
+        private void BtnAddPoint_Click(object sender, EventArgs e)
+        {
+            float px = ParseFloat(txtPtX.Text, 0f);
+            float py = ParseFloat(txtPtY.Text, 0f);
 
-                if (stepW > 0)
+            _points.Add(new PlotPoint
+            {
+                X = px,
+                Y = py,
+                Color = btnPtColor.BackColor,
+                Shape = (PointShape)Math.Max(0, cmbPtShape.SelectedIndex),
+                Size = 8
+            });
+
+            RefreshPointsList();
+            pnlCanvas.Invalidate();
+        }
+
+        private void BtnDeletePoint_Click(object sender, EventArgs e)
+        {
+            if (lstPoints.SelectedIndex >= 0 && lstPoints.SelectedIndex < _points.Count)
+            {
+                _points.RemoveAt(lstPoints.SelectedIndex);
+                RefreshPointsList();
+                pnlCanvas.Invalidate();
+            }
+        }
+
+        #endregion
+
+        #region Exporting (Image, CSV, LaTeX)
+
+        private void BtnExportImage_Click(object sender, EventArgs e)
+        {
+            using (SaveFileDialog sfd = new SaveFileDialog
+            {
+                Filter = "PNG Resmi (*.png)|*.png|JPEG Resmi (*.jpg)|*.jpg|Bitmap (*.bmp)|*.bmp",
+                FileName = "ttCalculator_Grafik.png",
+                Title = "Grafiği Resim Olarak Kaydet"
+            })
+            {
+                if (sfd.ShowDialog() == DialogResult.OK)
                 {
-                    float startX = (float)Math.Floor(rangeMinX / stepW) * stepW;
-                    for (float x = startX; x <= rangeMaxX; x += stepW)
+                    try
                     {
-                        float sx = mapX(x);
-                        g.DrawLine(gridPen, sx, 0, sx, h);
-                        g.DrawString(x.ToString("0.##", CultureInfo.InvariantCulture), font, brush, sx + 3, h - 20);
+                        using (Bitmap bmp = new Bitmap(pnlCanvas.Width, pnlCanvas.Height))
+                        {
+                            pnlCanvas.DrawToBitmap(bmp, new Rectangle(0, 0, pnlCanvas.Width, pnlCanvas.Height));
+                            bmp.Save(sfd.FileName);
+                        }
+                        MessageBox.Show("Grafik görseli başarıyla dışa aktarıldı:\n" + sfd.FileName, "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
-                }
-
-                if (stepH > 0)
-                {
-                    float startY = (float)Math.Floor(rangeMinY / stepH) * stepH;
-                    for (float y = startY; y <= rangeMaxY; y += stepH)
+                    catch (Exception ex)
                     {
-                        float sy = mapY(y);
-                        g.DrawLine(gridPen, 0, sy, w, sy);
-                        g.DrawString(y.ToString("0.##", CultureInfo.InvariantCulture), font, brush, 6, sy - 16);
+                        MessageBox.Show("Dışa aktarma hatası: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
         }
 
-        private float CalculateStep(float range, int targetSteps)
+        private void BtnExportCsv_Click(object sender, EventArgs e)
         {
-            if (range <= 0 || float.IsNaN(range) || float.IsInfinity(range)) return 1f;
-            float rawStep = range / targetSteps;
-            float mag = (float)Math.Pow(10, Math.Floor(Math.Log10(rawStep)));
-            float normStep = rawStep / mag;
+            var validCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar && c.Compiled != null).ToList();
+            if (validCurves.Count == 0)
+            {
+                MessageBox.Show("Dışa aktarılacak görünür bir kartezyen eğri bulunamadı.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
-            if (normStep < 1.5f) return 1f * mag;
-            if (normStep < 3.5f) return 2f * mag;
-            if (normStep < 7.5f) return 5f * mag;
-            return 10f * mag;
+            using (SaveFileDialog sfd = new SaveFileDialog
+            {
+                Filter = "CSV Dosyası (*.csv)|*.csv",
+                FileName = "ttCalculator_DegerTablosu.csv",
+                Title = "Değer Tablosunu CSV Olarak İndir"
+            })
+            {
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        sb.Append("x");
+                        foreach (var c in validCurves)
+                        {
+                            sb.Append($",\"{c.Equation}\"");
+                        }
+                        sb.AppendLine();
+
+                        float step = 0.1f;
+                        for (float x = rangeMinX; x <= rangeMaxX + 1e-5f; x += step)
+                        {
+                            sb.Append(x.ToString("F3", CultureInfo.InvariantCulture));
+                            foreach (var c in validCurves)
+                            {
+                                try
+                                {
+                                    SetCurveParameters(c);
+                                    decimal y = NumericalMethods.EvaluateCompiled(c.Compiled, "x", (decimal)x);
+                                    sb.Append("," + ((float)y).ToString("F4", CultureInfo.InvariantCulture));
+                                }
+                                catch
+                                {
+                                    sb.Append(",NaN");
+                                }
+                            }
+                            sb.AppendLine();
+                        }
+
+                        File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+                        MessageBox.Show("Değer tablosu CSV formatında başarıyla kaydedildi:\n" + sfd.FileName, "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("CSV oluşturma hatası: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
         }
 
-        private void pnlCanvas_Resize(object sender, EventArgs e)
+        private void BtnExportLatex_Click(object sender, EventArgs e)
         {
-            GenerateAllPoints(false, isDraft: false);
-            pnlCanvas.Invalidate();
-        }
+            var validCurves = _curves.Where(c => c.Visible && !c.IsVerticalLine && !c.IsPolar).ToList();
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("% ttCalculator v2.8 LaTeX Pgfplots / TikZ Kodu");
+            sb.AppendLine("\\begin{tikzpicture}");
+            sb.AppendLine("\\begin{axis}[");
+            sb.AppendLine($"    xmin={rangeMinX:F1}, xmax={rangeMaxX:F1},");
+            sb.AppendLine($"    ymin={rangeMinY:F1}, ymax={rangeMaxY:F1},");
+            sb.AppendLine("    axis lines=middle,");
+            sb.AppendLine("    grid=both,");
+            sb.AppendLine("    xlabel={$x$},");
+            sb.AppendLine("    ylabel={$y$},");
+            sb.AppendLine("    samples=200,");
+            sb.AppendLine("    legend pos=outer north east");
+            sb.AppendLine("]");
 
-        private float ParseFloat(string s, float def)
-        {
-            string norm = (s ?? "").Trim().Replace(',', '.');
-            if (float.TryParse(norm, NumberStyles.Any, CultureInfo.InvariantCulture, out float v)) return v;
-            return def;
+            string[] colors = { "blue", "red", "green!70!black", "orange", "purple", "cyan" };
+            int cIdx = 0;
+            foreach (var c in validCurves)
+            {
+                string col = colors[cIdx % colors.Length];
+                cIdx++;
+                string tikzExpr = c.Equation.Replace("sin(", "sin(deg(")
+                                           .Replace("cos(", "cos(deg(")
+                                           .Replace("tan(", "tan(deg(")
+                                           .Replace("^", "^");
+                sb.AppendLine($"\\addplot[color={col}, thick, domain={rangeMinX:F1}:{rangeMaxX:F1}] {{{tikzExpr}}};");
+                sb.AppendLine($"\\addlegendentry{{${c.Equation}$}}");
+            }
+
+            sb.AppendLine("\\end{axis}");
+            sb.AppendLine("\\end{tikzpicture}");
+
+            using (Form dlg = new Form
+            {
+                Text = "LaTeX (TikZ / Pgfplots) Kodu",
+                Size = new Size(580, 420),
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = ThemeHelper.DarkBackground,
+                ForeColor = Color.White
+            })
+            {
+                RichTextBox txt = new RichTextBox
+                {
+                    Dock = DockStyle.Top,
+                    Height = 310,
+                    Text = sb.ToString(),
+                    Font = new Font("Consolas", 10F),
+                    BackColor = ThemeHelper.CardBackground,
+                    ForeColor = Color.FromArgb(0, 210, 255),
+                    ReadOnly = true
+                };
+
+                Button btnCopy = ThemeHelper.CreateActionButton("📋 Panoya Kopyala", 160, 32, true);
+                btnCopy.Location = new Point(200, 325);
+                btnCopy.Click += (cs, ce) =>
+                {
+                    Clipboard.SetText(sb.ToString());
+                    MessageBox.Show("LaTeX kodu panoya kopyalandı!", "Kopyalandı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    dlg.Close();
+                };
+
+                dlg.Controls.Add(txt);
+                dlg.Controls.Add(btnCopy);
+                dlg.ShowDialog(this);
+            }
         }
 
         #endregion
 
-        #region Advanced Tools (Common Tangent, Closest Points, Tangent from Point)
+        #region Tools & Geometry (Common Tangent, Closest Points, Point Tangent)
 
         private void BtnCommonTangent_Click(object sender, EventArgs e)
         {
-            string eq1 = cmbToolF1.SelectedItem?.ToString();
-            string eq2 = cmbToolF2.SelectedItem?.ToString();
-
-            if (string.IsNullOrWhiteSpace(eq1) || string.IsNullOrWhiteSpace(eq2))
+            if (cmbToolF1.SelectedIndex < 0 || cmbToolF2.SelectedIndex < 0)
             {
-                MessageBox.Show("Lütfen araç için listeden iki fonksiyon seçin.", "Seçim Eksik", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                txtToolLog.Text = "Lütfen iki fonksiyon seçin.";
+                return;
+            }
+
+            string eq1 = cmbToolF1.SelectedItem.ToString();
+            string eq2 = cmbToolF2.SelectedItem.ToString();
+
+            if (eq1 == eq2)
+            {
+                txtToolLog.Text = "Hata: İki farklı fonksiyon seçmelisiniz.";
                 return;
             }
 
@@ -1042,68 +1707,54 @@ namespace MathApp.Controls
                 Function f1 = NumericalMethods.CompileFunction(eq1);
                 Function f2 = NumericalMethods.CompileFunction(eq2);
 
-                decimal EvalF1(decimal x) => NumericalMethods.EvaluateCompiled(f1, "x", x);
-                decimal EvalF2(decimal x) => NumericalMethods.EvaluateCompiled(f2, "x", x);
-                decimal DerivF1(decimal x) => EvalDeriv(f1, x);
-                decimal DerivF2(decimal x) => EvalDeriv(f2, x);
+                txtToolLog.Text = $"Ortak Teğet Çözülüyor...\nf₁(x) = {eq1}\nf₂(x) = {eq2}\n\n";
 
-                // Scan grid over [rangeMinX, rangeMaxX] for (x1, x2) minimizing common tangent loss
-                decimal bestLoss = decimal.MaxValue;
-                decimal bestX1 = 0m, bestX2 = 0m;
+                float x1Cand = -1f;
+                float x2Cand = 1f;
+                bool found = false;
 
-                int gridN = 40;
-                decimal xStart = (decimal)rangeMinX;
-                decimal xEnd = (decimal)rangeMaxX;
-                decimal dx = (xEnd - xStart) / gridN;
-
-                for (int i = 0; i <= gridN; i++)
+                for (int iter = 0; iter < 40; iter++)
                 {
-                    decimal x1 = xStart + i * dx;
-                    decimal m1 = DerivF1(x1);
-                    decimal y1 = EvalF1(x1);
+                    decimal y1 = NumericalMethods.EvaluateCompiled(f1, "x", (decimal)x1Cand);
+                    decimal y2 = NumericalMethods.EvaluateCompiled(f2, "x", (decimal)x2Cand);
 
-                    for (int j = 0; j <= gridN; j++)
+                    decimal m1 = EvalDeriv(f1, (decimal)x1Cand);
+                    decimal m2 = EvalDeriv(f2, (decimal)x2Cand);
+
+                    if (Math.Abs(x2Cand - x1Cand) < 1e-4f) { x2Cand += 0.1f; continue; }
+
+                    decimal secantM = (y2 - y1) / (decimal)(x2Cand - x1Cand);
+
+                    decimal err1 = m1 - m2;
+                    decimal err2 = m1 - secantM;
+
+                    if (Math.Abs(err1) < 0.0001m && Math.Abs(err2) < 0.0001m)
                     {
-                        decimal x2 = xStart + j * dx;
-                        if (DecimalMath.Abs(x1 - x2) < 0.05m) continue;
-
-                        decimal m2 = DerivF2(x2);
-                        decimal y2 = EvalF2(x2);
-                        decimal chordSlope = (y2 - y1) / (x2 - x1);
-
-                        decimal loss = (m1 - m2) * (m1 - m2) + (chordSlope - m1) * (chordSlope - m1);
-                        if (loss < bestLoss)
-                        {
-                            bestLoss = loss;
-                            bestX1 = x1;
-                            bestX2 = x2;
-                        }
+                        found = true;
+                        break;
                     }
+
+                    x1Cand -= (float)(err1 * 0.1m);
+                    x2Cand += (float)(err2 * 0.1m);
                 }
 
-                if (bestLoss < 1.0m)
+                if (found)
                 {
-                    decimal m = DerivF1(bestX1);
-                    decimal c = EvalF1(bestX1) - m * bestX1;
+                    decimal m = EvalDeriv(f1, (decimal)x1Cand);
+                    decimal y1 = NumericalMethods.EvaluateCompiled(f1, "x", (decimal)x1Cand);
+                    decimal n = y1 - m * (decimal)x1Cand;
 
-                    string tanEq = $"{m:F4} * x + {c:F4}";
-                    AddFunctionCurve(tanEq, false, rangeMinX, rangeMaxX, Color.FromArgb(250, 204, 21), DashStyle.Dash, 2.5f);
+                    string tanEq = $"{m:F4}*x + {n:F4}";
+                    txtToolLog.AppendText($"✓ Ortak Teğet Bulundu:\n");
+                    txtToolLog.AppendText($"Teğet 1: x₁ = {x1Cand:F3}\n");
+                    txtToolLog.AppendText($"Teğet 2: x₂ = {x2Cand:F3}\n");
+                    txtToolLog.AppendText($"Doğru: y = {tanEq}\n");
 
-                    // Add contact points
-                    _points.Add(new PlotPoint { X = (float)bestX1, Y = (float)EvalF1(bestX1), Color = Color.FromArgb(56, 189, 248), Shape = PointShape.Diamond });
-                    _points.Add(new PlotPoint { X = (float)bestX2, Y = (float)EvalF2(bestX2), Color = Color.FromArgb(244, 63, 94), Shape = PointShape.Diamond });
-                    RefreshPointsList();
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("✓ ORTAK TEĞET BULUNDU:");
-                    sb.AppendLine($"Doğru: y = {m:F4}·x + {c:F4}");
-                    sb.AppendLine($"1. Değme Noktası: P1({bestX1:F3}, {EvalF1(bestX1):F3})");
-                    sb.AppendLine($"2. Değme Noktası: P2({bestX2:F3}, {EvalF2(bestX2):F3})");
-                    txtToolLog.Text = sb.ToString();
+                    AddFunctionCurve(tanEq, false, -20f, 20f, Color.FromArgb(236, 72, 153), DashStyle.Dash, 2.2f);
                 }
                 else
                 {
-                    txtToolLog.Text = "Belirtilen aralıkta ortak teğet bulunamadı veya eğriler uygun geometriye sahip değil.";
+                    txtToolLog.AppendText("Bu aralıkta ortak teğet yakınsayamadı (Kök bulunamadı).");
                 }
             }
             catch (Exception ex)
@@ -1114,102 +1765,76 @@ namespace MathApp.Controls
 
         private void BtnNearestPoints_Click(object sender, EventArgs e)
         {
-            string eq1 = cmbToolF1.SelectedItem?.ToString();
-            string eq2 = cmbToolF2.SelectedItem?.ToString();
-
-            if (string.IsNullOrWhiteSpace(eq1) || string.IsNullOrWhiteSpace(eq2))
+            if (cmbToolF1.SelectedIndex < 0 || cmbToolF2.SelectedIndex < 0)
             {
-                MessageBox.Show("Lütfen iki fonksiyon seçin.", "Seçim Eksik", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                txtToolLog.Text = "Lütfen iki fonksiyon seçin.";
                 return;
             }
 
+            string eq1 = cmbToolF1.SelectedItem.ToString();
+            string eq2 = cmbToolF2.SelectedItem.ToString();
+
             try
             {
-                // Check if they intersect: f1 - f2 = 0
-                string diffEq = $"({eq1}) - ({eq2})";
-                var roots = NumericalMethods.FindAllRoots(diffEq, (decimal)rangeMinX, (decimal)rangeMaxX, "x");
-
-                if (roots.Count > 0)
-                {
-                    StringBuilder sbInt = new StringBuilder();
-                    sbInt.AppendLine("⚠️ FONKSİYONLAR KESİŞİYOR!");
-                    sbInt.AppendLine($"Kesişme Kökleri ({roots.Count} adet):");
-                    foreach (var r in roots)
-                    {
-                        sbInt.AppendLine($" • x = {r.Root:F5} (f(x)={r.FVal:G4})");
-                    }
-                    sbInt.AppendLine("Kesiştikleri için aralarındaki minimum mesafe: 0'dır.");
-                    txtToolLog.Text = sbInt.ToString();
-                    return;
-                }
-
-                // If no intersection, find points minimizing Euclidean distance
                 Function f1 = NumericalMethods.CompileFunction(eq1);
                 Function f2 = NumericalMethods.CompileFunction(eq2);
 
-                decimal minDistSq = decimal.MaxValue;
-                decimal bestX1 = 0m, bestX2 = 0m;
-                decimal bestY1 = 0m, bestY2 = 0m;
+                txtToolLog.Text = $"En Yakın Noktalar Analizi:\nf₁(x) = {eq1}\nf₂(x) = {eq2}\n\n";
 
-                int gridN = 60;
-                decimal xStart = (decimal)rangeMinX;
-                decimal xEnd = (decimal)rangeMaxX;
-                decimal dx = (xEnd - xStart) / gridN;
+                float bestX1 = 0, bestX2 = 0;
+                float minDistSq = float.MaxValue;
 
-                for (int i = 0; i <= gridN; i++)
+                int steps = 60;
+                float stepX = (rangeMaxX - rangeMinX) / steps;
+
+                for (int i = 0; i <= steps; i++)
                 {
-                    decimal x1 = xStart + i * dx;
-                    decimal y1 = 0m;
-                    try { y1 = NumericalMethods.EvaluateCompiled(f1, "x", x1); } catch { continue; }
+                    float x1 = rangeMinX + i * stepX;
+                    decimal y1Dec = NumericalMethods.EvaluateCompiled(f1, "x", (decimal)x1);
+                    float y1 = (float)y1Dec;
 
-                    for (int j = 0; j <= gridN; j++)
+                    for (int j = 0; j <= steps; j++)
                     {
-                        decimal x2 = xStart + j * dx;
-                        decimal y2 = 0m;
-                        try { y2 = NumericalMethods.EvaluateCompiled(f2, "x", x2); } catch { continue; }
+                        float x2 = rangeMinX + j * stepX;
+                        decimal y2Dec = NumericalMethods.EvaluateCompiled(f2, "x", (decimal)x2);
+                        float y2 = (float)y2Dec;
 
-                        decimal dSq = (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
+                        float dSq = (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
                         if (dSq < minDistSq)
                         {
                             minDistSq = dSq;
                             bestX1 = x1;
-                            bestY1 = y1;
                             bestX2 = x2;
-                            bestY2 = y2;
                         }
                     }
                 }
 
-                decimal dist = (decimal)Math.Sqrt((double)minDistSq);
+                float minY1 = (float)NumericalMethods.EvaluateCompiled(f1, "x", (decimal)bestX1);
+                float minY2 = (float)NumericalMethods.EvaluateCompiled(f2, "x", (decimal)bestX2);
+                float dist = (float)Math.Sqrt(minDistSq);
 
-                // Add points
-                _points.Add(new PlotPoint { X = (float)bestX1, Y = (float)bestY1, Color = Color.FromArgb(236, 72, 153), Shape = PointShape.Diamond });
-                _points.Add(new PlotPoint { X = (float)bestX2, Y = (float)bestY2, Color = Color.FromArgb(236, 72, 153), Shape = PointShape.Diamond });
+                txtToolLog.AppendText($"En Kısa Mesafe: {dist:F4}\n");
+                txtToolLog.AppendText($"P₁ (f₁ üzerinde): ({bestX1:F3}, {minY1:F3})\n");
+                txtToolLog.AppendText($"P₂ (f₂ üzerinde): ({bestX2:F3}, {minY2:F3})\n");
+
+                _points.Add(new PlotPoint { X = bestX1, Y = minY1, Color = Color.Cyan, Shape = PointShape.Diamond });
+                _points.Add(new PlotPoint { X = bestX2, Y = minY2, Color = Color.Magenta, Shape = PointShape.Diamond });
                 RefreshPointsList();
 
-                // Connecting line equation
-                decimal m = 0m, c = 0m;
-                string lineEq;
-                if (DecimalMath.Abs(bestX2 - bestX1) > 1e-5m)
+                if (Math.Abs(bestX2 - bestX1) > 0.001f)
                 {
-                    m = (bestY2 - bestY1) / (bestX2 - bestX1);
-                    c = bestY1 - m * bestX1;
-                    lineEq = $"{m:F4} * x + {c:F4}";
-                    AddFunctionCurve(lineEq, false, rangeMinX, rangeMaxX, Color.FromArgb(236, 72, 153), DashStyle.Dot, 2f);
+                    float m = (minY2 - minY1) / (bestX2 - bestX1);
+                    float n = minY1 - m * bestX1;
+                    string lineEq = $"{m:F4}*x + {n:F4}";
+                    txtToolLog.AppendText($"Aralarındaki Doğru: y = {lineEq}\n");
+                    AddFunctionCurve(lineEq, true, Math.Min(bestX1, bestX2), Math.Max(bestX1, bestX2), Color.Yellow, DashStyle.Dot, 2f);
                 }
                 else
                 {
-                    AddVerticalLine((float)bestX1, (float)Math.Min(bestY1, bestY2), (float)Math.Max(bestY1, bestY2), Color.FromArgb(236, 72, 153), DashStyle.Dot);
-                    lineEq = $"x = {bestX1:F4} (Düşey Doğru)";
+                    AddVerticalLine(bestX1, Math.Min(minY1, minY2), Math.Max(minY1, minY2), Color.Yellow, DashStyle.Dot, 2f);
                 }
 
-                StringBuilder sb = new StringBuilder();
-                sb.AppendLine("✓ EN YAKIN NOKTALAR HESAPLANDI:");
-                sb.AppendLine($"Kesişme: Yok (Denklem kökü bulunamadı)");
-                sb.AppendLine($"P1({bestX1:F3}, {bestY1:F3}) ve P2({bestX2:F3}, {bestY2:F3})");
-                sb.AppendLine($"Minimum Mesafe: {dist:F5} birim");
-                sb.AppendLine($"Geçen Doğru: y = {m:F4}·x + {c:F4}");
-                txtToolLog.Text = sb.ToString();
+                pnlCanvas.Invalidate();
             }
             catch (Exception ex)
             {
@@ -1219,72 +1844,59 @@ namespace MathApp.Controls
 
         private void BtnPointTangent_Click(object sender, EventArgs e)
         {
-            string eq = cmbToolF1.SelectedItem?.ToString();
-            if (string.IsNullOrWhiteSpace(eq))
+            if (cmbToolF1.SelectedIndex < 0)
             {
-                MessageBox.Show("Lütfen 1. Fonksiyonu seçin.", "Fonksiyon Eksik", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                txtToolLog.Text = "Lütfen 1. Fonksiyonu seçin.";
                 return;
             }
 
-            float px = ParseFloat(txtTanPointX.Text, 0f);
-            float py = ParseFloat(txtTanPointY.Text, 3f);
+            string eq = cmbToolF1.SelectedItem.ToString();
+            float x0 = ParseFloat(txtTanPointX.Text, 0f);
+            float y0 = ParseFloat(txtTanPointY.Text, 0f);
 
             try
             {
                 Function f = NumericalMethods.CompileFunction(eq);
-                decimal x0 = (decimal)px;
-                decimal y0 = (decimal)py;
+                txtToolLog.Text = $"Noktadan Teğet Analizi:\nNokta: ({x0}, {y0})\nf(x) = {eq}\n\n";
 
-                // Tangent condition: (f(xt) - y0) - f'(xt) * (xt - x0) = 0
-                // Search for xt in [rangeMinX, rangeMaxX]
-                decimal bestDiff = decimal.MaxValue;
-                decimal bestXt = 0m;
-                int nScan = 100;
-                decimal xStart = (decimal)rangeMinX;
-                decimal xEnd = (decimal)rangeMaxX;
-                decimal dx = (xEnd - xStart) / nScan;
+                float xt = x0;
+                bool found = false;
 
-                for (int i = 0; i <= nScan; i++)
+                for (int iter = 0; iter < 50; iter++)
                 {
-                    decimal xt = xStart + i * dx;
-                    try
+                    decimal yt = NumericalMethods.EvaluateCompiled(f, "x", (decimal)xt);
+                    decimal mt = EvalDeriv(f, (decimal)xt);
+
+                    decimal res = yt - (decimal)y0 - mt * (decimal)(xt - x0);
+                    if (Math.Abs(res) < 0.0001m)
                     {
-                        decimal fx = NumericalMethods.EvaluateCompiled(f, "x", xt);
-                        decimal dfx = EvalDeriv(f, xt);
-                        decimal cond = (fx - y0) - dfx * (xt - x0);
-                        if (DecimalMath.Abs(cond) < bestDiff)
-                        {
-                            bestDiff = DecimalMath.Abs(cond);
-                            bestXt = xt;
-                        }
+                        found = true;
+                        break;
                     }
-                    catch { }
+
+                    decimal dRes = -EvalDeriv(f, (decimal)xt + 0.01m) + EvalDeriv(f, (decimal)xt - 0.01m);
+                    if (Math.Abs(dRes) < 1e-6m) dRes = 1m;
+
+                    xt -= (float)(res / dRes * 0.1m);
                 }
 
-                if (bestDiff < 0.5m)
+                if (found)
                 {
-                    decimal m = EvalDeriv(f, bestXt);
-                    decimal c = y0 - m * x0;
+                    decimal mt = EvalDeriv(f, (decimal)xt);
+                    decimal nt = (decimal)y0 - mt * (decimal)x0;
+                    string tanEq = $"{mt:F4}*x + {nt:F4}";
 
-                    string tanEq = $"{m:F4} * x + {c:F4}";
-                    AddFunctionCurve(tanEq, false, rangeMinX, rangeMaxX, Color.FromArgb(249, 115, 22), DashStyle.Dash, 2.2f);
+                    txtToolLog.AppendText($"✓ Teğet Değme Noktası: x_t = {xt:F4}\n");
+                    txtToolLog.AppendText($"Teğet Doğrusu: y = {tanEq}\n");
 
-                    // Add point and contact point
-                    _points.Add(new PlotPoint { X = px, Y = py, Color = Color.FromArgb(249, 115, 22), Shape = PointShape.Cross });
-                    _points.Add(new PlotPoint { X = (float)bestXt, Y = (float)NumericalMethods.EvaluateCompiled(f, "x", bestXt), Color = Color.FromArgb(52, 211, 153), Shape = PointShape.Diamond });
+                    _points.Add(new PlotPoint { X = x0, Y = y0, Color = Color.Lime, Shape = PointShape.Cross });
                     RefreshPointsList();
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("✓ NOKTADAN ÇİZİLEN TEĞET DOĞRUSU:");
-                    sb.AppendLine($"Verilen Nokta: P₀({px}, {py})");
-                    sb.AppendLine($"Değme Noktası: P_teğet({bestXt:F3}, {NumericalMethods.EvaluateCompiled(f, "x", bestXt):F3})");
-                    sb.AppendLine($"Teğet Eğim (m): {m:F4}");
-                    sb.AppendLine($"Teğet Denklemi: y = {m:F4}·x + {c:F4}");
-                    txtToolLog.Text = sb.ToString();
+                    AddFunctionCurve(tanEq, false, -20f, 20f, Color.Lime, DashStyle.Dash, 2.2f);
                 }
                 else
                 {
-                    txtToolLog.Text = "Verilen noktadan fonksiyona teğet kökü bulunamadı.";
+                    txtToolLog.AppendText("Bu noktadan fonksiyona teğet çözümü bulunamadı.");
                 }
             }
             catch (Exception ex)
@@ -1295,7 +1907,7 @@ namespace MathApp.Controls
 
         #endregion
 
-        #region Parametric Shapes
+        #region Parametric Shapes (Primitives)
 
         private void BtnAddShape_Click(object sender, EventArgs e)
         {
@@ -1304,125 +1916,103 @@ namespace MathApp.Controls
             float d1 = Math.Max(0.1f, ParseFloat(txtShapeDim1.Text, 4f));
             float d2 = Math.Max(0.1f, ParseFloat(txtShapeDim2.Text, 2f));
             float angleDeg = ParseFloat(txtShapeAngle.Text, 0f);
-            float angleRad = (float)(angleDeg * Math.PI / 180.0);
-            PointF center = new PointF(cx, cy);
-
-            PointF RotatePt(PointF pt)
-            {
-                if (Math.Abs(angleDeg) < 1e-3f) return pt;
-                float cos = (float)Math.Cos(angleRad);
-                float sin = (float)Math.Sin(angleRad);
-                float dx = pt.X - center.X;
-                float dy = pt.Y - center.Y;
-                return new PointF(center.X + dx * cos - dy * sin, center.Y + dx * sin + dy * cos);
-            }
+            float angleRad = angleDeg * (float)Math.PI / 180f;
 
             int shapeIdx = cmbShapeType.SelectedIndex;
-            Color shapeColor = _palette[_colorIndex % _palette.Length];
+            Color sc = _palette[_colorIndex % _palette.Length];
             _colorIndex++;
 
             switch (shapeIdx)
             {
-                case 0: // Daire (Çember)
-                    string upCircle = $"{cy:F3} + sqrt({d1 * d1:F4} - (x - {cx:F3})^2)";
-                    string lowCircle = $"{cy:F3} - sqrt({d1 * d1:F4} - (x - {cx:F3})^2)";
-                    AddFunctionCurve(upCircle, true, cx - d1, cx + d1, shapeColor, DashStyle.Solid, 2.5f);
-                    AddFunctionCurve(lowCircle, true, cx - d1, cx + d1, shapeColor, DashStyle.Solid, 2.5f);
-                    lblStatus.Text = $"Parametrik Daire eklendi [Merkez: ({cx}, {cy}), Yarıçap: {d1}]";
+                case 0: // Circle / Ellipse
+                    AddFunctionCurve($"{cy} + {d2} * sqrt(max(0, 1 - ((x - {cx}) / {d1})^2))", true, cx - d1, cx + d1, sc);
+                    AddFunctionCurve($"{cy} - {d2} * sqrt(max(0, 1 - ((x - {cx}) / {d1})^2))", true, cx - d1, cx + d1, sc);
+                    lblStatus.Text = $"Elips eklendi (R1={d1}, R2={d2})";
                     break;
 
-                case 1: // Kare (Kenar d1)
-                    float hs = d1 / 2f;
-                    PointF[] sq = new PointF[]
+                case 1: // Rectangle / Square
+                    AddParametricPolygon(new PointF[]
                     {
-                        RotatePt(new PointF(cx - hs, cy - hs)),
-                        RotatePt(new PointF(cx + hs, cy - hs)),
-                        RotatePt(new PointF(cx + hs, cy + hs)),
-                        RotatePt(new PointF(cx - hs, cy + hs))
-                    };
-                    for (int i = 0; i < 4; i++) AddLineSegmentCurve(sq[i], sq[(i + 1) % 4], shapeColor);
-                    lblStatus.Text = $"Kare eklendi [Merkez: ({cx}, {cy}), Kenar: {d1}, Dönüş: {angleDeg}°]";
+                        RotatePoint(new PointF(-d1, -d2), angleRad, cx, cy),
+                        RotatePoint(new PointF(d1, -d2), angleRad, cx, cy),
+                        RotatePoint(new PointF(d1, d2), angleRad, cx, cy),
+                        RotatePoint(new PointF(-d1, d2), angleRad, cx, cy)
+                    }, sc);
+                    lblStatus.Text = $"Dikdörtgen eklendi (Genişlik={d1 * 2}, Yükseklik={d2 * 2}, Açı={angleDeg}°)";
                     break;
 
-                case 2: // Dikdörtgen (Genişlik d1, Yükseklik d2)
-                    float hw = d1 / 2f;
-                    float hh = d2 / 2f;
-                    PointF[] rect = new PointF[]
+                case 2: // Triangle
+                    float hTri = d1 * (float)Math.Sqrt(3) / 2f;
+                    AddParametricPolygon(new PointF[]
                     {
-                        RotatePt(new PointF(cx - hw, cy - hh)),
-                        RotatePt(new PointF(cx + hw, cy - hh)),
-                        RotatePt(new PointF(cx + hw, cy + hh)),
-                        RotatePt(new PointF(cx - hw, cy + hh))
-                    };
-                    for (int i = 0; i < 4; i++) AddLineSegmentCurve(rect[i], rect[(i + 1) % 4], shapeColor);
-                    lblStatus.Text = $"Dikdörtgen eklendi [Merkez: ({cx}, {cy}), {d1} × {d2}, Dönüş: {angleDeg}°]";
+                        RotatePoint(new PointF(0, hTri * 2f / 3f), angleRad, cx, cy),
+                        RotatePoint(new PointF(d1 / 2f, -hTri / 3f), angleRad, cx, cy),
+                        RotatePoint(new PointF(-d1 / 2f, -hTri / 3f), angleRad, cx, cy)
+                    }, sc);
+                    lblStatus.Text = $"Üçgen eklendi (Kenar={d1}, Açı={angleDeg}°)";
                     break;
 
-                case 3: // Eşkenar Üçgen (Yarıçap d1)
-                    PointF v1 = RotatePt(new PointF(cx, cy + d1));
-                    PointF v2 = RotatePt(new PointF(cx - d1 * 0.866025f, cy - d1 * 0.5f));
-                    PointF v3 = RotatePt(new PointF(cx + d1 * 0.866025f, cy - d1 * 0.5f));
-                    AddLineSegmentCurve(v1, v2, shapeColor);
-                    AddLineSegmentCurve(v2, v3, shapeColor);
-                    AddLineSegmentCurve(v3, v1, shapeColor);
-                    lblStatus.Text = $"Eşkenar Üçgen eklendi [Merkez: ({cx}, {cy}), Dönüş: {angleDeg}°]";
+                case 3: // Pentagon
+                    AddRegularPolygon(cx, cy, d1, 5, angleRad, sc);
+                    lblStatus.Text = $"Düzgün Beşgen eklendi (R={d1})";
                     break;
 
-                case 4: // Elips (a=d1, b=d2, Dönüş Açılı)
-                    int nEll = 36;
-                    PointF[] ell = new PointF[nEll];
-                    for (int i = 0; i < nEll; i++)
-                    {
-                        double t = i * 2.0 * Math.PI / nEll;
-                        ell[i] = RotatePt(new PointF((float)(cx + d1 * Math.Cos(t)), (float)(cy + d2 * Math.Sin(t))));
-                    }
-                    for (int i = 0; i < nEll; i++) AddLineSegmentCurve(ell[i], ell[(i + 1) % nEll], shapeColor);
-                    lblStatus.Text = $"Elips eklendi [Merkez: ({cx}, {cy}), a={d1}, b={d2}, Dönüş: {angleDeg}°]";
-                    break;
-
-                case 5: // Düzgün Altıgen (Yarıçap d1)
-                    PointF[] hex = new PointF[6];
-                    for (int i = 0; i < 6; i++)
-                    {
-                        double ang = i * Math.PI / 3.0;
-                        hex[i] = RotatePt(new PointF((float)(cx + d1 * Math.Cos(ang)), (float)(cy + d1 * Math.Sin(ang))));
-                    }
-                    for (int i = 0; i < 6; i++) AddLineSegmentCurve(hex[i], hex[(i + 1) % 6], shapeColor);
-                    lblStatus.Text = $"Düzgün Altıgen eklendi [Merkez: ({cx}, {cy}), R={d1}, Dönüş: {angleDeg}°]";
+                case 4: // Hexagon
+                    AddRegularPolygon(cx, cy, d1, 6, angleRad, sc);
+                    lblStatus.Text = $"Düzgün Altıgen eklendi (R={d1})";
                     break;
             }
         }
 
-        private void AddLineSegmentCurve(PointF p1, PointF p2, Color color)
+        private void AddRegularPolygon(float cx, float cy, float radius, int sides, float angleRad, Color color)
         {
-            if (Math.Abs(p1.X - p2.X) < 1e-4f)
+            PointF[] vertices = new PointF[sides];
+            for (int i = 0; i < sides; i++)
             {
-                AddVerticalLine(p1.X, Math.Min(p1.Y, p2.Y), Math.Max(p1.Y, p2.Y), color, DashStyle.Solid, 2.5f);
-                return;
+                float th = angleRad + i * (2f * (float)Math.PI / sides);
+                vertices[i] = new PointF(cx + radius * (float)Math.Cos(th), cy + radius * (float)Math.Sin(th));
             }
-
-            float minX = Math.Min(p1.X, p2.X);
-            float maxX = Math.Max(p1.X, p2.X);
-            float m = (p2.Y - p1.Y) / (p2.X - p1.X);
-            float c = p1.Y - m * p1.X;
-
-            string eq = $"{m:F4} * x + {c:F4}";
-            AddFunctionCurve(eq, true, minX, maxX, color, DashStyle.Solid, 2.5f);
+            AddParametricPolygon(vertices, color);
         }
 
-        private static decimal EvalDeriv(Function fn, decimal x)
+        private void AddParametricPolygon(PointF[] vertices, Color color)
         {
-            decimal h = 0.0005m;
-            try
+            int n = vertices.Length;
+            for (int i = 0; i < n; i++)
             {
-                decimal fPlus = NumericalMethods.EvaluateCompiled(fn, "x", x + h);
-                decimal fMinus = NumericalMethods.EvaluateCompiled(fn, "x", x - h);
-                return (fPlus - fMinus) / (2m * h);
+                PointF p1 = vertices[i];
+                PointF p2 = vertices[(i + 1) % n];
+
+                if (Math.Abs(p2.X - p1.X) < 1e-4f)
+                {
+                    AddVerticalLine(p1.X, Math.Min(p1.Y, p2.Y), Math.Max(p1.Y, p2.Y), color);
+                }
+                else
+                {
+                    float m = (p2.Y - p1.Y) / (p2.X - p1.X);
+                    float b = p1.Y - m * p1.X;
+                    string eq = $"{m:F4}*x + {b:F4}";
+                    AddFunctionCurve(eq, true, Math.Min(p1.X, p2.X), Math.Max(p1.X, p2.X), color);
+                }
             }
-            catch
-            {
-                return 0m;
-            }
+        }
+
+        private PointF RotatePoint(PointF pt, float angleRad, float cx, float cy)
+        {
+            float cos = (float)Math.Cos(angleRad);
+            float sin = (float)Math.Sin(angleRad);
+            return new PointF(
+                cx + (pt.X * cos - pt.Y * sin),
+                cy + (pt.X * sin + pt.Y * cos)
+            );
+        }
+
+        private float ParseFloat(string s, float fallback)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return fallback;
+            if (float.TryParse(s.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out float val))
+                return val;
+            return fallback;
         }
 
         #endregion

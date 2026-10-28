@@ -169,7 +169,7 @@ namespace MathApp
 
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl.SizeMode = TabSizeMode.Fixed;
-            tabControl.ItemSize = new Size(Math.Max(70, tabControl.Width / Math.Max(1, tabControl.TabCount) - 4), 32);
+            tabControl.ItemSize = new Size(Math.Max(56, (tabControl.Width - 10) / Math.Max(1, tabControl.TabCount)), 32);
 
             tabControl.DrawItem += (s, e) =>
             {
@@ -192,12 +192,12 @@ namespace MathApp
                     // Active accent underline
                     using (Brush barBrush = new SolidBrush(AccentBlue))
                     {
-                        g.FillRectangle(barBrush, tabRect.X + 6, tabRect.Bottom - 3, tabRect.Width - 12, 3);
+                        g.FillRectangle(barBrush, tabRect.X + 4, tabRect.Bottom - 3, tabRect.Width - 8, 3);
                     }
                 }
 
                 Color textColor = isSelected ? Color.FromArgb(56, 189, 248) : MutedText;
-                using (Font font = new Font("Segoe UI Semibold", 9F, isSelected ? FontStyle.Bold : FontStyle.Regular))
+                using (Font font = new Font("Segoe UI Semibold", 8.5F, isSelected ? FontStyle.Bold : FontStyle.Regular))
                 using (Brush textBrush = new SolidBrush(textColor))
                 {
                     StringFormat sf = new StringFormat
