@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Globalization;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using DotNetMatrix;
 
@@ -80,36 +81,45 @@ namespace MathApp.Controls
             }
         }
 
-        private void BtnPascal_Click(object sender, EventArgs e)
+        private async void BtnPascal_Click(object sender, EventArgs e)
         {
+            Cursor = Cursors.WaitCursor;
             try
             {
                 int n = (int)numN.Value;
-                StringBuilder sb = new StringBuilder();
-                sb.AppendLine($"=== PASCAL UCGENI & BINOM KATSAYILARI (Derece n = {n}) ===");
-                sb.AppendLine($"(a + b)^{n} açılımının katsayıları:");
-                sb.AppendLine();
-
-                for (int row = 0; row <= Math.Min(n, 25); row++)
+                string result = await Task.Run(() =>
                 {
-                    sb.Append($"n = {row,2} | ");
-                    for (int k = 0; k <= row; k++)
-                    {
-                        decimal c = NumericalMethods.Combination(row, k);
-                        sb.Append(c.ToString("N0") + (k < row ? ", " : ""));
-                    }
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine($"=== PASCAL UCGENI & BINOM KATSAYILARI (Derece n = {n}) ===");
+                    sb.AppendLine($"(a + b)^{n} açılımının katsayıları:");
                     sb.AppendLine();
-                }
 
-                txtOutput.Text = sb.ToString();
+                    for (int row = 0; row <= Math.Min(n, 25); row++)
+                    {
+                        sb.Append($"n = {row,2} | ");
+                        for (int k = 0; k <= row; k++)
+                        {
+                            decimal c = NumericalMethods.Combination(row, k);
+                            sb.Append(c.ToString("N0") + (k < row ? ", " : ""));
+                        }
+                        sb.AppendLine();
+                    }
+                    return sb.ToString();
+                });
+
+                txtOutput.Text = result;
             }
             catch (Exception ex)
             {
                 txtOutput.Text = "Hata: " + ex.Message;
             }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
         }
 
-        private void BtnGenStrings_Click(object sender, EventArgs e)
+        private async void BtnGenStrings_Click(object sender, EventArgs e)
         {
             try
             {
@@ -136,22 +146,34 @@ namespace MathApp.Controls
                     if (dr != DialogResult.Yes) return;
                 }
 
-                string generated = NumericalMethods.GenerateCombinations(alphabet, prefix, length);
+                Cursor = Cursors.WaitCursor;
+                btnGenStrings.Enabled = false;
 
-                StringBuilder sb = new StringBuilder();
-                sb.AppendLine("=== KARAKTER KOMBINASYON URETECI ===");
-                sb.AppendLine($"Alfabe        : '{alphabet}' (Uzunluk: {alphabet.Length})");
-                sb.AppendLine($"Önek (Prefix) : '{prefix}'");
-                sb.AppendLine($"Dizilim Boyutu: {length}");
-                sb.AppendLine($"Toplam Sonuç  : {totalCount:N0} adet");
-                sb.AppendLine(new string('-', 45));
-                sb.Append(generated);
+                string result = await Task.Run(() =>
+                {
+                    string generated = NumericalMethods.GenerateCombinations(alphabet, prefix, length);
 
-                txtOutput.Text = sb.ToString();
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("=== KARAKTER KOMBINASYON URETECI ===");
+                    sb.AppendLine($"Alfabe        : '{alphabet}' (Uzunluk: {alphabet.Length})");
+                    sb.AppendLine($"Önek (Prefix) : '{prefix}'");
+                    sb.AppendLine($"Dizilim Boyutu: {length}");
+                    sb.AppendLine($"Toplam Sonuç  : {totalCount:N0} adet");
+                    sb.AppendLine(new string('-', 45));
+                    sb.Append(generated);
+                    return sb.ToString();
+                });
+
+                txtOutput.Text = result;
             }
             catch (Exception ex)
             {
                 txtOutput.Text = "Kombinasyon Üretim Hatası: " + ex.Message;
+            }
+            finally
+            {
+                btnGenStrings.Enabled = true;
+                Cursor = Cursors.Default;
             }
         }
 

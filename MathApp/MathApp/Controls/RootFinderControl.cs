@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MathApp.Controls
@@ -100,8 +101,13 @@ namespace MathApp.Controls
             throw new ArgumentException($"'{fieldName}' alanı için geçerli bir sayı giriniz.");
         }
 
-        private void BtnFindRoot_Click(object sender, EventArgs e)
+        private async void BtnFindRoot_Click(object sender, EventArgs e)
         {
+            string origBtnText = btnFindRoot.Text;
+            btnFindRoot.Enabled = false;
+            btnFindRoot.Text = "⏳ Hesaplanıyor...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
                 string eq = txtEquation.Text.Trim();
@@ -118,54 +124,61 @@ namespace MathApp.Controls
                     iterCount = 50;
 
                 int idx = cmbMethod.SelectedIndex;
-                List<string> logs;
+                string initPtText = txtInitialPoint.Text;
+                string minXText = txtMinX.Text;
+                string maxXText = txtMaxX.Text;
 
-                bool prevRad = Function.UseRadians;
-                Function.UseRadians = true;
-                try
+                var (logs, finalRoot) = await Task.Run(() =>
                 {
-                    if (idx == 0) // Newton-Raphson
+                    List<string> stepLogs;
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    try
                     {
-                        decimal initialP = ParseDecimal(txtInitialPoint.Text, "Başlangıç Noktası (x₀)");
-                        logs = NumericalMethods.Method_NewtonRaphson(eq, initialP, iterCount, variable);
+                        if (idx == 0) // Newton-Raphson
+                        {
+                            decimal initialP = ParseDecimal(initPtText, "Başlangıç Noktası (x₀)");
+                            stepLogs = NumericalMethods.Method_NewtonRaphson(eq, initialP, iterCount, variable);
+                        }
+                        else if (idx == 1) // Bisection
+                        {
+                            decimal minX = ParseDecimal(minXText, "Alt Sınır (a)");
+                            decimal maxX = ParseDecimal(maxXText, "Üst Sınır (b)");
+                            stepLogs = NumericalMethods.Method_Bisection(eq, minX, maxX, iterCount, variable);
+                        }
+                        else if (idx == 2) // Secant
+                        {
+                            decimal minX = ParseDecimal(minXText, "Başlangıç 1 (x₀)");
+                            decimal maxX = ParseDecimal(maxXText, "Başlangıç 2 (x₁)");
+                            stepLogs = NumericalMethods.Method_Secant(eq, minX, maxX, iterCount, variable);
+                        }
+                        else // Regula Falsi
+                        {
+                            decimal minX = ParseDecimal(minXText, "Alt Sınır (a)");
+                            decimal maxX = ParseDecimal(maxXText, "Üst Sınır (b)");
+                            stepLogs = NumericalMethods.Method_RegulaFalsi(eq, minX, maxX, iterCount, variable);
+                        }
                     }
-                    else if (idx == 1) // Bisection
+                    finally
                     {
-                        decimal minX = ParseDecimal(txtMinX.Text, "Alt Sınır (a)");
-                        decimal maxX = ParseDecimal(txtMaxX.Text, "Üst Sınır (b)");
-                        logs = NumericalMethods.Method_Bisection(eq, minX, maxX, iterCount, variable);
+                        Function.UseRadians = prevRad;
                     }
-                    else if (idx == 2) // Secant
+
+                    string rootFound = "";
+                    for (int i = stepLogs.Count - 1; i >= 0; i--)
                     {
-                        decimal minX = ParseDecimal(txtMinX.Text, "Başlangıç 1 (x₀)");
-                        decimal maxX = ParseDecimal(txtMaxX.Text, "Başlangıç 2 (x₁)");
-                        logs = NumericalMethods.Method_Secant(eq, minX, maxX, iterCount, variable);
+                        string line = stepLogs[i];
+                        if (line.Contains("BULUNAN KÖK") || line.Contains("Root found:") || line.Contains($"{variable} =") || line.Contains("x ="))
+                        {
+                            rootFound = line;
+                            break;
+                        }
                     }
-                    else // Regula Falsi
-                    {
-                        decimal minX = ParseDecimal(txtMinX.Text, "Alt Sınır (a)");
-                        decimal maxX = ParseDecimal(txtMaxX.Text, "Üst Sınır (b)");
-                        logs = NumericalMethods.Method_RegulaFalsi(eq, minX, maxX, iterCount, variable);
-                    }
-                }
-                finally
-                {
-                    Function.UseRadians = prevRad;
-                }
+
+                    return (stepLogs, rootFound);
+                });
 
                 txtResult.Text = string.Join(Environment.NewLine, logs);
-
-                // Extract final root from logs
-                string finalRoot = "";
-                for (int i = logs.Count - 1; i >= 0; i--)
-                {
-                    string line = logs[i];
-                    if (line.Contains("BULUNAN KÖK") || line.Contains("Root found:") || line.Contains($"{variable} =") || line.Contains("x ="))
-                    {
-                        finalRoot = line;
-                        break;
-                    }
-                }
 
                 if (!string.IsNullOrEmpty(finalRoot))
                 {
@@ -189,6 +202,12 @@ namespace MathApp.Controls
                 lblRootValue.Text = "Hata Oluştu";
                 lblRootValue.ForeColor = Color.FromArgb(239, 68, 68);
                 lblRootDetails.Text = ex.Message;
+            }
+            finally
+            {
+                btnFindRoot.Enabled = true;
+                btnFindRoot.Text = origBtnText;
+                Cursor = Cursors.Default;
             }
         }
     }

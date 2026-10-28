@@ -148,5 +148,21 @@ namespace MathApp
             btn.FlatAppearance.MouseOverBackColor = ButtonHover;
             return btn;
         }
+
+        public static void EnableDoubleBuffering(Control control)
+        {
+            if (control == null) return;
+            try
+            {
+                var prop = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                prop?.SetValue(control, true, null);
+            }
+            catch { }
+
+            foreach (Control child in control.Controls)
+            {
+                EnableDoubleBuffering(child);
+            }
+        }
     }
 }

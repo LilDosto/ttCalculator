@@ -24,10 +24,23 @@ namespace MathApp.Controls
         private bool didMoveMouse = false;
         private Point lastMousePos;
         private Point? hoverMousePos = null;
+        private Point lastHoverRecorded = new Point(-999, -999);
+        private Timer resampleDebounceTimer;
 
         public GraphPlotterControl()
         {
             InitializeComponent();
+
+            resampleDebounceTimer = new Timer { Interval = 50 };
+            resampleDebounceTimer.Tick += (s, e) =>
+            {
+                resampleDebounceTimer.Stop();
+                if (!isDragging && compiledFn != null)
+                {
+                    GeneratePoints(false, isDraft: false);
+                    pnlCanvas.Invalidate();
+                }
+            };
 
             // Enable DoubleBuffering on pnlCanvas to prevent flickering during pan/zoom
             typeof(Panel).InvokeMember(
@@ -120,12 +133,14 @@ namespace MathApp.Controls
             return def;
         }
 
-        private void GeneratePoints(bool autoFitY)
+        private void GeneratePoints(bool autoFitY, bool isDraft = false)
         {
             segments.Clear();
             if (compiledFn == null) return;
 
-            int sampleCount = Math.Max(600, pnlCanvas.Width * 2);
+            int sampleCount = isDraft 
+                ? Math.Min(220, Math.Max(120, pnlCanvas.Width / 3)) 
+                : Math.Max(600, pnlCanvas.Width * 2);
             float step = (rangeMaxX - rangeMinX) / sampleCount;
             if (step <= 0) return;
 
@@ -229,7 +244,10 @@ namespace MathApp.Controls
             txtMinX.Text = rangeMinX.ToString("0.##", CultureInfo.InvariantCulture);
             txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
 
-            GeneratePoints(false);
+            // Fast preview during continuous wheel spin, debounce high-res
+            GeneratePoints(false, isDraft: true);
+            resampleDebounceTimer.Stop();
+            resampleDebounceTimer.Start();
             pnlCanvas.Invalidate();
         }
 
@@ -247,10 +265,9 @@ namespace MathApp.Controls
 
         private void PnlCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            hoverMousePos = e.Location;
-
             if (isDragging)
             {
+                hoverMousePos = e.Location;
                 int dx = e.X - lastMousePos.X;
                 int dy = e.Y - lastMousePos.Y;
 
@@ -277,10 +294,22 @@ namespace MathApp.Controls
                 txtMaxX.Text = rangeMaxX.ToString("0.##", CultureInfo.InvariantCulture);
 
                 lastMousePos = e.Location;
-                GeneratePoints(false);
+                // Fluid high-FPS drag preview
+                GeneratePoints(false, isDraft: true);
+                resampleDebounceTimer.Stop();
+                resampleDebounceTimer.Start();
+                pnlCanvas.Invalidate();
             }
-
-            pnlCanvas.Invalidate();
+            else
+            {
+                // Throttle hover redraws: only repaint when moved at least 2 pixels
+                if (Math.Abs(e.X - lastHoverRecorded.X) >= 2 || Math.Abs(e.Y - lastHoverRecorded.Y) >= 2)
+                {
+                    lastHoverRecorded = e.Location;
+                    hoverMousePos = e.Location;
+                    pnlCanvas.Invalidate();
+                }
+            }
         }
 
         private void PnlCanvas_MouseUp(object sender, MouseEventArgs e)
@@ -315,6 +344,8 @@ namespace MathApp.Controls
                 }
 
                 isDragging = false;
+                resampleDebounceTimer.Stop();
+                GeneratePoints(false, isDraft: false);
                 Cursor = Cursors.Cross;
                 pnlCanvas.Invalidate();
             }

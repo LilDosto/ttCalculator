@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using DotNetMatrix;
 
@@ -228,262 +229,299 @@ namespace MathApp.Controls
             return sb.ToString();
         }
 
-        private void RunBinaryOperation(string op)
+        private async void RunBinaryOperation(string op)
         {
+            Cursor = Cursors.WaitCursor;
             try
             {
                 GeneralMatrix A = ReadMatrix(gridCellsA, rowsA, colsA, "A");
-                StringBuilder sb = new StringBuilder();
+                string sRaw = txtScalar.Text.Trim().Replace(',', '.');
+                GeneralMatrix B = null;
+                decimal k = 0m;
 
                 if (op == "SCALAR")
                 {
-                    string sRaw = txtScalar.Text.Trim().Replace(',', '.');
-                    if (!decimal.TryParse(sRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal k))
+                    if (!decimal.TryParse(sRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out k))
                     {
                         txtResult.Text = "❌ Geçerli bir skaler çarpan (k) giriniz.";
                         return;
                     }
-                    GeneralMatrix res = A.Multiply(k);
-                    lastResultMatrix = res;
-                    sb.AppendLine($"=== SKALER ÇARPIM (k · A,  k = {k}) ===");
-                    sb.Append(FormatMatrix(res));
-                    txtResult.Text = sb.ToString();
-                    return;
+                }
+                else
+                {
+                    B = ReadMatrix(gridCellsB, rowsB, colsB, "B");
                 }
 
-                GeneralMatrix B = ReadMatrix(gridCellsB, rowsB, colsB, "B");
+                var (resultMatrix, outputText) = await Task.Run(() =>
+                {
+                    StringBuilder sb = new StringBuilder();
+                    GeneralMatrix res = null;
 
-                if (op == "ADD")
-                {
-                    lastResultMatrix = A + B;
-                    sb.AppendLine("=== MATRİS TOPLAMI (A + B) ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
-                else if (op == "SUB")
-                {
-                    lastResultMatrix = A - B;
-                    sb.AppendLine("=== MATRİS FARKI (A - B) ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
-                else if (op == "MUL")
-                {
-                    lastResultMatrix = A * B;
-                    sb.AppendLine($"=== MATRİS ÇARPIMI (A × B) [{rowsA}x{colsA}] · [{rowsB}x{colsB}] ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
-                else if (op == "ELEM_MUL")
-                {
-                    lastResultMatrix = A.ArrayMultiply(B);
-                    sb.AppendLine("=== ELEMAN BAZLI (HADAMARD) ÇARPIM (A .* B) ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
-                else if (op == "ELEM_DIV")
-                {
-                    lastResultMatrix = A.ArrayRightDivide(B);
-                    sb.AppendLine("=== ELEMAN BAZLI BÖLME (A ./ B) ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
-                else if (op == "SOLVE")
-                {
-                    lastResultMatrix = A.Solve(B);
-                    sb.AppendLine("=== MATRİS DENKLEMİ ÇÖZÜMÜ (A · X = B  =>  X) ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
-                else if (op == "SOLVE_TRANS")
-                {
-                    lastResultMatrix = A.SolveTranspose(B);
-                    sb.AppendLine("=== TRANSPOZ MATRİS DENKLEMİ ÇÖZÜMÜ (Aᵀ · Xᵀ = Bᵀ) ===");
-                    sb.Append(FormatMatrix(lastResultMatrix));
-                }
+                    if (op == "SCALAR")
+                    {
+                        res = A.Multiply(k);
+                        sb.AppendLine($"=== SKALER ÇARPIM (k · A,  k = {k}) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "ADD")
+                    {
+                        res = A + B;
+                        sb.AppendLine("=== MATRİS TOPLAMI (A + B) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "SUB")
+                    {
+                        res = A - B;
+                        sb.AppendLine("=== MATRİS FARKI (A - B) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "MUL")
+                    {
+                        res = A * B;
+                        sb.AppendLine($"=== MATRİS ÇARPIMI (A × B) [{rowsA}x{colsA}] · [{rowsB}x{colsB}] ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "ELEM_MUL")
+                    {
+                        res = A.ArrayMultiply(B);
+                        sb.AppendLine("=== ELEMAN BAZLI (HADAMARD) ÇARPIM (A .* B) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "ELEM_DIV")
+                    {
+                        res = A.ArrayRightDivide(B);
+                        sb.AppendLine("=== ELEMAN BAZLI BÖLME (A ./ B) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "SOLVE")
+                    {
+                        res = A.Solve(B);
+                        sb.AppendLine("=== MATRİS DENKLEMİ ÇÖZÜMÜ (A · X = B  =>  X) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
+                    else if (op == "SOLVE_TRANS")
+                    {
+                        res = A.SolveTranspose(B);
+                        sb.AppendLine("=== TRANSPOZ MATRİS DENKLEMİ ÇÖZÜMÜ (Aᵀ · Xᵀ = Bᵀ) ===");
+                        sb.Append(FormatMatrix(res));
+                    }
 
-                txtResult.Text = sb.ToString();
+                    return (res, sb.ToString());
+                });
+
+                if (resultMatrix != null)
+                {
+                    lastResultMatrix = resultMatrix;
+                }
+                txtResult.Text = outputText;
             }
             catch (Exception ex)
             {
                 txtResult.Text = "❌ İşlem Hatası: " + ex.Message;
             }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
         }
 
-        private void RunUnaryOperation(string op)
+        private async void RunUnaryOperation(string op)
         {
+            Cursor = Cursors.WaitCursor;
             try
             {
                 GeneralMatrix A = ReadMatrix(gridCellsA, rowsA, colsA, "A");
-                StringBuilder sb = new StringBuilder();
 
-                if (op == "ALL")
+                if (op == "LU" && rowsA < colsA)
                 {
-                    sb.AppendLine($"=== A MATRİSİ TAM ANALİZİ ({rowsA}x{colsA}) ===");
-                    sb.AppendLine($"  • İz (Trace)              : {Math.Round(A.Trace(), 6)}");
-                    sb.AppendLine($"  • 1-Normu (Norm1)         : {Math.Round(A.Norm1(), 5)}");
-                    sb.AppendLine($"  • Sonsuz-Normu (NormInf)  : {Math.Round(A.NormInf(), 5)}");
-                    sb.AppendLine($"  • Frobenius Normu (NormF) : {Math.Round(A.NormF(), 5)}");
+                    txtResult.Text = "⚠️ LU Ayrışımı için satır sayısı sütun sayısına eşit veya büyük (m >= n) olmalıdır.";
+                    return;
+                }
+                if (op == "QR" && rowsA < colsA)
+                {
+                    txtResult.Text = "⚠️ QR Ayrışımı için satır sayısı sütun sayısına eşit veya büyük (m >= n) olmalıdır.";
+                    return;
+                }
+                if (op == "CHOLESKY" && rowsA != colsA)
+                {
+                    txtResult.Text = "⚠️ Cholesky Ayrışımı yalnızca kare matrisler için uygulanabilir.";
+                    return;
+                }
+                if (op == "EIGEN" && rowsA != colsA)
+                {
+                    txtResult.Text = "⚠️ Özdeğer & Özvektör analizi yalnızca kare (N x N) matrisler için yapılabilir.";
+                    return;
+                }
+                if (op == "INVERSE" && rowsA != colsA)
+                {
+                    txtResult.Text = "⚠️ Ters matris ve determinant yalnızca kare (N x N) matrisler için hesaplanabilir.";
+                    return;
+                }
 
-                    try
+                var (resultMatrix, outputText) = await Task.Run(() =>
+                {
+                    StringBuilder sb = new StringBuilder();
+                    GeneralMatrix res = null;
+
+                    if (op == "ALL")
                     {
-                        SingularValueDecomposition svd = A.SVD();
-                        sb.AppendLine($"  • 2-Normu (Spektral Norm) : {Math.Round(svd.Norm2(), 5)}");
-                        sb.AppendLine($"  • Matris Rankı (Rank)     : {svd.Rank()}");
-                        sb.AppendLine($"  • Kondisyon Sayısı (Cond) : {Math.Round(svd.Condition(), 5)}");
-                    }
-                    catch { }
+                        sb.AppendLine($"=== A MATRİSİ TAM ANALİZİ ({rowsA}x{colsA}) ===");
+                        sb.AppendLine($"  • İz (Trace)              : {Math.Round(A.Trace(), 6)}");
+                        sb.AppendLine($"  • 1-Normu (Norm1)         : {Math.Round(A.Norm1(), 5)}");
+                        sb.AppendLine($"  • Sonsuz-Normu (NormInf)  : {Math.Round(A.NormInf(), 5)}");
+                        sb.AppendLine($"  • Frobenius Normu (NormF) : {Math.Round(A.NormF(), 5)}");
 
-                    if (rowsA == colsA)
-                    {
-                        decimal det = A.Determinant();
-                        sb.AppendLine($"  • Determinant det(A)      : {Math.Round(det, 6)}");
-                    }
-
-                    sb.AppendLine();
-                    sb.AppendLine("--- Transpoz (Aᵀ) ---");
-                    sb.Append(FormatMatrix(A.Transpose()));
-
-                    sb.AppendLine();
-                    sb.AppendLine("--- Negatif Matris (-A / UnaryMinus) ---");
-                    sb.Append(FormatMatrix(A.UnaryMinus()));
-
-                    if (rowsA == colsA)
-                    {
                         try
                         {
-                            sb.AppendLine();
-                            sb.AppendLine("--- Ters Matris (A⁻¹) ---");
-                            sb.Append(FormatMatrix(A.Inverse()));
+                            SingularValueDecomposition svd = A.SVD();
+                            sb.AppendLine($"  • 2-Normu (Spektral Norm) : {Math.Round(svd.Norm2(), 5)}");
+                            sb.AppendLine($"  • Matris Rankı (Rank)     : {svd.Rank()}");
+                            sb.AppendLine($"  • Kondisyon Sayısı (Cond) : {Math.Round(svd.Condition(), 5)}");
                         }
-                        catch
-                        {
-                            sb.AppendLine("  (Matris tekil [singular] olduğu için tersi yoktur.)");
-                        }
-                    }
-                }
-                else if (op == "LU")
-                {
-                    if (rowsA < colsA)
-                    {
-                        txtResult.Text = "⚠️ LU Ayrışımı için satır sayısı sütun sayısına eşit veya büyük (m >= n) olmalıdır.";
-                        return;
-                    }
-                    LUDecomposition lu = A.LUD();
-                    sb.AppendLine("=== LU AYRIŞIMI (P·A = L·U) ===");
-                    sb.AppendLine($"Tekil Olmama Durumu (Non-Singular): {(lu.IsNonSingular ? "Evet (Tersinir)" : "Hayır (Tekil)")}");
-                    if (rowsA == colsA)
-                        sb.AppendLine($"Determinant: {Math.Round(lu.Determinant(), 6)}");
-                    sb.AppendLine($"Pivot Vektörü: [ {string.Join(", ", lu.Pivot)} ]");
-                    sb.AppendLine();
-                    sb.AppendLine("--- Alt Üçgensel Matris (L) ---");
-                    sb.Append(FormatMatrix(lu.L));
-                    sb.AppendLine();
-                    sb.AppendLine("--- Üst Üçgensel Matris (U) ---");
-                    sb.Append(FormatMatrix(lu.U));
-                }
-                else if (op == "QR")
-                {
-                    if (rowsA < colsA)
-                    {
-                        txtResult.Text = "⚠️ QR Ayrışımı için satır sayısı sütun sayısına eşit veya büyük (m >= n) olmalıdır.";
-                        return;
-                    }
-                    QRDecomposition qr = A.QRD();
-                    sb.AppendLine("=== QR AYRIŞIMI (A = Q·R) ===");
-                    sb.AppendLine($"Tam Rank (Full Rank): {(qr.FullRank ? "Evet" : "Hayır")}");
-                    sb.AppendLine();
-                    sb.AppendLine("--- Ortogonal Matris (Q) ---");
-                    sb.Append(FormatMatrix(qr.Q));
-                    sb.AppendLine();
-                    sb.AppendLine("--- Üst Üçgensel Matris (R) ---");
-                    sb.Append(FormatMatrix(qr.R));
-                    sb.AppendLine();
-                    sb.AppendLine("--- Householder Yansıma Vektörleri Matrisi (H) ---");
-                    sb.Append(FormatMatrix(qr.H));
-                }
-                else if (op == "CHOLESKY")
-                {
-                    if (rowsA != colsA)
-                    {
-                        txtResult.Text = "⚠️ Cholesky Ayrışımı yalnızca kare matrisler için uygulanabilir.";
-                        return;
-                    }
-                    CholeskyDecomposition chol = A.chol();
-                    sb.AppendLine("=== CHOLESKY AYRIŞIMI (A = L·Lᵀ) ===");
-                    sb.AppendLine($"Simetrik Pozitif Tanımlı (SPD): {(chol.SPD ? "Evet ✓" : "Hayır ✕")}");
-                    if (!chol.SPD)
-                    {
-                        sb.AppendLine("⚠️ Uyarı: Bu matris simetrik pozitif tanımlı (SPD) değildir! 'Örnek: SPD Matrisi' butonuna tıklayarak test edebilirsiniz.");
-                    }
-                    sb.AppendLine();
-                    sb.AppendLine("--- Cholesky Alt Üçgensel Çarpanı (L) ---");
-                    sb.Append(FormatMatrix(chol.GetL()));
-                }
-                else if (op == "SVD")
-                {
-                    SingularValueDecomposition svd = A.SVD();
-                    sb.AppendLine("=== TEKİL DEĞER AYRIŞIMI (SVD: A = U·S·Vᵀ) ===");
-                    sb.AppendLine($"Matris Rankı (Rank)      : {svd.Rank()}");
-                    sb.AppendLine($"2-Normu (Norm2)          : {Math.Round(svd.Norm2(), 6)}");
-                    sb.AppendLine($"Kondisyon Sayısı (Cond)  : {Math.Round(svd.Condition(), 6)}");
-                    sb.AppendLine();
-                    sb.AppendLine("--- Tekil Değerler Matrisi (S) ---");
-                    sb.Append(FormatMatrix(svd.S));
-                    sb.AppendLine();
-                    sb.AppendLine("--- Sol Tekil Vektörler (U) ---");
-                    sb.Append(FormatMatrix(svd.GetU()));
-                    sb.AppendLine();
-                    sb.AppendLine("--- Sağ Tekil Vektörler (V) ---");
-                    sb.Append(FormatMatrix(svd.GetV()));
-                }
-                else if (op == "EIGEN")
-                {
-                    if (rowsA != colsA)
-                    {
-                        txtResult.Text = "⚠️ Özdeğer & Özvektör analizi yalnızca kare (N x N) matrisler için yapılabilir.";
-                        return;
-                    }
-                    EigenvalueDecomposition eig = A.Eigen();
-                    sb.AppendLine("=== ÖZDEĞER VE ÖZVEKTÖR ANALİZİ (A·v = λ·v) ===");
-                    decimal[] realEigs = eig.RealEigenvalues;
-                    decimal[] imagEigs = eig.ImagEigenvalues;
-                    for (int i = 0; i < realEigs.Length; i++)
-                    {
-                        decimal re = Math.Round(realEigs[i], 6);
-                        decimal im = Math.Round(imagEigs[i], 6);
-                        string imStr = DecimalMath.Abs(im) > 0.00001m ? $" {(im >= 0 ? "+" : "-")} {DecimalMath.Abs(im)}i" : "";
-                        sb.AppendLine($"  λ_{i + 1} = {re.ToString("0.######", CultureInfo.InvariantCulture)}{imStr}");
-                    }
-                    sb.AppendLine();
-                    sb.AppendLine("--- Blok Diyagonal Özdeğer Matrisi (D) ---");
-                    sb.Append(FormatMatrix(eig.D));
-                    sb.AppendLine();
-                    sb.AppendLine("--- Özvektörler Matrisi (V) ---");
-                    sb.Append(FormatMatrix(eig.GetV()));
-                }
-                else if (op == "INVERSE")
-                {
-                    if (rowsA != colsA)
-                    {
-                        txtResult.Text = "⚠️ Ters matris ve determinant yalnızca kare (N x N) matrisler için hesaplanabilir.";
-                        return;
-                    }
-                    decimal det = A.Determinant();
-                    sb.AppendLine($"=== TERS MATRİS (A⁻¹) & DETERMİNANT ===");
-                    sb.AppendLine($"Determinant det(A) = {Math.Round(det, 6)}");
-                    sb.AppendLine();
-                    if (DecimalMath.Abs(det) <= 1e-12m)
-                    {
-                        sb.AppendLine("❌ Matrisin determinantı 0 olduğu için matris tekildir (Singular), tersi alınamaz.");
-                    }
-                    else
-                    {
-                        sb.AppendLine("--- Ters Matris (A⁻¹) ---");
-                        lastResultMatrix = A.Inverse();
-                        sb.Append(FormatMatrix(lastResultMatrix));
-                    }
-                }
+                        catch { }
 
-                txtResult.Text = sb.ToString();
+                        if (rowsA == colsA)
+                        {
+                            decimal det = A.Determinant();
+                            sb.AppendLine($"  • Determinant det(A)      : {Math.Round(det, 6)}");
+                        }
+
+                        sb.AppendLine();
+                        sb.AppendLine("--- Transpoz (Aᵀ) ---");
+                        sb.Append(FormatMatrix(A.Transpose()));
+
+                        sb.AppendLine();
+                        sb.AppendLine("--- Negatif Matris (-A / UnaryMinus) ---");
+                        sb.Append(FormatMatrix(A.UnaryMinus()));
+
+                        if (rowsA == colsA)
+                        {
+                            try
+                            {
+                                sb.AppendLine();
+                                sb.AppendLine("--- Ters Matris (A⁻¹) ---");
+                                sb.Append(FormatMatrix(A.Inverse()));
+                            }
+                            catch
+                            {
+                                sb.AppendLine("  (Matris tekil [singular] olduğu için tersi yoktur.)");
+                            }
+                        }
+                    }
+                    else if (op == "LU")
+                    {
+                        LUDecomposition lu = A.LUD();
+                        sb.AppendLine("=== LU AYRIŞIMI (P·A = L·U) ===");
+                        sb.AppendLine($"Tekil Olmama Durumu (Non-Singular): {(lu.IsNonSingular ? "Evet (Tersinir)" : "Hayır (Tekil)")}");
+                        if (rowsA == colsA)
+                            sb.AppendLine($"Determinant: {Math.Round(lu.Determinant(), 6)}");
+                        sb.AppendLine($"Pivot Vektörü: [ {string.Join(", ", lu.Pivot)} ]");
+                        sb.AppendLine();
+                        sb.AppendLine("--- Alt Üçgensel Matris (L) ---");
+                        sb.Append(FormatMatrix(lu.L));
+                        sb.AppendLine();
+                        sb.AppendLine("--- Üst Üçgensel Matris (U) ---");
+                        sb.Append(FormatMatrix(lu.U));
+                    }
+                    else if (op == "QR")
+                    {
+                        QRDecomposition qr = A.QRD();
+                        sb.AppendLine("=== QR AYRIŞIMI (A = Q·R) ===");
+                        sb.AppendLine($"Tam Rank (Full Rank): {(qr.FullRank ? "Evet" : "Hayır")}");
+                        sb.AppendLine();
+                        sb.AppendLine("--- Ortogonal Matris (Q) ---");
+                        sb.Append(FormatMatrix(qr.Q));
+                        sb.AppendLine();
+                        sb.AppendLine("--- Üst Üçgensel Matris (R) ---");
+                        sb.Append(FormatMatrix(qr.R));
+                        sb.AppendLine();
+                        sb.AppendLine("--- Householder Yansıma Vektörleri Matrisi (H) ---");
+                        sb.Append(FormatMatrix(qr.H));
+                    }
+                    else if (op == "CHOLESKY")
+                    {
+                        CholeskyDecomposition chol = A.chol();
+                        sb.AppendLine("=== CHOLESKY AYRIŞIMI (A = L·Lᵀ) ===");
+                        sb.AppendLine($"Simetrik Pozitif Tanımlı (SPD): {(chol.SPD ? "Evet ✓" : "Hayır ✕")}");
+                        if (!chol.SPD)
+                        {
+                            sb.AppendLine("⚠️ Uyarı: Bu matris simetrik pozitif tanımlı (SPD) değildir! 'Örnek: SPD Matrisi' butonuna tıklayarak test edebilirsiniz.");
+                        }
+                        sb.AppendLine();
+                        sb.AppendLine("--- Cholesky Alt Üçgensel Çarpanı (L) ---");
+                        sb.Append(FormatMatrix(chol.GetL()));
+                    }
+                    else if (op == "SVD")
+                    {
+                        SingularValueDecomposition svd = A.SVD();
+                        sb.AppendLine("=== TEKİL DEĞER AYRIŞIMI (SVD: A = U·S·Vᵀ) ===");
+                        sb.AppendLine($"Matris Rankı (Rank)      : {svd.Rank()}");
+                        sb.AppendLine($"2-Normu (Norm2)          : {Math.Round(svd.Norm2(), 6)}");
+                        sb.AppendLine($"Kondisyon Sayısı (Cond)  : {Math.Round(svd.Condition(), 6)}");
+                        sb.AppendLine();
+                        sb.AppendLine("--- Tekil Değerler Matrisi (S) ---");
+                        sb.Append(FormatMatrix(svd.S));
+                        sb.AppendLine();
+                        sb.AppendLine("--- Sol Tekil Vektörler (U) ---");
+                        sb.Append(FormatMatrix(svd.GetU()));
+                        sb.AppendLine();
+                        sb.AppendLine("--- Sağ Tekil Vektörler (V) ---");
+                        sb.Append(FormatMatrix(svd.GetV()));
+                    }
+                    else if (op == "EIGEN")
+                    {
+                        EigenvalueDecomposition eig = A.Eigen();
+                        sb.AppendLine("=== ÖZDEĞER VE ÖZVEKTÖR ANALİZİ (A·v = λ·v) ===");
+                        decimal[] realEigs = eig.RealEigenvalues;
+                        decimal[] imagEigs = eig.ImagEigenvalues;
+                        for (int i = 0; i < realEigs.Length; i++)
+                        {
+                            decimal re = Math.Round(realEigs[i], 6);
+                            decimal im = Math.Round(imagEigs[i], 6);
+                            string imStr = DecimalMath.Abs(im) > 0.00001m ? $" {(im >= 0 ? "+" : "-")} {DecimalMath.Abs(im)}i" : "";
+                            sb.AppendLine($"  λ_{i + 1} = {re.ToString("0.######", CultureInfo.InvariantCulture)}{imStr}");
+                        }
+                        sb.AppendLine();
+                        sb.AppendLine("--- Blok Diyagonal Özdeğer Matrisi (D) ---");
+                        sb.Append(FormatMatrix(eig.D));
+                        sb.AppendLine();
+                        sb.AppendLine("--- Özvektörler Matrisi (V) ---");
+                        sb.Append(FormatMatrix(eig.GetV()));
+                    }
+                    else if (op == "INVERSE")
+                    {
+                        decimal det = A.Determinant();
+                        sb.AppendLine($"=== TERS MATRİS (A⁻¹) & DETERMİNANT ===");
+                        sb.AppendLine($"Determinant det(A) = {Math.Round(det, 6)}");
+                        sb.AppendLine();
+                        if (DecimalMath.Abs(det) <= 1e-12m)
+                        {
+                            sb.AppendLine("❌ Matrisin determinantı 0 olduğu için matris tekildir (Singular), tersi alınamaz.");
+                        }
+                        else
+                        {
+                            sb.AppendLine("--- Ters Matris (A⁻¹) ---");
+                            res = A.Inverse();
+                            sb.Append(FormatMatrix(res));
+                        }
+                    }
+
+                    return (res, sb.ToString());
+                });
+
+                if (resultMatrix != null)
+                {
+                    lastResultMatrix = resultMatrix;
+                }
+                txtResult.Text = outputText;
             }
             catch (Exception ex)
             {
                 txtResult.Text = "❌ Hesaplama Hatası: " + ex.Message;
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
             }
         }
     }

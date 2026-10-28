@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MathApp.Controls
@@ -74,8 +75,13 @@ namespace MathApp.Controls
             variableRows.Add(row);
         }
 
-        private void BtnCalculate_Click(object sender, EventArgs e)
+        private async void BtnCalculate_Click(object sender, EventArgs e)
         {
+            string origBtnText = btnCalculate.Text;
+            btnCalculate.Enabled = false;
+            btnCalculate.Text = "⏳ Hesaplanıyor...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
                 string eq = txtEquation.Text.Trim();
@@ -114,17 +120,19 @@ namespace MathApp.Controls
                     return;
                 }
 
-                bool prevRad = Function.UseRadians;
-                Function.UseRadians = true;
-                string result;
-                try
+                string result = await Task.Run(() =>
                 {
-                    result = NumericalMethods.MethodMultiVar_TaylorSeries(eq, degree, points);
-                }
-                finally
-                {
-                    Function.UseRadians = prevRad;
-                }
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    try
+                    {
+                        return NumericalMethods.MethodMultiVar_TaylorSeries(eq, degree, points);
+                    }
+                    finally
+                    {
+                        Function.UseRadians = prevRad;
+                    }
+                });
 
                 string varsList = string.Join(", ", points.Keys);
                 string centerList = string.Join(", ", points.Select(kv => $"{kv.Key}₀={kv.Value}"));
@@ -138,6 +146,12 @@ namespace MathApp.Controls
             catch (Exception ex)
             {
                 txtResult.Text = "❌ Hata: " + ex.Message;
+            }
+            finally
+            {
+                btnCalculate.Enabled = true;
+                btnCalculate.Text = origBtnText;
+                Cursor = Cursors.Default;
             }
         }
     }

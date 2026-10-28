@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MathApp.Controls
@@ -92,8 +93,13 @@ namespace MathApp.Controls
             throw new ArgumentException($"'{field}' için geçerli bir sayı giriniz.");
         }
 
-        private void BtnCalcSingle_Click(object sender, EventArgs e)
+        private async void BtnCalcSingle_Click(object sender, EventArgs e)
         {
+            string origBtnText = btnCalcSingle.Text;
+            btnCalcSingle.Enabled = false;
+            btnCalcSingle.Text = "⏳ Hesaplanıyor...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
                 string eq = txtSingleFn.Text.Trim();
@@ -105,49 +111,65 @@ namespace MathApp.Controls
                 int deg = (int)numSingleDegree.Value;
                 int acc = (cmbAccuracy.SelectedIndex + 1) * 2; // 2, 4, 6
 
-                bool prevRad = Function.UseRadians;
-                Function.UseRadians = true;
-                try
+                string resultText = await Task.Run(() =>
                 {
-                    decimal fVal = NumericalMethods.Method_EvaluateFunction(eq, v, pt);
-                    decimal centralMat = NumericalMethods.Method_NumericalDifferentiation(eq, deg, v, pt, acc, h);
-                    decimal forwardBin = NumericalMethods.Method_ForwardBinomialDerivative(eq, deg, v, pt, h);
-                    decimal backwardDiff = NumericalMethods.Method_BackwardDifferenceDerivative(eq, deg, v, pt, h);
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine($"=== TEK DEĞİŞKENLİ NÜMERİK TÜREV ANALİZİ ({deg}. Derece) ===");
-                    sb.AppendLine($"  Fonksiyon       : f({v}) = {eq}");
-                    sb.AppendLine($"  Değerlendirme   : {v}₀ = {pt}   =>   f({pt}) = {Math.Round(fVal, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine($"  Adım Boyutu (h) : {h}   |   Hassasiyet: O(h^{acc})");
-                    sb.AppendLine();
-                    sb.AppendLine("--- Farklı Nümerik Yöntemlerin Karşılaştırması ---");
-                    sb.AppendLine($"  1) Merkezi Sonlu Farklar Matrisi (Method_NumericalDifferentiation) : {Math.Round(centralMat, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine($"  2) İleri Binom Sonlu Farklar     (Method_Derivative)               : {Math.Round(forwardBin, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine($"  3) Geri Sonlu Farklar Formülü    (Method_BackwardDerivative)       : {Math.Round(backwardDiff, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine();
-                    sb.AppendLine("--- 1'den 4. Dereceye Kadar Tüm Türev Özeti ---");
-                    for (int k = 1; k <= 4; k++)
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    try
                     {
-                        decimal step = k >= 3 ? Math.Max(h, 0.005m) : h;
-                        decimal dk = NumericalMethods.Method_NumericalDifferentiation(eq, k, v, pt, acc, step);
-                        sb.AppendLine($"  • f^({k})({pt}) = {Math.Round(dk, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
-                    }
+                        decimal fVal = NumericalMethods.Method_EvaluateFunction(eq, v, pt);
+                        decimal centralMat = NumericalMethods.Method_NumericalDifferentiation(eq, deg, v, pt, acc, h);
+                        decimal forwardBin = NumericalMethods.Method_ForwardBinomialDerivative(eq, deg, v, pt, h);
+                        decimal backwardDiff = NumericalMethods.Method_BackwardDifferenceDerivative(eq, deg, v, pt, h);
 
-                    txtResult.Text = sb.ToString();
-                }
-                finally
-                {
-                    Function.UseRadians = prevRad;
-                }
+                        StringBuilder sb = new StringBuilder();
+                        sb.AppendLine($"=== TEK DEĞİŞKENLİ NÜMERİK TÜREV ANALİZİ ({deg}. Derece) ===");
+                        sb.AppendLine($"  Fonksiyon       : f({v}) = {eq}");
+                        sb.AppendLine($"  Değerlendirme   : {v}₀ = {pt}   =>   f({pt}) = {Math.Round(fVal, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine($"  Adım Boyutu (h) : {h}   |   Hassasiyet: O(h^{acc})");
+                        sb.AppendLine();
+                        sb.AppendLine("--- Farklı Nümerik Yöntemlerin Karşılaştırması ---");
+                        sb.AppendLine($"  1) Merkezi Sonlu Farklar Matrisi (Method_NumericalDifferentiation) : {Math.Round(centralMat, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine($"  2) İleri Binom Sonlu Farklar     (Method_Derivative)               : {Math.Round(forwardBin, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine($"  3) Geri Sonlu Farklar Formülü    (Method_BackwardDerivative)       : {Math.Round(backwardDiff, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine();
+                        sb.AppendLine("--- 1'den 4. Dereceye Kadar Tüm Türev Özeti ---");
+                        for (int k = 1; k <= 4; k++)
+                        {
+                            decimal step = k >= 3 ? Math.Max(h, 0.005m) : h;
+                            decimal dk = NumericalMethods.Method_NumericalDifferentiation(eq, k, v, pt, acc, step);
+                            sb.AppendLine($"  • f^({k})({pt}) = {Math.Round(dk, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
+                        }
+
+                        return sb.ToString();
+                    }
+                    finally
+                    {
+                        Function.UseRadians = prevRad;
+                    }
+                });
+
+                txtResult.Text = resultText;
             }
             catch (Exception ex)
             {
                 txtResult.Text = "❌ Hata: " + ex.Message;
             }
+            finally
+            {
+                btnCalcSingle.Enabled = true;
+                btnCalcSingle.Text = origBtnText;
+                Cursor = Cursors.Default;
+            }
         }
 
-        private void BtnCalcPartial_Click(object sender, EventArgs e)
+        private async void BtnCalcPartial_Click(object sender, EventArgs e)
         {
+            string origBtnText = btnCalcPartial.Text;
+            btnCalcPartial.Enabled = false;
+            btnCalcPartial.Text = "⏳ Hesaplanıyor...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
                 string eq = txtPartialFn.Text.Trim();
@@ -171,45 +193,56 @@ namespace MathApp.Controls
                     return;
                 }
 
-                bool prevRad = Function.UseRadians;
-                Function.UseRadians = true;
-                try
+                string resultText = await Task.Run(() =>
                 {
-                    decimal fVal = NumericalMethods.MethodMultiVar_EvaluateFunction(eq, pts);
-                    decimal partialMat = NumericalMethods.Method_NumericalPartialDifferentiation(eq, deg, targetVar, pts, acc, h);
-                    decimal partialBin = NumericalMethods.Method_ForwardBinomialPartialDerivative(eq, deg, targetVar, pts, h);
-
-                    StringBuilder sb = new StringBuilder();
-                    string ptStr = string.Join(", ", pts.Select(kv => $"{kv.Key}={kv.Value}"));
-                    sb.AppendLine($"=== KISMİ TÜREV VE GRADYAN ANALİZİ (∂^{deg}f / ∂{targetVar}^{deg}) ===");
-                    sb.AppendLine($"  Fonksiyon  : f({string.Join(",", pts.Keys)}) = {eq}");
-                    sb.AppendLine($"  Nokta      : ({ptStr})   =>   f = {Math.Round(fVal, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine();
-                    sb.AppendLine($"--- '{targetVar}' Değişkenine Göre {deg}. Derece Kısmi Türev ---");
-                    sb.AppendLine($"  • Merkezi Matris Yöntemi (Method_NumericalPartialDifferentiation) : {Math.Round(partialMat, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine($"  • İleri Binom Yöntemi    (Method_PartialDerivative)               : {Math.Round(partialBin, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
-                    sb.AppendLine();
-                    sb.AppendLine("--- Noktadaki Gradyan Vektörü (∇f) ---");
-                    List<string> gradParts = new List<string>();
-                    foreach (string vName in pts.Keys)
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    try
                     {
-                        decimal df = NumericalMethods.Method_NumericalPartialDifferentiation(eq, 1, vName, pts, acc, h);
-                        decimal rDf = Math.Round(df, 6);
-                        gradParts.Add(rDf.ToString("0.######", CultureInfo.InvariantCulture));
-                        sb.AppendLine($"  • ∂f / ∂{vName} = {rDf.ToString("0.######", CultureInfo.InvariantCulture)}");
-                    }
-                    sb.AppendLine($"  ∇f({ptStr}) = [ {string.Join(",  ", gradParts)} ]");
+                        decimal fVal = NumericalMethods.MethodMultiVar_EvaluateFunction(eq, pts);
+                        decimal partialMat = NumericalMethods.Method_NumericalPartialDifferentiation(eq, deg, targetVar, pts, acc, h);
+                        decimal partialBin = NumericalMethods.Method_ForwardBinomialPartialDerivative(eq, deg, targetVar, pts, h);
 
-                    txtResult.Text = sb.ToString();
-                }
-                finally
-                {
-                    Function.UseRadians = prevRad;
-                }
+                        StringBuilder sb = new StringBuilder();
+                        string ptStr = string.Join(", ", pts.Select(kv => $"{kv.Key}={kv.Value}"));
+                        sb.AppendLine($"=== KISMİ TÜREV VE GRADYAN ANALİZİ (∂^{deg}f / ∂{targetVar}^{deg}) ===");
+                        sb.AppendLine($"  Fonksiyon  : f({string.Join(",", pts.Keys)}) = {eq}");
+                        sb.AppendLine($"  Nokta      : ({ptStr})   =>   f = {Math.Round(fVal, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine();
+                        sb.AppendLine($"--- '{targetVar}' Değişkenine Göre {deg}. Derece Kısmi Türev ---");
+                        sb.AppendLine($"  • Merkezi Matris Yöntemi (Method_NumericalPartialDifferentiation) : {Math.Round(partialMat, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine($"  • İleri Binom Yöntemi    (Method_PartialDerivative)               : {Math.Round(partialBin, 8).ToString("0.########", CultureInfo.InvariantCulture)}");
+                        sb.AppendLine();
+                        sb.AppendLine("--- Noktadaki Gradyan Vektörü (∇f) ---");
+                        List<string> gradParts = new List<string>();
+                        foreach (string vName in pts.Keys)
+                        {
+                            decimal df = NumericalMethods.Method_NumericalPartialDifferentiation(eq, 1, vName, pts, acc, h);
+                            decimal rDf = Math.Round(df, 6);
+                            gradParts.Add(rDf.ToString("0.######", CultureInfo.InvariantCulture));
+                            sb.AppendLine($"  • ∂f / ∂{vName} = {rDf.ToString("0.######", CultureInfo.InvariantCulture)}");
+                        }
+                        sb.AppendLine($"  ∇f({ptStr}) = [ {string.Join(",  ", gradParts)} ]");
+
+                        return sb.ToString();
+                    }
+                    finally
+                    {
+                        Function.UseRadians = prevRad;
+                    }
+                });
+
+                txtResult.Text = resultText;
             }
             catch (Exception ex)
             {
                 txtResult.Text = "❌ Hata: " + ex.Message;
+            }
+            finally
+            {
+                btnCalcPartial.Enabled = true;
+                btnCalcPartial.Text = origBtnText;
+                Cursor = Cursors.Default;
             }
         }
     }

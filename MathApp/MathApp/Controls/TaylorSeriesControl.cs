@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MathApp.Controls
@@ -48,8 +49,13 @@ namespace MathApp.Controls
             BtnCalculate_Click(this, EventArgs.Empty);
         }
 
-        private void BtnCalculate_Click(object sender, EventArgs e)
+        private async void BtnCalculate_Click(object sender, EventArgs e)
         {
+            string origBtnText = btnCalculate.Text;
+            btnCalculate.Enabled = false;
+            btnCalculate.Text = "⏳ Hesaplanıyor...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
                 string eq = txtFunction.Text.Trim();
@@ -71,29 +77,33 @@ namespace MathApp.Controls
                     return;
                 }
 
-                bool prevRad = Function.UseRadians;
-                Function.UseRadians = true;
-                string series;
-                List<string> derivLines = new List<string>();
-                try
+                var (series, derivLines) = await Task.Run(() =>
                 {
-                    decimal f0 = NumericalMethods.Method_EvaluateFunction(eq, variable, center);
-                    derivLines.Add($"  f({center}) = {Math.Round(f0, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
-
-                    for (int k = 1; k <= degree; k++)
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    string polySeries;
+                    List<string> lines = new List<string>();
+                    try
                     {
-                        decimal step = k >= 4 ? 0.01m : 0.005m;
-                        decimal dk = NumericalMethods.Method_NumericalDifferentiation(eq, k, variable, center, 4, step);
-                        decimal coeff = dk / NumericalMethods.Factorial(k);
-                        derivLines.Add($"  f^({k})({center}) = {Math.Round(dk, 5).ToString("0.#####", CultureInfo.InvariantCulture),-14}  =>  Katsayı (c_{k}) = {Math.Round(coeff, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
-                    }
+                        decimal f0 = NumericalMethods.Method_EvaluateFunction(eq, variable, center);
+                        lines.Add($"  f({center}) = {Math.Round(f0, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
 
-                    series = NumericalMethods.Method_TaylorSeries(eq, degree, variable, center);
-                }
-                finally
-                {
-                    Function.UseRadians = prevRad;
-                }
+                        for (int k = 1; k <= degree; k++)
+                        {
+                            decimal step = k >= 4 ? 0.01m : 0.005m;
+                            decimal dk = NumericalMethods.Method_NumericalDifferentiation(eq, k, variable, center, 4, step);
+                            decimal coeff = dk / NumericalMethods.Factorial(k);
+                            lines.Add($"  f^({k})({center}) = {Math.Round(dk, 5).ToString("0.#####", CultureInfo.InvariantCulture),-14}  =>  Katsayı (c_{k}) = {Math.Round(coeff, 6).ToString("0.######", CultureInfo.InvariantCulture)}");
+                        }
+
+                        polySeries = NumericalMethods.Method_TaylorSeries(eq, degree, variable, center);
+                    }
+                    finally
+                    {
+                        Function.UseRadians = prevRad;
+                    }
+                    return (polySeries, lines);
+                });
 
                 lblHeroPolyValue.Text = $"P_{degree}({variable}) = {series}";
                 lblHeroPolyValue.ForeColor = Color.FromArgb(52, 211, 153);
@@ -109,6 +119,12 @@ namespace MathApp.Controls
                 txtResult.Text = "❌ Hata: " + ex.Message;
                 lblHeroPolyValue.Text = "Hata Oluştu";
                 lblHeroPolyValue.ForeColor = Color.FromArgb(239, 68, 68);
+            }
+            finally
+            {
+                btnCalculate.Enabled = true;
+                btnCalculate.Text = origBtnText;
+                Cursor = Cursors.Default;
             }
         }
     }

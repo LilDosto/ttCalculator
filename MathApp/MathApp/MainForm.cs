@@ -17,10 +17,24 @@ namespace MathApp
         private MultivariableTaylorControl multiTaylorControl;
         private CombinatoricsControl combinatoricsControl;
         private GraphPlotterControl graphControl;
+        private UserControl[] allControls;
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                // WS_EX_COMPOSITED (0x02000000) paints all descendants in bottom-to-top order using double-buffering.
+                // Eliminates window tearing and redraw flicker.
+                cp.ExStyle |= 0x02000000;
+                return cp;
+            }
+        }
 
         public MainForm()
         {
             InitializeComponent();
+            ThemeHelper.EnableDoubleBuffering(this);
             LoadApplicationIcon();
 
             ThemeHelper.ApplyTheme(this);
@@ -69,14 +83,49 @@ namespace MathApp
             multiTaylorControl = new MultivariableTaylorControl { Dock = DockStyle.Fill };
             combinatoricsControl = new CombinatoricsControl { Dock = DockStyle.Fill };
             graphControl = new GraphPlotterControl { Dock = DockStyle.Fill };
+
+            allControls = new UserControl[] {
+                calcControl,
+                rootControl,
+                systemControl,
+                matrixControl,
+                derivativeControl,
+                taylorControl,
+                multiTaylorControl,
+                combinatoricsControl,
+                graphControl
+            };
+
+            pnlContent.SuspendLayout();
+            // Pre-add all controls once to avoid Win32 HWND re-creation and flickering on tab switch
+            pnlContent.Controls.AddRange(allControls);
+            foreach (var ctrl in allControls)
+            {
+                ctrl.Visible = false;
+                ThemeHelper.EnableDoubleBuffering(ctrl);
+            }
+            pnlContent.ResumeLayout(false);
         }
 
         private void ShowControl(UserControl control)
         {
+            if (control == null || allControls == null) return;
+
             pnlContent.SuspendLayout();
-            pnlContent.Controls.Clear();
-            pnlContent.Controls.Add(control);
-            pnlContent.ResumeLayout();
+            foreach (var ctrl in allControls)
+            {
+                if (ctrl != control && ctrl.Visible)
+                {
+                    ctrl.Visible = false;
+                }
+            }
+
+            if (!control.Visible)
+            {
+                control.Visible = true;
+            }
+            control.BringToFront();
+            pnlContent.ResumeLayout(true);
         }
 
         private void HighlightButton(Button activeBtn)

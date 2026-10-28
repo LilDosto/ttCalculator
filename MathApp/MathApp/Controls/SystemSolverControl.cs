@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace MathApp.Controls
@@ -220,8 +221,13 @@ namespace MathApp.Controls
             }
         }
 
-        private void BtnSolveSystem_Click(object sender, EventArgs e)
+        private async void BtnSolveSystem_Click(object sender, EventArgs e)
         {
+            string origBtnText = btnSolveSystem.Text;
+            btnSolveSystem.Enabled = false;
+            btnSolveSystem.Text = "⏳ Hesaplanıyor...";
+            Cursor = Cursors.WaitCursor;
+
             try
             {
                 int count = equationsInputs.Count;
@@ -268,37 +274,42 @@ namespace MathApp.Controls
                     iterCount = 50;
 
                 int methodIdx = cmbSolverMethod.SelectedIndex;
-                bool prevRad = Function.UseRadians;
-                Function.UseRadians = true;
-                Dictionary<string, decimal> results;
-                List<string> stepLogs;
-                try
+
+                var (results, stepLogs) = await Task.Run(() =>
                 {
-                    if (methodIdx == 0) // Multivariable Newton-Raphson
+                    bool prevRad = Function.UseRadians;
+                    Function.UseRadians = true;
+                    Dictionary<string, decimal> resDict;
+                    List<string> logs;
+                    try
                     {
-                        results = NumericalMethods.SolveEquationSystemWithLogs(eqs, dict, iterCount, out stepLogs);
+                        if (methodIdx == 0) // Multivariable Newton-Raphson
+                        {
+                            resDict = NumericalMethods.SolveEquationSystemWithLogs(eqs, dict, iterCount, out logs);
+                        }
+                        else if (methodIdx == 1) // Gauss-Seidel
+                        {
+                            resDict = NumericalMethods.Method_GaussSeidel(eqs, dict, iterCount, out logs);
+                        }
+                        else if (methodIdx == 2) // LU Decomposition
+                        {
+                            resDict = NumericalMethods.Method_LinearMatrixSolve(eqs, dict.Keys.ToList(), "LU", out logs);
+                        }
+                        else if (methodIdx == 3) // Inverse Matrix
+                        {
+                            resDict = NumericalMethods.Method_LinearMatrixSolve(eqs, dict.Keys.ToList(), "INVERSE", out logs);
+                        }
+                        else // QR Decomposition
+                        {
+                            resDict = NumericalMethods.Method_LinearMatrixSolve(eqs, dict.Keys.ToList(), "QR", out logs);
+                        }
                     }
-                    else if (methodIdx == 1) // Gauss-Seidel
+                    finally
                     {
-                        results = NumericalMethods.Method_GaussSeidel(eqs, dict, iterCount, out stepLogs);
+                        Function.UseRadians = prevRad;
                     }
-                    else if (methodIdx == 2) // LU Decomposition
-                    {
-                        results = NumericalMethods.Method_LinearMatrixSolve(eqs, dict.Keys.ToList(), "LU", out stepLogs);
-                    }
-                    else if (methodIdx == 3) // Inverse Matrix
-                    {
-                        results = NumericalMethods.Method_LinearMatrixSolve(eqs, dict.Keys.ToList(), "INVERSE", out stepLogs);
-                    }
-                    else // QR Decomposition
-                    {
-                        results = NumericalMethods.Method_LinearMatrixSolve(eqs, dict.Keys.ToList(), "QR", out stepLogs);
-                    }
-                }
-                finally
-                {
-                    Function.UseRadians = prevRad;
-                }
+                    return (resDict, logs);
+                });
 
                 if (results != null)
                 {
@@ -341,6 +352,12 @@ namespace MathApp.Controls
                 lblHeroSolution.ForeColor = Color.FromArgb(239, 68, 68);
                 lblHeroStatus.Text = ex.Message;
                 txtSystemResult.Text = "❌ Hata: " + ex.Message;
+            }
+            finally
+            {
+                btnSolveSystem.Enabled = true;
+                btnSolveSystem.Text = origBtnText;
+                Cursor = Cursors.Default;
             }
         }
     }
