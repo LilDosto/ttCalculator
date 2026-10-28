@@ -98,13 +98,14 @@ namespace MathApp.Controls
                     decimal r = (param * dt) / (dx * dx);
                     if (r <= 0.5m)
                     {
-                        lblCflText.Text = $"✓ Kararlı (FTCS): r = α·Δt / Δx² = {r:F4} ≤ 0.5 (Açık Şema Güvenli)";
+                        lblCflText.Text = $"✓ Kararlı (FTCS): r = α·Δt / Δx² = {r:F4} ≤ 0.5 (Açık Şema Doğal Kararlı)";
                         lblCflText.ForeColor = Color.FromArgb(52, 211, 153);
                     }
                     else
                     {
-                        lblCflText.Text = $"⚠️ KARARSIZLIK RİSKİ! r = {r:F4} > 0.5 (Çözüm patlayabilir; Nt artırılmalı veya Crank-Nicolson seçilmeli)";
-                        lblCflText.ForeColor = Color.FromArgb(239, 68, 68);
+                        int subs = (int)Math.Min(1000m, Math.Ceiling(r / 0.45m));
+                        lblCflText.Text = $"⚡ Uyarlamalı FTCS: r = {r:F2} > 0.5 (Çözücü otomatik {subs} alt-adımlama ile kararlılığı sağlar)";
+                        lblCflText.ForeColor = Color.FromArgb(56, 189, 248);
                     }
                 }
                 else if (pdeIdx == 1) // Heat Crank-Nicolson
@@ -123,8 +124,9 @@ namespace MathApp.Controls
                     }
                     else
                     {
-                        lblCflText.Text = $"⚠️ KARARSIZLIK UYARISI! CFL = {cfl:F4} > 1.0 (Courant aşıldı; Nt artırılmalı veya c küçültülmeli)";
-                        lblCflText.ForeColor = Color.FromArgb(239, 68, 68);
+                        int subs = (int)Math.Min(1000m, Math.Ceiling(cfl / 0.9m));
+                        lblCflText.Text = $"⚡ Uyarlamalı Dalga: CFL = {cfl:F2} > 1.0 (Çözücü otomatik {subs} alt-adımlama ile Courant koşulunu sağlar)";
+                        lblCflText.ForeColor = Color.FromArgb(56, 189, 248);
                     }
                 }
                 else // Advection
@@ -137,8 +139,9 @@ namespace MathApp.Controls
                     }
                     else
                     {
-                        lblCflText.Text = $"⚠️ KARARSIZ! CFL = {cfl:F4} > 1.0 (Taşınım profili bozulabilir)";
-                        lblCflText.ForeColor = Color.FromArgb(239, 68, 68);
+                        int subs = (int)Math.Min(1000m, Math.Ceiling(DecimalMath.Abs(cfl) / 0.9m));
+                        lblCflText.Text = $"⚡ Uyarlamalı Taşınım: CFL = {cfl:F2} > 1.0 (Çözücü otomatik {subs} alt-adımlama ile kararlılığı sağlar)";
+                        lblCflText.ForeColor = Color.FromArgb(56, 189, 248);
                     }
                 }
             }
@@ -256,8 +259,11 @@ namespace MathApp.Controls
             }
             catch (Exception ex)
             {
-                txtOutput.Text = "❌ Hata: " + ex.Message;
-                MessageBox.Show("PDE Çözüm Hatası: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                string msg = ex is OverflowException
+                    ? "Sayısal taşma (Overflow): Parametreler veya fonksiyon değerleri hesaplama sınırlarını aştı. Lütfen parametreleri kontrol ediniz."
+                    : ex.Message;
+                txtOutput.Text = "❌ Hata: " + msg;
+                MessageBox.Show("PDE Çözüm Hatası: " + msg, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
             {

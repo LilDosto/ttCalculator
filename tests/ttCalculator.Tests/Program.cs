@@ -11,7 +11,7 @@ namespace MathApp.Tests
         static void Main(string[] args)
         {
             Console.WriteLine("=================================================");
-            Console.WriteLine("ttCalculator v3.6 Numerical Studios Verification");
+            Console.WriteLine("ttCalculator v3.6.1 Numerical Studios Verification");
             Console.WriteLine("=================================================");
 
             int passed = 0;
@@ -274,6 +274,21 @@ namespace MathApp.Tests
                 bool normZeroPass = NormalizeVal(-0.00003f) == 0f && NormalizeVal(0.00004f) == 0f;
                 bool normDecPass = NormalizeVal(3.14159f) == 3.1416f;
                 AssertTrue(normZeroPass && normDecPass, "Magnetic Snap: Coordinate Normalization (|val| < 1e-4 -> 0.0)");
+
+                // Test 33: PDE FTCS Adaptive Sub-Stepping (r > 0.5 without Decimal Overflow)
+                var pdeAdaptive = DifferentialEquations.Solve1DPde(
+                    DifferentialEquations.PdeType.HeatEquation,
+                    "sin(pi*x)",
+                    1m,
+                    0.2m,
+                    50,
+                    200,
+                    1m,
+                    0m,
+                    0m
+                );
+                bool pdeStable = pdeAdaptive != null && pdeAdaptive.U != null && pdeAdaptive.U[25, 199] < 10m && pdeAdaptive.U[25, 199] >= 0m;
+                AssertTrue(pdeStable, "PDE FTCS Adaptive Sub-Stepping: r = 2.41 > 0.5 Solved Stably without Overflow");
             }
             catch (Exception ex)
             {

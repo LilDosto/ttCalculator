@@ -59,68 +59,81 @@ namespace MathApp
 
             for (int i = 0; i < steps; i++)
             {
-                decimal slope = Eval(x, y);
+                try
+                {
+                    decimal slope = Eval(x, y);
 
-                if (normMethod.Contains("EULER") && !normMethod.Contains("HEUN") && !normMethod.Contains("MODIFIED"))
-                {
-                    // Standard Euler: y_{n+1} = y_n + h * f(x_n, y_n)
-                    y = y + h * slope;
-                    x = x + h;
-                }
-                else if (normMethod.Contains("HEUN") || normMethod.Contains("RK2"))
-                {
-                    // Heun's Predictor-Corrector (RK2)
-                    decimal yPredict = y + h * slope;
-                    decimal nextSlope = Eval(x + h, yPredict);
-                    y = y + (h / 2m) * (slope + nextSlope);
-                    x = x + h;
-                }
-                else if (normMethod.Contains("RK8"))
-                {
-                    // High-Precision 8th-Order Richardson Extrapolated Runge-Kutta (Bulirsch-Stoer / Romberg ODE kernel)
-                    decimal OneRk4(decimal curX, decimal curY, decimal curH)
+                    if (normMethod.Contains("EULER") && !normMethod.Contains("HEUN") && !normMethod.Contains("MODIFIED"))
                     {
-                        decimal k1 = Eval(curX, curY);
-                        decimal k2 = Eval(curX + curH * 0.5m, curY + curH * 0.5m * k1);
-                        decimal k3 = Eval(curX + curH * 0.5m, curY + curH * 0.5m * k2);
-                        decimal k4 = Eval(curX + curH, curY + curH * k3);
-                        return curY + (curH / 6m) * (k1 + 2m * k2 + 2m * k3 + k4);
+                        // Standard Euler: y_{n+1} = y_n + h * f(x_n, y_n)
+                        y = y + h * slope;
+                        x = x + h;
+                    }
+                    else if (normMethod.Contains("HEUN") || normMethod.Contains("RK2"))
+                    {
+                        // Heun's Predictor-Corrector (RK2)
+                        decimal yPredict = y + h * slope;
+                        decimal nextSlope = Eval(x + h, yPredict);
+                        y = y + (h / 2m) * (slope + nextSlope);
+                        x = x + h;
+                    }
+                    else if (normMethod.Contains("RK8"))
+                    {
+                        // High-Precision 8th-Order Richardson Extrapolated Runge-Kutta (Bulirsch-Stoer / Romberg ODE kernel)
+                        decimal OneRk4(decimal curX, decimal curY, decimal curH)
+                        {
+                            decimal k1 = Eval(curX, curY);
+                            decimal k2 = Eval(curX + curH * 0.5m, curY + curH * 0.5m * k1);
+                            decimal k3 = Eval(curX + curH * 0.5m, curY + curH * 0.5m * k2);
+                            decimal k4 = Eval(curX + curH, curY + curH * k3);
+                            return curY + (curH / 6m) * (k1 + 2m * k2 + 2m * k3 + k4);
+                        }
+
+                        // 1 step of h
+                        decimal y1 = OneRk4(x, y, h);
+
+                        // 2 steps of h/2
+                        decimal h2 = h / 2m;
+                        decimal y2 = OneRk4(x + h2, OneRk4(x, y, h2), h2);
+
+                        // 4 steps of h/4
+                        decimal h4 = h / 4m;
+                        decimal y4_1 = OneRk4(x, y, h4);
+                        decimal y4_2 = OneRk4(x + h4, y4_1, h4);
+                        decimal y4_3 = OneRk4(x + 2m * h4, y4_2, h4);
+                        decimal y4 = OneRk4(x + 3m * h4, y4_3, h4);
+
+                        decimal a = (16m * y2 - y1) / 15m;
+                        decimal b = (16m * y4 - y2) / 15m;
+                        y = (64m * b - a) / 63m;
+                        x = x + h;
+                    }
+                    else
+                    {
+                        // Standard RK4 (Runge-Kutta 4th order)
+                        decimal k1 = slope;
+                        decimal k2 = Eval(x + h * 0.5m, y + h * 0.5m * k1);
+                        decimal k3 = Eval(x + h * 0.5m, y + h * 0.5m * k2);
+                        decimal k4 = Eval(x + h, y + h * k3);
+
+                        y = y + (h / 6m) * (k1 + 2m * k2 + 2m * k3 + k4);
+                        x = x + h;
                     }
 
-                    // 1 step of h
-                    decimal y1 = OneRk4(x, y, h);
+                    if (y > 1e18m) y = 1e18m;
+                    else if (y < -1e18m) y = -1e18m;
 
-                    // 2 steps of h/2
-                    decimal h2 = h / 2m;
-                    decimal y2 = OneRk4(x + h2, OneRk4(x, y, h2), h2);
-
-                    // 4 steps of h/4
-                    decimal h4 = h / 4m;
-                    decimal y4_1 = OneRk4(x, y, h4);
-                    decimal y4_2 = OneRk4(x + h4, y4_1, h4);
-                    decimal y4_3 = OneRk4(x + 2m * h4, y4_2, h4);
-                    decimal y4 = OneRk4(x + 3m * h4, y4_3, h4);
-
-                    decimal a = (16m * y2 - y1) / 15m;
-                    decimal b = (16m * y4 - y2) / 15m;
-                    y = (64m * b - a) / 63m;
-                    x = x + h;
+                    decimal curSlope = 0m;
+                    try { curSlope = Eval(x, y); } catch { }
+                    results.Add(new OdeStepResult { X = x, Y = y, Slope = curSlope });
                 }
-                else
+                catch (OverflowException)
                 {
-                    // Standard RK4 (Runge-Kutta 4th order)
-                    decimal k1 = slope;
-                    decimal k2 = Eval(x + h * 0.5m, y + h * 0.5m * k1);
-                    decimal k3 = Eval(x + h * 0.5m, y + h * 0.5m * k2);
-                    decimal k4 = Eval(x + h, y + h * k3);
-
-                    y = y + (h / 6m) * (k1 + 2m * k2 + 2m * k3 + k4);
+                    y = y > 0 ? 1e18m : -1e18m;
                     x = x + h;
+                    results.Add(new OdeStepResult { X = x, Y = y, Slope = 0m });
+                    break;
                 }
-
-                decimal curSlope = 0m;
-                try { curSlope = Eval(x, y); } catch { }
-                results.Add(new OdeStepResult { X = x, Y = y, Slope = curSlope });
             }
 
             return results;
@@ -184,80 +197,100 @@ namespace MathApp
 
             for (int step = 0; step < steps; step++)
             {
-                if (normMethod.Contains("EULER"))
+                try
                 {
-                    decimal[] k1 = EvalAll(t, y);
-                    for (int j = 0; j < nVars; j++)
+                    if (normMethod.Contains("EULER"))
                     {
-                        y[j] += h * k1[j];
-                    }
-                    t += h;
-                }
-                else if (normMethod.Contains("RK8"))
-                {
-                    // High-Precision 8th-Order Richardson Extrapolated Vector RK4
-                    decimal[] OneVectorRk4(decimal curT, decimal[] curY, decimal curH)
-                    {
-                        decimal[] vk1 = EvalAll(curT, curY);
-                        decimal[] vy2 = VectorAdd(curY, vk1, curH * 0.5m);
-                        decimal[] vk2 = EvalAll(curT + curH * 0.5m, vy2);
-                        decimal[] vy3 = VectorAdd(curY, vk2, curH * 0.5m);
-                        decimal[] vk3 = EvalAll(curT + curH * 0.5m, vy3);
-                        decimal[] vy4 = VectorAdd(curY, vk3, curH);
-                        decimal[] vk4 = EvalAll(curT + curH, vy4);
-
-                        decimal[] nxt = new decimal[nVars];
+                        decimal[] k1 = EvalAll(t, y);
                         for (int j = 0; j < nVars; j++)
                         {
-                            nxt[j] = curY[j] + (curH / 6m) * (vk1[j] + 2m * vk2[j] + 2m * vk3[j] + vk4[j]);
+                            y[j] += h * k1[j];
                         }
-                        return nxt;
+                        t += h;
                     }
+                    else if (normMethod.Contains("RK8"))
+                    {
+                        // High-Precision 8th-Order Richardson Extrapolated Vector RK4
+                        decimal[] OneVectorRk4(decimal curT, decimal[] curY, decimal curH)
+                        {
+                            decimal[] vk1 = EvalAll(curT, curY);
+                            decimal[] vy2 = VectorAdd(curY, vk1, curH * 0.5m);
+                            decimal[] vk2 = EvalAll(curT + curH * 0.5m, vy2);
+                            decimal[] vy3 = VectorAdd(curY, vk2, curH * 0.5m);
+                            decimal[] vk3 = EvalAll(curT + curH * 0.5m, vy3);
+                            decimal[] vy4 = VectorAdd(curY, vk3, curH);
+                            decimal[] vk4 = EvalAll(curT + curH, vy4);
 
-                    // 1 step of h
-                    decimal[] y1 = OneVectorRk4(t, y, h);
+                            decimal[] nxt = new decimal[nVars];
+                            for (int j = 0; j < nVars; j++)
+                            {
+                                nxt[j] = curY[j] + (curH / 6m) * (vk1[j] + 2m * vk2[j] + 2m * vk3[j] + vk4[j]);
+                            }
+                            return nxt;
+                        }
 
-                    // 2 steps of h/2
-                    decimal h2 = h / 2m;
-                    decimal[] y2 = OneVectorRk4(t + h2, OneVectorRk4(t, y, h2), h2);
+                        // 1 step of h
+                        decimal[] y1 = OneVectorRk4(t, y, h);
 
-                    // 4 steps of h/4
-                    decimal h4 = h / 4m;
-                    decimal[] y4_1 = OneVectorRk4(t, y, h4);
-                    decimal[] y4_2 = OneVectorRk4(t + h4, y4_1, h4);
-                    decimal[] y4_3 = OneVectorRk4(t + 2m * h4, y4_2, h4);
-                    decimal[] y4 = OneVectorRk4(t + 3m * h4, y4_3, h4);
+                        // 2 steps of h/2
+                        decimal h2 = h / 2m;
+                        decimal[] y2 = OneVectorRk4(t + h2, OneVectorRk4(t, y, h2), h2);
+
+                        // 4 steps of h/4
+                        decimal h4 = h / 4m;
+                        decimal[] y4_1 = OneVectorRk4(t, y, h4);
+                        decimal[] y4_2 = OneVectorRk4(t + h4, y4_1, h4);
+                        decimal[] y4_3 = OneVectorRk4(t + 2m * h4, y4_2, h4);
+                        decimal[] y4 = OneVectorRk4(t + 3m * h4, y4_3, h4);
+
+                        for (int j = 0; j < nVars; j++)
+                        {
+                            decimal a = (16m * y2[j] - y1[j]) / 15m;
+                            decimal b = (16m * y4[j] - y2[j]) / 15m;
+                            y[j] = (64m * b - a) / 63m;
+                        }
+                        t += h;
+                    }
+                    else
+                    {
+                        // Vectorized RK4
+                        decimal[] k1 = EvalAll(t, y);
+
+                        decimal[] y2 = VectorAdd(y, k1, h * 0.5m);
+                        decimal[] k2 = EvalAll(t + h * 0.5m, y2);
+
+                        decimal[] y3 = VectorAdd(y, k2, h * 0.5m);
+                        decimal[] k3 = EvalAll(t + h * 0.5m, y3);
+
+                        decimal[] y4 = VectorAdd(y, k3, h);
+                        decimal[] k4 = EvalAll(t + h, y4);
+
+                        for (int j = 0; j < nVars; j++)
+                        {
+                            y[j] += (h / 6m) * (k1[j] + 2m * k2[j] + 2m * k3[j] + k4[j]);
+                        }
+                        t += h;
+                    }
 
                     for (int j = 0; j < nVars; j++)
                     {
-                        decimal a = (16m * y2[j] - y1[j]) / 15m;
-                        decimal b = (16m * y4[j] - y2[j]) / 15m;
-                        y[j] = (64m * b - a) / 63m;
+                        if (y[j] > 1e18m) y[j] = 1e18m;
+                        else if (y[j] < -1e18m) y[j] = -1e18m;
                     }
-                    t += h;
+
+                    results.Add(CreateStepResult(t, varNames, y));
                 }
-                else
+                catch (OverflowException)
                 {
-                    // Vectorized RK4
-                    decimal[] k1 = EvalAll(t, y);
-
-                    decimal[] y2 = VectorAdd(y, k1, h * 0.5m);
-                    decimal[] k2 = EvalAll(t + h * 0.5m, y2);
-
-                    decimal[] y3 = VectorAdd(y, k2, h * 0.5m);
-                    decimal[] k3 = EvalAll(t + h * 0.5m, y3);
-
-                    decimal[] y4 = VectorAdd(y, k3, h);
-                    decimal[] k4 = EvalAll(t + h, y4);
-
+                    t += h;
                     for (int j = 0; j < nVars; j++)
                     {
-                        y[j] += (h / 6m) * (k1[j] + 2m * k2[j] + 2m * k3[j] + k4[j]);
+                        if (y[j] > 1e18m || y[j] < -1e18m) { }
+                        else y[j] = y[j] >= 0 ? 1e18m : -1e18m;
                     }
-                    t += h;
+                    results.Add(CreateStepResult(t, varNames, y));
+                    break;
                 }
-
-                results.Add(CreateStepResult(t, varNames, y));
             }
 
             return results;
@@ -360,13 +393,50 @@ namespace MathApp
             {
                 // FTCS for Heat equation: u_i^{n+1} = u_i^n + r * (u_{i+1}^n - 2u_i^n + u_{i-1}^n)
                 decimal r = (paramAlphaOrC * dt) / (dx * dx);
-                stabilityNote = $"Isı Denklemi (FTCS): r = α·Δt / Δx² = {r:G4} " + (r <= 0.5m ? "✓ Kararlı (r <= 0.5)" : "⚠️ Uyarı: r > 0.5 (Kararsızlık riski, Crank-Nicolson veya daha küçük Δt önerilir)");
+                int subSteps = 1;
+                if (r > 0.45m && paramAlphaOrC > 0)
+                {
+                    subSteps = (int)Math.Min(1000m, Math.Ceiling(r / 0.45m));
+                }
+                decimal rSub = r / subSteps;
+                stabilityNote = $"Isı Denklemi (FTCS): r = α·Δt / Δx² = {r:G4} " +
+                    (subSteps == 1
+                        ? (r <= 0.5m ? "✓ Kararlı (r <= 0.5)" : "⚠️ Kararsızlık Sınırında")
+                        : $"✓ Otomatik Alt-Adımlama ile Kararlı Kılındı ({subSteps} mikro-adım/adım, efektif r = {rSub:G4} ≤ 0.45)");
+
+                decimal[] curRow = new decimal[spatialPointsNx];
+                decimal[] nextRow = new decimal[spatialPointsNx];
+                for (int i = 0; i < spatialPointsNx; i++) curRow[i] = u[i, 0];
 
                 for (int n = 0; n < timeStepsNt - 1; n++)
                 {
-                    for (int i = 1; i < spatialPointsNx - 1; i++)
+                    for (int s = 0; s < subSteps; s++)
                     {
-                        u[i, n + 1] = u[i, n] + r * (u[i + 1, n] - 2m * u[i, n] + u[i - 1, n]);
+                        nextRow[0] = leftBoundaryVal;
+                        nextRow[spatialPointsNx - 1] = rightBoundaryVal;
+
+                        for (int i = 1; i < spatialPointsNx - 1; i++)
+                        {
+                            try
+                            {
+                                decimal lap = curRow[i + 1] - 2m * curRow[i] + curRow[i - 1];
+                                decimal val = curRow[i] + rSub * lap;
+                                if (val > 1e18m) val = 1e18m;
+                                else if (val < -1e18m) val = -1e18m;
+                                nextRow[i] = val;
+                            }
+                            catch (OverflowException)
+                            {
+                                nextRow[i] = curRow[i] > 0 ? 1e18m : -1e18m;
+                            }
+                        }
+
+                        for (int i = 0; i < spatialPointsNx; i++) curRow[i] = nextRow[i];
+                    }
+
+                    for (int i = 0; i < spatialPointsNx; i++)
+                    {
+                        u[i, n + 1] = curRow[i];
                     }
                 }
             }
@@ -405,10 +475,15 @@ namespace MathApp
                         dPrime[k] = (d[k] - diagA * dPrime[k - 1]) / denom;
                     }
 
-                    u[m, n + 1] = dPrime[m - 1];
+                    decimal lastVal = dPrime[m - 1];
+                    if (lastVal > 1e18m) lastVal = 1e18m; else if (lastVal < -1e18m) lastVal = -1e18m;
+                    u[m, n + 1] = lastVal;
+
                     for (int k = m - 2; k >= 0; k--)
                     {
-                        u[k + 1, n + 1] = dPrime[k] - cPrime[k] * u[k + 2, n + 1];
+                        decimal val = dPrime[k] - cPrime[k] * u[k + 2, n + 1];
+                        if (val > 1e18m) val = 1e18m; else if (val < -1e18m) val = -1e18m;
+                        u[k + 1, n + 1] = val;
                     }
                 }
             }
@@ -416,11 +491,30 @@ namespace MathApp
             {
                 // Leapfrog central difference for Wave equation: u_tt = c^2 * u_xx
                 decimal cfl = (paramAlphaOrC * dt) / dx;
-                stabilityNote = $"Dalga Denklemi (Leapfrog): CFL = c·Δt / Δx = {cfl:G4} " + (cfl <= 1.0m ? "✓ Kararlı (CFL <= 1.0)" : "⚠️ Uyarı: CFL > 1.0 (Courant koşulu aşıldı, dalga kararsızlığı oluşabilir)");
+                int waveSubSteps = 1;
+                if (cfl > 0.9m && paramAlphaOrC > 0)
+                {
+                    waveSubSteps = (int)Math.Min(1000m, Math.Ceiling(cfl / 0.9m));
+                }
+                decimal dtSub = dt / waveSubSteps;
+                decimal cflSub = cfl / waveSubSteps;
+                decimal r2 = cflSub * cflSub;
 
-                decimal r2 = cfl * cfl;
+                stabilityNote = $"Dalga Denklemi (Leapfrog): CFL = c·Δt / Δx = {cfl:G4} " +
+                    (waveSubSteps == 1
+                        ? (cfl <= 1.0m ? "✓ Kararlı (CFL <= 1.0)" : "⚠️ Kararsızlık Sınırında")
+                        : $"✓ Otomatik CFL Uyarlaması ile Kararlı ({waveSubSteps} mikro-adım/adım, efektif CFL = {cflSub:G4} ≤ 0.9)");
 
-                // First time step using initial velocity u_t(x, 0)
+                decimal[] prevRow = new decimal[spatialPointsNx];
+                decimal[] curRow = new decimal[spatialPointsNx];
+                decimal[] nextRow = new decimal[spatialPointsNx];
+
+                for (int i = 0; i < spatialPointsNx; i++)
+                {
+                    prevRow[i] = u[i, 0];
+                }
+
+                // First micro step using initial velocity
                 for (int i = 1; i < spatialPointsNx - 1; i++)
                 {
                     decimal v0 = 0m;
@@ -428,36 +522,135 @@ namespace MathApp
                     {
                         try { v0 = NumericalMethods.EvaluateCompiled(fVel, "x", xGrid[i]); } catch { }
                     }
-                    u[i, 1] = u[i, 0] + dt * v0 + 0.5m * r2 * (u[i + 1, 0] - 2m * u[i, 0] + u[i - 1, 0]);
+                    try
+                    {
+                        decimal val = prevRow[i] + dtSub * v0 + 0.5m * r2 * (prevRow[i + 1] - 2m * prevRow[i] + prevRow[i - 1]);
+                        if (val > 1e18m) val = 1e18m; else if (val < -1e18m) val = -1e18m;
+                        curRow[i] = val;
+                    }
+                    catch (OverflowException)
+                    {
+                        curRow[i] = prevRow[i];
+                    }
                 }
+                curRow[0] = leftBoundaryVal;
+                curRow[spatialPointsNx - 1] = rightBoundaryVal;
 
-                for (int n = 1; n < timeStepsNt - 1; n++)
+                // Micro steps from 1 to waveSubSteps
+                for (int s = 1; s < waveSubSteps; s++)
                 {
+                    nextRow[0] = leftBoundaryVal;
+                    nextRow[spatialPointsNx - 1] = rightBoundaryVal;
                     for (int i = 1; i < spatialPointsNx - 1; i++)
                     {
-                        u[i, n + 1] = 2m * (1m - r2) * u[i, n] + r2 * (u[i + 1, n] + u[i - 1, n]) - u[i, n - 1];
+                        try
+                        {
+                            decimal val = 2m * (1m - r2) * curRow[i] + r2 * (curRow[i + 1] + curRow[i - 1]) - prevRow[i];
+                            if (val > 1e18m) val = 1e18m; else if (val < -1e18m) val = -1e18m;
+                            nextRow[i] = val;
+                        }
+                        catch (OverflowException)
+                        {
+                            nextRow[i] = curRow[i];
+                        }
+                    }
+                    for (int i = 0; i < spatialPointsNx; i++)
+                    {
+                        prevRow[i] = curRow[i];
+                        curRow[i] = nextRow[i];
+                    }
+                }
+
+                for (int i = 0; i < spatialPointsNx; i++) u[i, 1] = curRow[i];
+
+                // Advance subsequent time steps
+                for (int n = 1; n < timeStepsNt - 1; n++)
+                {
+                    for (int s = 0; s < waveSubSteps; s++)
+                    {
+                        nextRow[0] = leftBoundaryVal;
+                        nextRow[spatialPointsNx - 1] = rightBoundaryVal;
+                        for (int i = 1; i < spatialPointsNx - 1; i++)
+                        {
+                            try
+                            {
+                                decimal val = 2m * (1m - r2) * curRow[i] + r2 * (curRow[i + 1] + curRow[i - 1]) - prevRow[i];
+                                if (val > 1e18m) val = 1e18m; else if (val < -1e18m) val = -1e18m;
+                                nextRow[i] = val;
+                            }
+                            catch (OverflowException)
+                            {
+                                nextRow[i] = curRow[i];
+                            }
+                        }
+                        for (int i = 0; i < spatialPointsNx; i++)
+                        {
+                            prevRow[i] = curRow[i];
+                            curRow[i] = nextRow[i];
+                        }
+                    }
+
+                    for (int i = 0; i < spatialPointsNx; i++)
+                    {
+                        u[i, n + 1] = curRow[i];
                     }
                 }
             }
             else // Advection Equation: u_t + v * u_x = 0
             {
                 decimal cfl = (paramAlphaOrC * dt) / dx;
-                stabilityNote = $"Taşınım Denklemi (Upwind): CFL = v·Δt / Δx = {cfl:G4} " + (DecimalMath.Abs(cfl) <= 1.0m ? "✓ Kararlı (CFL <= 1.0)" : "⚠️ Uyarı: CFL > 1.0 (Kararsız)");
+                decimal absCfl = DecimalMath.Abs(cfl);
+                int advSubSteps = 1;
+                if (absCfl > 0.9m)
+                {
+                    advSubSteps = (int)Math.Min(1000m, Math.Ceiling(absCfl / 0.9m));
+                }
+                decimal cflSub = cfl / advSubSteps;
+
+                stabilityNote = $"Taşınım Denklemi (Upwind): CFL = v·Δt / Δx = {cfl:G4} " +
+                    (advSubSteps == 1
+                        ? (absCfl <= 1.0m ? "✓ Kararlı (CFL <= 1.0)" : "⚠️ Kararsız")
+                        : $"✓ Otomatik CFL Uyarlaması ile Kararlı ({advSubSteps} mikro-adım/adım, efektif CFL = {cflSub:G4} ≤ 0.9)");
+
+                decimal[] curRow = new decimal[spatialPointsNx];
+                decimal[] nextRow = new decimal[spatialPointsNx];
+                for (int i = 0; i < spatialPointsNx; i++) curRow[i] = u[i, 0];
 
                 for (int n = 0; n < timeStepsNt - 1; n++)
                 {
-                    for (int i = 1; i < spatialPointsNx - 1; i++)
+                    for (int s = 0; s < advSubSteps; s++)
                     {
-                        if (paramAlphaOrC >= 0)
+                        nextRow[0] = leftBoundaryVal;
+                        nextRow[spatialPointsNx - 1] = rightBoundaryVal;
+
+                        for (int i = 1; i < spatialPointsNx - 1; i++)
                         {
-                            // Upwind (backward difference in space)
-                            u[i, n + 1] = u[i, n] - cfl * (u[i, n] - u[i - 1, n]);
+                            try
+                            {
+                                decimal val;
+                                if (paramAlphaOrC >= 0)
+                                {
+                                    val = curRow[i] - cflSub * (curRow[i] - curRow[i - 1]);
+                                }
+                                else
+                                {
+                                    val = curRow[i] - cflSub * (curRow[i + 1] - curRow[i]);
+                                }
+                                if (val > 1e18m) val = 1e18m; else if (val < -1e18m) val = -1e18m;
+                                nextRow[i] = val;
+                            }
+                            catch (OverflowException)
+                            {
+                                nextRow[i] = curRow[i];
+                            }
                         }
-                        else
-                        {
-                            // Forward difference in space
-                            u[i, n + 1] = u[i, n] - cfl * (u[i + 1, n] - u[i, n]);
-                        }
+
+                        for (int i = 0; i < spatialPointsNx; i++) curRow[i] = nextRow[i];
+                    }
+
+                    for (int i = 0; i < spatialPointsNx; i++)
+                    {
+                        u[i, n + 1] = curRow[i];
                     }
                 }
             }
@@ -533,31 +726,95 @@ namespace MathApp
 
             decimal ru = (diffDu * dt) / (dx * dx);
             decimal rv = (diffDv * dt) / (dx * dx);
+            decimal rMax = ru > rv ? ru : rv;
+            int diffSubSteps = 1;
+            if (rMax > 0.45m && rMax > 0)
+            {
+                diffSubSteps = (int)Math.Min(1000m, Math.Ceiling(rMax / 0.45m));
+            }
+            decimal ruSub = ru / diffSubSteps;
+            decimal rvSub = rv / diffSubSteps;
+            decimal dtSub = dt / diffSubSteps;
+
+            decimal[] curU = new decimal[spatialPointsNx];
+            decimal[] curV = new decimal[spatialPointsNx];
+            decimal[] nextU = new decimal[spatialPointsNx];
+            decimal[] nextV = new decimal[spatialPointsNx];
+
+            for (int i = 0; i < spatialPointsNx; i++)
+            {
+                curU[i] = u[i, 0];
+                curV[i] = v[i, 0];
+            }
 
             for (int n = 0; n < timeStepsNt - 1; n++)
             {
-                // Neumann zero-flux boundary condition (u_0 = u_1, u_{N-1} = u_{N-2})
-                u[0, n] = u[1, n];
-                u[spatialPointsNx - 1, n] = u[spatialPointsNx - 2, n];
-                v[0, n] = v[1, n];
-                v[spatialPointsNx - 1, n] = v[spatialPointsNx - 2, n];
-
-                for (int i = 1; i < spatialPointsNx - 1; i++)
+                for (int s = 0; s < diffSubSteps; s++)
                 {
-                    decimal curU = u[i, n];
-                    decimal curV = v[i, n];
+                    // Neumann zero-flux boundary condition (u_0 = u_1, u_{N-1} = u_{N-2})
+                    curU[0] = curU[1];
+                    curU[spatialPointsNx - 1] = curU[spatialPointsNx - 2];
+                    curV[0] = curV[1];
+                    curV[spatialPointsNx - 1] = curV[spatialPointsNx - 2];
 
-                    Dictionary<string, decimal> dict = new Dictionary<string, decimal> { { "u", curU }, { "v", curV } };
-                    decimal reactU = 0m;
-                    decimal reactV = 0m;
-                    try { reactU = NumericalMethods.EvaluateCompiledMultiVar(fnF, dict); } catch { }
-                    try { reactV = NumericalMethods.EvaluateCompiledMultiVar(fnG, dict); } catch { }
+                    nextU[0] = curU[0];
+                    nextU[spatialPointsNx - 1] = curU[spatialPointsNx - 1];
+                    nextV[0] = curV[0];
+                    nextV[spatialPointsNx - 1] = curV[spatialPointsNx - 1];
 
-                    decimal lapU = (u[i + 1, n] - 2m * curU + u[i - 1, n]);
-                    decimal lapV = (v[i + 1, n] - 2m * curV + v[i - 1, n]);
+                    for (int i = 1; i < spatialPointsNx - 1; i++)
+                    {
+                        decimal uVal = curU[i];
+                        decimal vVal = curV[i];
 
-                    u[i, n + 1] = curU + ru * lapU + dt * reactU;
-                    v[i, n + 1] = curV + rv * lapV + dt * reactV;
+                        Dictionary<string, decimal> dict = new Dictionary<string, decimal> { { "u", uVal }, { "v", vVal } };
+                        decimal reactU = 0m;
+                        decimal reactV = 0m;
+                        try { reactU = NumericalMethods.EvaluateCompiledMultiVar(fnF, dict); } catch { }
+                        try { reactV = NumericalMethods.EvaluateCompiledMultiVar(fnG, dict); } catch { }
+
+                        if (reactU > 1e12m) reactU = 1e12m;
+                        else if (reactU < -1e12m) reactU = -1e12m;
+                        if (reactV > 1e12m) reactV = 1e12m;
+                        else if (reactV < -1e12m) reactV = -1e12m;
+
+                        decimal lapU = (curU[i + 1] - 2m * uVal + curU[i - 1]);
+                        decimal lapV = (curV[i + 1] - 2m * vVal + curV[i - 1]);
+
+                        try
+                        {
+                            decimal nu = uVal + ruSub * lapU + dtSub * reactU;
+                            if (nu > 1e18m) nu = 1e18m; else if (nu < -1e18m) nu = -1e18m;
+                            nextU[i] = nu;
+                        }
+                        catch (OverflowException)
+                        {
+                            nextU[i] = uVal;
+                        }
+
+                        try
+                        {
+                            decimal nv = vVal + rvSub * lapV + dtSub * reactV;
+                            if (nv > 1e18m) nv = 1e18m; else if (nv < -1e18m) nv = -1e18m;
+                            nextV[i] = nv;
+                        }
+                        catch (OverflowException)
+                        {
+                            nextV[i] = vVal;
+                        }
+                    }
+
+                    for (int i = 0; i < spatialPointsNx; i++)
+                    {
+                        curU[i] = nextU[i];
+                        curV[i] = nextV[i];
+                    }
+                }
+
+                for (int i = 0; i < spatialPointsNx; i++)
+                {
+                    u[i, n + 1] = curU[i];
+                    v[i, n + 1] = curV[i];
                 }
             }
 

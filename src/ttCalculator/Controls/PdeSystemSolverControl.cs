@@ -200,8 +200,11 @@ namespace MathApp.Controls
             }
             catch (Exception ex)
             {
-                txtOutput.Text = "❌ Hata: " + ex.Message;
-                MessageBox.Show("Sistem Çözüm Hatası: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                string msg = ex is OverflowException
+                    ? "Sayısal taşma (Overflow): Parametreler veya reaksiyon fonksiyon değerleri hesaplama sınırlarını aştı. Lütfen katsayıları kontrol ediniz."
+                    : ex.Message;
+                txtOutput.Text = "❌ Hata: " + msg;
+                MessageBox.Show("Sistem Çözüm Hatası: " + msg, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
             {
