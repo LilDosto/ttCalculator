@@ -1,4 +1,4 @@
-# 📐 ttCalculator v2.0.0
+# 📐 ttCalculator v2.1.0
 
 [![GitHub release](https://img.shields.io/github/v/release/LilDosto/ttCalculator?color=brightgreen&label=S%C3%BCr%C3%BCm)](https://github.com/LilDosto/ttCalculator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -15,13 +15,13 @@ Tüm matematiksel çekirdek, 1.169 otomatik testten oluşan kapsamlı doğrulama
 
 Uygulamanın hazır derlenmiş Windows sürümünü (`ttCalculator.exe`) hemen çalıştırmak için:
 
-1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.0.0)** sayfasına gidin.
-2. **`ttCalculator.exe`** (veya `ttCalculator-v2.0.0-win-x64.zip`) dosyasını indirin.
+1. **[Releases](https://github.com/LilDosto/ttCalculator/releases/tag/v2.1.0)** sayfasına gidin.
+2. **`ttCalculator.exe`** (veya `ttCalculator-v2.1.0-win-x64.zip`) dosyasını indirin.
 3. Çift tıklayarak doğrudan çalıştırın — ek bağımlılık gerektirmez!
 
 ---
 
-## ✨ v2.0.0 Temel Özellikleri & Modüller
+## ✨ v2.1.0 Temel Özellikleri & Modüller
 
 Uygulama modern koyu tema (Dark Theme) arayüzü ile 9 ana modülden oluşmaktadır:
 
