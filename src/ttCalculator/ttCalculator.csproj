@@ -9,7 +9,7 @@
     <ApplicationIcon>logo.ico</ApplicationIcon>
     <AssemblyName>ttCalculator</AssemblyName>
     <Product>ttCalculator - Gelişmiş Matematik &amp; Nümerik Analiz Stüdyosu</Product>
-    <Version>3.6.2</Version>
+    <Version>3.6.3</Version>
     <Company>ttCalculator</Company>
   </PropertyGroup>
 

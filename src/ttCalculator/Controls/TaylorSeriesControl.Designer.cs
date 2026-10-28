@@ -231,46 +231,15 @@ namespace MathApp.Controls
             this.pnlInputCard.Controls.Add(this.lblHeroPolyValue);
             this.pnlInputCard.Controls.Add(this.pnlHeroButtons);
 
-            // Split Container for Mini Canvas and Tabbed Details (Dock Fill!)
+            // Split Container: Top = Tabbed Results (Directly on Main Page), Bottom = 2D Convergence Canvas
             this.splitVisual.Dock = DockStyle.Fill;
-            this.splitVisual.Orientation = Orientation.Vertical;
-            this.splitVisual.SplitterDistance = 380;
+            this.splitVisual.Orientation = Orientation.Horizontal;
+            this.splitVisual.SplitterDistance = 290;
             this.splitVisual.SplitterWidth = 6;
             this.splitVisual.BackColor = ThemeHelper.DarkBackground;
 
-            // Panel 1: Mini 2D Convergence Canvas
-            this.splitVisual.Panel1.BackColor = Color.FromArgb(18, 26, 43);
-            this.splitVisual.Panel1.Padding = new Padding(0);
-
-            this.pnlCanvasHeader.Dock = DockStyle.Top;
-            this.pnlCanvasHeader.Height = 26;
-            this.pnlCanvasHeader.BackColor = Color.FromArgb(20, 30, 48);
-            this.pnlCanvasHeader.Padding = new Padding(6, 4, 6, 4);
-
-            this.lblCanvasTitle.Text = "📐 2D Yakınsama Önizleme";
-            this.lblCanvasTitle.Dock = DockStyle.Left;
-            this.lblCanvasTitle.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
-            this.lblCanvasTitle.ForeColor = Color.FromArgb(148, 163, 184);
-            this.lblCanvasTitle.AutoSize = true;
-
-            this.lblCanvasLegend.Text = "— f(x) (Cyan)   — P_n(x) (Yeşil)   ● a (Turuncu)";
-            this.lblCanvasLegend.Dock = DockStyle.Right;
-            this.lblCanvasLegend.Font = new Font("Segoe UI", 7.5F);
-            this.lblCanvasLegend.ForeColor = Color.FromArgb(148, 163, 184);
-            this.lblCanvasLegend.AutoSize = true;
-
-            this.pnlCanvasHeader.Controls.Add(this.lblCanvasTitle);
-            this.pnlCanvasHeader.Controls.Add(this.lblCanvasLegend);
-
-            this.pnlMiniCanvas.Dock = DockStyle.Fill;
-            this.pnlMiniCanvas.BackColor = Color.FromArgb(11, 15, 28);
-            this.pnlMiniCanvas.DoubleBuffered(true);
-
-            this.splitVisual.Panel1.Controls.Add(this.pnlMiniCanvas);
-            this.splitVisual.Panel1.Controls.Add(this.pnlCanvasHeader);
-
-            // Panel 2: Tabbed Results
-            this.splitVisual.Panel2.Controls.Add(this.tabResults);
+            // Panel 1 (Top / Main): Tabbed Results (Full Width for Tables & Analysis)
+            this.splitVisual.Panel1.Controls.Add(this.tabResults);
             this.tabResults.Dock = DockStyle.Fill;
             this.tabResults.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
 
@@ -315,6 +284,37 @@ namespace MathApp.Controls
             this.tabResults.TabPages.Add(this.tabTable);
             this.tabResults.TabPages.Add(this.tabError);
             this.tabResults.TabPages.Add(this.tabReport);
+
+            // Panel 2 (Bottom): Mini 2D Convergence Canvas
+            this.splitVisual.Panel2.BackColor = Color.FromArgb(18, 26, 43);
+            this.splitVisual.Panel2.Padding = new Padding(0);
+
+            this.pnlCanvasHeader.Dock = DockStyle.Top;
+            this.pnlCanvasHeader.Height = 26;
+            this.pnlCanvasHeader.BackColor = Color.FromArgb(20, 30, 48);
+            this.pnlCanvasHeader.Padding = new Padding(8, 4, 8, 4);
+
+            this.lblCanvasTitle.Text = "📐 2D Yakınsama Önizleme (f(x) vs P_n(x))";
+            this.lblCanvasTitle.Dock = DockStyle.Left;
+            this.lblCanvasTitle.Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold);
+            this.lblCanvasTitle.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblCanvasTitle.AutoSize = true;
+
+            this.lblCanvasLegend.Text = "— f(x) (Cyan)   — P_n(x) (Yeşil)   ● a (Turuncu)";
+            this.lblCanvasLegend.Dock = DockStyle.Right;
+            this.lblCanvasLegend.Font = new Font("Segoe UI", 7.5F);
+            this.lblCanvasLegend.ForeColor = Color.FromArgb(148, 163, 184);
+            this.lblCanvasLegend.AutoSize = true;
+
+            this.pnlCanvasHeader.Controls.Add(this.lblCanvasTitle);
+            this.pnlCanvasHeader.Controls.Add(this.lblCanvasLegend);
+
+            this.pnlMiniCanvas.Dock = DockStyle.Fill;
+            this.pnlMiniCanvas.BackColor = Color.FromArgb(11, 15, 28);
+            this.pnlMiniCanvas.DoubleBuffered(true);
+
+            this.splitVisual.Panel2.Controls.Add(this.pnlMiniCanvas);
+            this.splitVisual.Panel2.Controls.Add(this.pnlCanvasHeader);
 
             // Add to pnlContent with proper Z-Order (Presets & Card at Top, SplitContainer Fills remainder)
             this.pnlContent.Controls.Add(this.splitVisual);

@@ -89,12 +89,15 @@ namespace MathApp.Controls
             dgvTerms.Columns.Add("coeffDec", "Ondalık c_k");
             dgvTerms.Columns.Add("termStr", "Polinom Terimi");
 
-            dgvTerms.Columns["k"].Width = 35;
-            dgvTerms.Columns["derivSym"].Width = 85;
-            dgvTerms.Columns["derivVal"].Width = 110;
-            dgvTerms.Columns["fact"].Width = 60;
-            dgvTerms.Columns["coeffFrac"].Width = 100;
-            dgvTerms.Columns["coeffDec"].Width = 100;
+            dgvTerms.Columns["k"].Width = 45;
+            dgvTerms.Columns["k"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvTerms.Columns["derivSym"].Width = 95;
+            dgvTerms.Columns["derivVal"].Width = 140;
+            dgvTerms.Columns["fact"].Width = 70;
+            dgvTerms.Columns["fact"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvTerms.Columns["coeffFrac"].Width = 120;
+            dgvTerms.Columns["coeffDec"].Width = 120;
+            dgvTerms.Columns["termStr"].MinimumWidth = 160;
 
             dgvError.Columns.Clear();
             dgvError.Columns.Add("testPoint", "Test Noktası (x)");
@@ -371,12 +374,14 @@ namespace MathApp.Controls
                 return;
             }
 
-            // Coordinate bounds around center point
-            decimal xSpan = 4m;
+            // Coordinate bounds around center point with natural aspect ratio
+            decimal aspect = (decimal)w / Math.Max(1, h);
+            decimal yHalfSpan = 3.5m;
+            decimal xSpan = yHalfSpan * (aspect > 1.2m ? aspect * 0.75m : 1.2m);
             decimal xMin = _lastCenter - xSpan;
             decimal xMax = _lastCenter + xSpan;
-            decimal yMin = -4m;
-            decimal yMax = 4m;
+            decimal yMin = -yHalfSpan;
+            decimal yMax = yHalfSpan;
 
             // Transform helpers
             float ToScreenX(decimal x) => (float)((x - xMin) / (xMax - xMin) * (decimal)w);
